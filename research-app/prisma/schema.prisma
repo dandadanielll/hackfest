@@ -1,0 +1,121 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// NextAuth required models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// Main user model
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+
+  accounts  Account[]
+  sessions  Session[]
+  articles  Article[]
+  libraries Library[]
+  notebooks Notebook[]
+  citations Citation[]
+}
+
+// Saved articles from Find Topics
+model Article {
+  id               String   @id @default(cuid())
+  title            String
+  authors          String // JSON string array
+  journal          String?
+  year             String?
+  url              String?
+  doi              String?
+  abstract         String?
+  credibilityScore Float?
+  isLocal          Boolean  @default(false) // true if from PH sources
+  createdAt        DateTime @default(now())
+
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  libraryId String?
+  library   Library?   @relation(fields: [libraryId], references: [id])
+  citations Citation[]
+}
+
+// Library folders
+model Library {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+
+  userId   String
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  articles Article[]
+}
+
+// AI Writer notebooks
+model Notebook {
+  id        String   @id @default(cuid())
+  title     String
+  content   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Saved citations
+model Citation {
+  id        String   @id @default(cuid())
+  apa       String
+  mla       String
+  chicago   String
+  createdAt DateTime @default(now())
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  articleId String?
+  article   Article? @relation(fields: [articleId], references: [id])
+}
