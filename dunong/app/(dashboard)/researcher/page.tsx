@@ -40,17 +40,6 @@ interface ExpandedCardState {
 type SortOption = "credibility" | "year_desc" | "year_asc" | "citations";
 type FilterOption = "all" | "local" | "open_access";
 
-const SUGGESTIONS = [
-  "stunting and cognitive development Filipino children",
-  "climate change adaptation Philippine agriculture",
-  "mental health interventions Filipino adolescents",
-  "dengue fever epidemiology Philippines",
-  "microplastics Pasig River contamination",
-  "K-12 curriculum implementation Philippines",
-  "COVID-19 vaccine hesitancy Filipino communities",
-  "mangrove restoration Visayas",
-];
-
 function getSavedArticles(): Article[] {
   if (typeof window === "undefined") return [];
   try { return JSON.parse(localStorage.getItem("dunong_library") || "[]"); }
@@ -104,6 +93,8 @@ export default function ResearcherPage() {
   // Search bar focus state
   const [inputFocused, setInputFocused] = useState(false);
   const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const suggestionsDebounce = useRef<NodeJS.Timeout | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const filterMenuRef = useRef<HTMLDivElement>(null);
 
@@ -118,17 +109,34 @@ export default function ResearcherPage() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  // Update suggestions when query changes
   useEffect(() => {
-    if (query.trim().length > 1) {
-      setFilteredSuggestions(
-        SUGGESTIONS.filter((s) => s.toLowerCase().includes(query.toLowerCase())).slice(0, 4)
-      );
-    } else if (inputFocused && !query.trim()) {
-      setFilteredSuggestions(SUGGESTIONS.slice(0, 5));
-    } else {
+    if (!inputFocused) {
       setFilteredSuggestions([]);
+      return;
     }
+
+    if (suggestionsDebounce.current) clearTimeout(suggestionsDebounce.current);
+
+    suggestionsDebounce.current = setTimeout(async () => {
+      setLoadingSuggestions(true);
+      try {
+        const res = await fetch("/api/suggestions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: query.trim() }),
+        });
+        const data = await res.json();
+        setFilteredSuggestions(data.suggestions || []);
+      } catch {
+        setFilteredSuggestions([]);
+      } finally {
+        setLoadingSuggestions(false);
+      }
+    }, 400);
+
+    return () => {
+      if (suggestionsDebounce.current) clearTimeout(suggestionsDebounce.current);
+    };
   }, [query, inputFocused]);
 
   const runSearch = useCallback(async (searchQuery: string, international: boolean) => {
@@ -136,7 +144,7 @@ export default function ResearcherPage() {
 
     setIsSearching(true);
     setResultsMode(false);
-    setShowAgentPanel(true);
+    // don't auto-open agent panel
     setInputFocused(false);
 
     const logs: string[] = [
@@ -402,7 +410,7 @@ export default function ResearcherPage() {
 
             {/* AI Suggestions dropdown */}
             <AnimatePresence>
-              {inputFocused && filteredSuggestions.length > 0 && (
+              {inputFocused && (loadingSuggestions || filteredSuggestions.length > 0) && (
                 <motion.div
                   initial={{ opacity: 0, y: -4 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -412,19 +420,29 @@ export default function ResearcherPage() {
                 >
                   <div className="px-4 py-2 border-b border-stone-100 flex items-center gap-2">
                     <Sparkles size={12} className="text-amber-500" />
-                    <span className="text-xs font-bold text-stone-400 uppercase tracking-wider">Suggested queries</span>
+                    <span className="text-xs font-bold text-stone-400 uppercase tracking-wider">
+                      {loadingSuggestions ? "Generating suggestions..." : "Suggested queries"}
+                    </span>
                   </div>
-                  {filteredSuggestions.map((s) => (
-                    <button
-                      key={s}
-                      type="button"
-                      onMouseDown={() => handleSuggestionClick(s)}
-                      className="w-full text-left px-4 py-3 text-sm text-stone-700 hover:bg-stone-50 transition flex items-center gap-3 border-b border-stone-50 last:border-0"
-                    >
-                      <Search size={13} className="text-stone-300 shrink-0" />
-                      {s}
-                    </button>
-                  ))}
+                  {loadingSuggestions ? (
+                    <div className="px-4 py-3 flex gap-2 items-center">
+                      <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                      <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse delay-75" />
+                      <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse delay-150" />
+                    </div>
+                  ) : (
+                    filteredSuggestions.map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onMouseDown={() => handleSuggestionClick(s)}
+                        className="w-full text-left px-4 py-3 text-sm text-stone-700 hover:bg-stone-50 transition flex items-center gap-3 border-b border-stone-50 last:border-0"
+                      >
+                        <Search size={13} className="text-stone-300 shrink-0" />
+                        {s}
+                      </button>
+                    ))
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>
