@@ -1,27 +1,44 @@
-import { NextResponse } from "next/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { NextRequest, NextResponse } from "next/server";
+import { askGroqJSON } from "@/lib/groq";
 
-const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY || "");
+export async function POST(req: NextRequest) {
+  const { text, url, doi } = await req.json();
 
-export async function POST(req: Request) {
+  const input = text || url || doi;
+  if (!input) {
+    return NextResponse.json({ error: "No article information provided" }, { status: 400 });
+  }
+
+  const prompt = `You are an academic citation generator.
+
+Given the following article information, generate accurate citations in APA 7th edition, MLA 9th edition, and Chicago 17th edition formats.
+
+Article information:
+${input}
+${doi ? `DOI: ${doi}` : ""}
+${url ? `URL: ${url}` : ""}
+
+Rules:
+- Extract metadata from the provided text (title, authors, year, journal, volume, issue, pages, DOI)
+- If a field is missing, omit it gracefully — do not invent data
+- Return ONLY valid JSON with no markdown, no backticks, no extra text
+
+Return exactly:
+{
+  "apa": "full APA 7th edition citation",
+  "mla": "full MLA 9th edition citation",
+  "chicago": "full Chicago 17th edition citation"
+}`;
+
   try {
-    const { url } = await req.json();
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
-    const systemPrompt = `
-      You are DUNONG, an AI Research Assistant for Filipino students.
-      TASK: Generate an APA and MLA citation for the following article: "${url}".
-      OUTPUT FORMAT: JSON { "apa": "citation", "mla": "citation" }
-    `;
-
-    const result = await model.generateContent(systemPrompt);
-    const responseText = result.response.text().replace(/```json|```/g, "");
-
-    return NextResponse.json(JSON.parse(responseText));
+    const result = await askGroqJSON<{ apa: string; mla: string; chicago: string }>(prompt, 600);
+    return NextResponse.json({
+      apa: result.apa || "",
+      mla: result.mla || "",
+      chicago: result.chicago || "",
+    });
   } catch (error) {
-    return NextResponse.json(
-      { apa: "Santos, J., et al. (2022). Stunting and cognitive development. PHILJOL, 14(2), 45-62.", mla: "Santos, Jose, et al. \"Stunting and Cognitive Development...\" PHILJOL, vol. 14, 2022." },
-      { status: 200 }
-    );
+    console.error("Citation route error:", error);
+    return NextResponse.json({ error: "Failed to generate citations" }, { status: 500 });
   }
 }

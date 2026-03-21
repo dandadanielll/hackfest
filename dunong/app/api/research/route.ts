@@ -1,5 +1,22 @@
 import { NextResponse } from "next/server";
 
+// Reconstruct abstract from OpenAlex inverted index format
+function reconstructAbstract(invertedIndex: Record<string, number[]> | null): string {
+  if (!invertedIndex) return "";
+  try {
+    const wordPositions: [string, number][] = [];
+    for (const [word, positions] of Object.entries(invertedIndex)) {
+      for (const pos of positions) {
+        wordPositions.push([word, pos]);
+      }
+    }
+    wordPositions.sort((a, b) => a[1] - b[1]);
+    return wordPositions.map(([word]) => word).join(" ");
+  } catch {
+    return "";
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const { query, localSourcesOnly } = await req.json();
@@ -8,113 +25,209 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Query is required" }, { status: 400 });
     }
 
-    // Connect to OpenAlex API
-    let url = `https://api.openalex.org/works?search=${encodeURIComponent(query)}&per-page=12`;
-    
-    // Apply Philippine Institution Filter if localSourcesOnly is toggled
-    if (localSourcesOnly) {
-       url += `&filter=institutions.country_code:PH`;
+    const results: any[] = [];
+
+    // --- OpenAlex (Primary) ---
+    try {
+      let openAlexUrl = `https://api.openalex.org/works?search=${encodeURIComponent(query)}&per-page=12&mailto=dunong@up.edu.ph`;
+
+      if (localSourcesOnly) {
+        openAlexUrl += `&filter=institutions.country_code:PH`;
+      }
+
+      const oaRes = await fetch(openAlexUrl);
+      if (oaRes.ok) {
+        const oaData = await oaRes.json();
+
+        for (const work of (oaData.results || [])) {
+          const isLocal = work.authorships?.some((a: any) =>
+            a.institutions?.some((i: any) => i.country_code === "PH")
+          ) || false;
+
+          // Skip international if localSourcesOnly
+          if (localSourcesOnly && !isLocal) continue;
+
+          let score = 50;
+          if (isLocal) score += 10;
+          if (work.open_access?.is_oa) score += 5;
+          if (work.doi) score += 5;
+          const citations = work.cited_by_count || 0;
+          if (citations > 500) score += 25;
+          else if (citations > 100) score += 15;
+          else if (citations > 20) score += 10;
+          else if (citations > 5) score += 5;
+          score = Math.min(score, 99);
+
+          const authors = (work.authorships || [])
+            .slice(0, 3)
+            .map((a: any) => a.author?.display_name)
+            .filter(Boolean)
+            .join(", ") || "Unknown Author";
+
+          const abstract = reconstructAbstract(work.abstract_inverted_index);
+
+          const doi = work.doi
+            ? work.doi.replace("https://doi.org/", "")
+            : null;
+
+          results.push({
+            id: work.id,
+            title: work.display_name || "Untitled",
+            authors,
+            year: work.publication_year?.toString() || "",
+            journal: work.primary_location?.source?.display_name || "Unknown Journal",
+            credibility: score,
+            abstract,
+            localSource: isLocal,
+            openAccess: work.open_access?.is_oa || false,
+            url: work.doi || work.id,
+            doi,
+            source: isLocal ? "OpenAlex (PH)" : "OpenAlex",
+            citationCount: citations,
+          });
+        }
+      }
+    } catch (err) {
+      console.error("OpenAlex error:", err);
     }
 
-    const response = await fetch(url);
-    if (!response.ok) {
-       throw new Error(`OpenAlex API responded with status: ${response.status}`);
+    // --- PHILJOL OAI-PMH (always for local) ---
+    if (localSourcesOnly || results.length < 5) {
+      try {
+        const philjolUrl = `https://philjol.info/index.php/oai?verb=ListRecords&metadataPrefix=oai_dc`;
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000);
+        const philjolRes = await fetch(philjolUrl, {
+          headers: { "User-Agent": "Dunong/1.0 (dunong@up.edu.ph)" },
+          signal: controller.signal,
+        }).finally(() => clearTimeout(timeout));
+
+        if (philjolRes.ok) {
+          const xml = await philjolRes.text();
+          const titleMatches = [...xml.matchAll(/<dc:title>(.*?)<\/dc:title>/gs)];
+          const creatorMatches = [...xml.matchAll(/<dc:creator>(.*?)<\/dc:creator>/gs)];
+          const dateMatches = [...xml.matchAll(/<dc:date>(.*?)<\/dc:date>/gs)];
+          const descMatches = [...xml.matchAll(/<dc:description>(.*?)<\/dc:description>/gs)];
+          const identifierMatches = [...xml.matchAll(/<dc:identifier>(.*?)<\/dc:identifier>/gs)];
+
+          const queryLower = query.toLowerCase();
+          let added = 0;
+
+          for (let i = 0; i < titleMatches.length && added < 4; i++) {
+            const title = titleMatches[i][1].replace(/<[^>]+>/g, "").trim();
+            const abstract = (descMatches[i]?.[1] || "").replace(/<[^>]+>/g, "").trim();
+
+            if (
+              title.toLowerCase().includes(queryLower) ||
+              abstract.toLowerCase().includes(queryLower.split(" ")[0])
+            ) {
+              const urlMatch = (identifierMatches[i]?.[1] || "").match(/https?:\/\/[^\s<]+/);
+              const year = (dateMatches[i]?.[1] || "").substring(0, 4);
+
+              results.push({
+                id: `philjol-${i}-${Date.now()}`,
+                title,
+                authors: (creatorMatches[i]?.[1] || "Unknown Author").replace(/<[^>]+>/g, ""),
+                year,
+                journal: "PHILJOL",
+                credibility: 75,
+                abstract,
+                localSource: true,
+                openAccess: true,
+                url: urlMatch ? urlMatch[0] : "https://philjol.info",
+                doi: null,
+                source: "PHILJOL",
+                citationCount: 0,
+              });
+              added++;
+            }
+          }
+        }
+      } catch (err) {
+        // PHILJOL unavailable — silently skip, OpenAlex results still shown
+      }
     }
 
-    const data = await response.json();
-    
-    // Transform OpenAlex schema to Dunong standard Article schema
-    const articles = data.results.map((work: any) => {
-      // Calculate Dunong Credibility Score (PRD logic)
-      let score = 55; // Lowered baseline so 100 is rare
-      const isLocal = work.authorships?.some((a: any) => a.institutions?.some((i: any) => i.country_code === 'PH'));
-      if (isLocal) score += 10;
-      if (work.open_access?.is_oa) score += 5;
-      if (work.doi) score += 5;
-      if (work.cited_by_count > 500) score += 25;
-      else if (work.cited_by_count > 100) score += 15;
-      else if (work.cited_by_count > 20) score += 10;
-      else if (work.cited_by_count > 5) score += 5;
-      
-      score = Math.min(score, 100);
+    // --- Semantic Scholar (international only) ---
+    if (!localSourcesOnly) {
+      try {
+        const ssUrl = `https://api.semanticscholar.org/graph/v1/paper/search?query=${encodeURIComponent(query)}&limit=5&fields=title,authors,year,abstract,venue,externalIds,citationCount,isOpenAccess`;
+        const ssRes = await fetch(ssUrl, {
+          headers: { "User-Agent": "Dunong/1.0 (dunong@up.edu.ph)" },
+        });
 
-      // Safe Extraction of data
-      const authors = work.authorships?.slice(0, 3).map((a: any) => a.author?.display_name).join(", ") || "Unknown Author";
-      const abstractText = work.abstract_inverted_index 
-          ? Object.keys(work.abstract_inverted_index).slice(0, 40).join(" ") + "..." // Simple reconstruction for demo
-          : "Abstract not available for this article.";
+        if (ssRes.ok) {
+          const ssData = await ssRes.json();
+          for (const paper of (ssData.data || [])) {
+            const authors = (paper.authors || [])
+              .slice(0, 3)
+              .map((a: any) => a.name)
+              .join(", ") || "Unknown Author";
 
-      return {
-        id: work.id,
-        title: work.display_name || "Untitled Research",
-        authors: authors,
-        year: work.publication_year?.toString() || new Date().getFullYear().toString(),
-        journal: work.primary_location?.source?.display_name || "Independent Publisher",
-        credibility: score,
-        abstract: abstractText,
-        localSource: isLocal || localSourcesOnly,
-        openAccess: work.open_access?.is_oa || false,
-        url: work.doi || work.id,
-        citations: work.cited_by_count || 0
-      };
+            const doi = paper.externalIds?.DOI || null;
+            const citations = paper.citationCount || 0;
+
+            let score = 50;
+            if (doi) score += 5;
+            if (paper.isOpenAccess) score += 5;
+            if (citations > 500) score += 25;
+            else if (citations > 100) score += 15;
+            else if (citations > 20) score += 10;
+            else if (citations > 5) score += 5;
+            score = Math.min(score, 99);
+
+            results.push({
+              id: `ss-${paper.paperId}`,
+              title: paper.title || "Untitled",
+              authors,
+              year: paper.year?.toString() || "",
+              journal: paper.venue || "Unknown Venue",
+              credibility: score,
+              abstract: paper.abstract || "",
+              localSource: false,
+              openAccess: paper.isOpenAccess || false,
+              url: doi ? `https://doi.org/${doi}` : `https://semanticscholar.org/paper/${paper.paperId}`,
+              doi,
+              source: "Semantic Scholar",
+              citationCount: citations,
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Semantic Scholar error:", err);
+      }
+    }
+
+    // Deduplicate by DOI or title
+    const seen = new Set<string>();
+    const deduplicated = results.filter((a) => {
+      const key = a.doi || a.title.toLowerCase().trim();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
     });
 
-    // If API returns empty, fallback to seed
-    if (articles.length === 0) {
-      throw new Error("No results found, falling back to seed");
+    // Sort: local first, then by credibility
+    deduplicated.sort((a, b) => {
+      if (a.localSource && !b.localSource) return -1;
+      if (!a.localSource && b.localSource) return 1;
+      return b.credibility - a.credibility;
+    });
+
+    if (deduplicated.length === 0) {
+      return NextResponse.json({
+        articles: [],
+        message: "No results found. Try a different search term.",
+      });
     }
 
-    // Sort by credibility (Dunong ranking)
-    articles.sort((a: any, b: any) => b.credibility - a.credibility);
-
-    return NextResponse.json({ articles: articles.slice(0, 10) });
+    return NextResponse.json({ articles: deduplicated.slice(0, 12) });
 
   } catch (error) {
-    console.error("Search Engine Live Fetch failed, returning seed data:", error);
-    
-    // PRD Fallback Strategy: Return 3 high quality hardcoded local papers
-    const seedArticles = [
-      {
-         id: "seed-1",
-         title: "Stunting and cognitive development in Filipino children: A longitudinal study in rural Mindanao.",
-         authors: "Santos, J., Dimaculangan, R., & Reyes, M.",
-         year: "2022",
-         journal: "Philippine Journal of Health Research",
-         credibility: 94,
-         abstract: "This study investigates the long-term cognitive impacts of early childhood stunting in rural Mindanao communities...",
-         localSource: true,
-         openAccess: true,
-         url: "https://herdin.ph",
-         citations: 124
-      },
-      {
-         id: "seed-2",
-         title: "Urban-rural disparities in child nutritional status and academic performance in Region VII.",
-         authors: "Garcia, L. & Fernandez, P.",
-         year: "2021",
-         journal: "Journal of Philippine Education Studies",
-         credibility: 88,
-         abstract: "Analyzing DepEd achievement tests alongside regional health data, this paper identifies significant correlations between malnutrition...",
-         localSource: true,
-         openAccess: false,
-         url: "https://philjol.info",
-         citations: 45
-      },
-      {
-         id: "seed-3",
-         title: "Evaluating the effectiveness of DepEd school-based feeding programs in Northern Luzon.",
-         authors: "Villanueva, C.",
-         year: "2023",
-         journal: "PHILJOL - Education Quarterly",
-         credibility: 95,
-         abstract: "A comprehensive assessment of state-funded feeding interventions over a 3-year period across 50 public elementary schools.",
-         localSource: true,
-         openAccess: true,
-         url: "https://philjol.info",
-         citations: 12
-      }
-    ];
-
-    return NextResponse.json({ articles: seedArticles });
+    console.error("Research route error:", error);
+    return NextResponse.json(
+      { error: "Search failed. Please try again." },
+      { status: 500 }
+    );
   }
 }
