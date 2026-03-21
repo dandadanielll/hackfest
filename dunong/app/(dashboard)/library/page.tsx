@@ -31,7 +31,7 @@ export default function LibraryPage() {
             <h2 className="font-bold text-xl text-stone-900 font-serif w-full truncate border-b border-stone-200/50 pb-4 pr-12">Thesis Chapter 2</h2>
             <div className="relative -ml-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" size={16} />
-              <input 
+              <input
                 className="pl-9 pr-4 py-2 border border-stone-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-amber-500/30 w-64 bg-white/80 transition-all font-medium text-stone-800 placeholder:text-stone-400"
                 placeholder="Search resources..."
               />
@@ -51,9 +51,8 @@ export default function LibraryPage() {
 
 function FolderItem({ name, count, active = false }: { name: string, count: number, active?: boolean }) {
   return (
-    <button className={`w-full flex justify-between items-center px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-      active ? 'bg-amber-100/50 shadow-sm border border-amber-200/50 text-rose-900' : 'text-stone-600 hover:bg-white/50 border border-transparent hover:text-stone-900'
-    }`}>
+    <button className={`w-full flex justify-between items-center px-4 py-3 rounded-xl text-sm font-semibold transition-all ${active ? 'bg-amber-100/50 shadow-sm border border-amber-200/50 text-rose-900' : 'text-stone-600 hover:bg-white/50 border border-transparent hover:text-stone-900'
+      }`}>
       <span className="flex items-center gap-3"><Folder size={16} className={active ? "text-amber-600" : "text-stone-400"} /> {name}</span>
       <span className="text-[10px] font-black bg-white px-2 py-0.5 rounded-md text-stone-500 shadow-sm border border-stone-100">{count}</span>
     </button>

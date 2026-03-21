@@ -16,11 +16,11 @@ export async function POST(req: Request) {
 
     const result = await model.generateContent(systemPrompt);
     const responseText = result.response.text().replace(/```json|```/g, "");
-    
+
     return NextResponse.json(JSON.parse(responseText));
   } catch (error) {
     return NextResponse.json(
-      { apa: "Santos, J., et al. (2022). Stunting and cognitive development. PHILJOL, 14(2), 45-62.", mla: "Santos, Jose, et al. \"Stunting and Cognitive Development...\" PHILJOL, vol. 14, 2022." }, 
+      { apa: "Santos, J., et al. (2022). Stunting and cognitive development. PHILJOL, 14(2), 45-62.", mla: "Santos, Jose, et al. \"Stunting and Cognitive Development...\" PHILJOL, vol. 14, 2022." },
       { status: 200 }
     );
   }

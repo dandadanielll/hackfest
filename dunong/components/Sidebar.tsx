@@ -17,12 +17,12 @@ export default function Sidebar() {
       </Link>
 
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-        <NavItem href="/researcher" icon={<SearchIcon size={18}/>} label="Search Engine" active={pathname === '/researcher'} />
-        <NavItem href="/library" icon={<Layers size={18}/>} label="Library" active={pathname === '/library'} />
-        <NavItem href="/writer" icon={<FileText size={18}/>} label="Writer" active={pathname === '/writer'} />
-        <NavItem href="/synthesis" icon={<Zap size={18}/>} label="AI Tools" active={['/synthesis', '/gaps', '/graph', '/audio'].includes(pathname)} />
-        <NavItem href="/citation" icon={<Settings size={18}/>} label="Citation Generator" active={pathname === '/citation'} />
-        <NavItem href="/credibility" icon={<Bookmark size={18}/>} label="Credibility Score" active={pathname === '/credibility'} />
+        <NavItem href="/researcher" icon={<SearchIcon size={18} />} label="Search Engine" active={pathname === '/researcher'} />
+        <NavItem href="/library" icon={<Layers size={18} />} label="Library" active={pathname === '/library'} />
+        <NavItem href="/writer" icon={<FileText size={18} />} label="Writer" active={pathname === '/writer'} />
+        <NavItem href="/synthesis" icon={<Zap size={18} />} label="AI Tools" active={['/synthesis', '/gaps', '/graph', '/audio'].includes(pathname)} />
+        <NavItem href="/citation" icon={<Settings size={18} />} label="Citation Generator" active={pathname === '/citation'} />
+        <NavItem href="/credibility" icon={<Bookmark size={18} />} label="Credibility Score" active={pathname === '/credibility'} />
       </nav>
 
       <div className="p-4 border-t border-stone-200/50 shrink-0">
@@ -41,19 +41,18 @@ export default function Sidebar() {
 }
 
 // Temporary search icon until imported matching lucide icon is confirmed
-function SearchIcon({size}: {size: number}) {
-  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+function SearchIcon({ size }: { size: number }) {
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
 }
 
 function NavItem({ href, icon, label, active = false }: { href: string; icon: any, label: string, active?: boolean }) {
   return (
-    <Link 
+    <Link
       href={href}
-      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ${
-        active ? 'bg-rose-900 text-stone-50 shadow-md shadow-rose-900/20' : 'text-stone-600 hover:bg-stone-200/50 hover:text-stone-900'
-      }`}
+      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ${active ? 'bg-rose-900 text-stone-50 shadow-md shadow-rose-900/20' : 'text-stone-600 hover:bg-stone-200/50 hover:text-stone-900'
+        }`}
     >
       {icon} {label}
     </Link>
   );
-}
+}

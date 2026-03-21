@@ -6,7 +6,7 @@ import { useState } from 'react';
 export default function CitationPage() {
   const [url, setUrl] = useState('');
   const [generating, setGenerating] = useState(false);
-  const [citations, setCitations] = useState<{apa?: string, mla?: string} | null>(null);
+  const [citations, setCitations] = useState<{ apa?: string, mla?: string } | null>(null);
 
   const handleGenerate = () => {
     if (!url) return;
@@ -37,13 +37,13 @@ export default function CitationPage() {
         <div className="flex gap-4">
           <div className="relative flex-1">
             <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" size={18} />
-            <input 
+            <input
               className="w-full bg-stone-50 border-2 border-stone-200 pl-12 pr-4 py-4 rounded-2xl outline-none focus:ring-4 focus:ring-amber-500/20 focus:border-amber-400 text-stone-800 transition-all font-serif placeholder:font-sans placeholder:text-stone-400"
               placeholder="https://philjol.info/article/12345"
               value={url} onChange={(e) => setUrl(e.target.value)}
             />
           </div>
-          <button 
+          <button
             onClick={handleGenerate} disabled={generating}
             className="bg-stone-900 text-stone-50 px-8 py-4 rounded-2xl font-bold hover:bg-stone-800 transition disabled:opacity-50 whitespace-nowrap shadow-lg"
           >
@@ -75,7 +75,7 @@ function CitationBox({ format, content }: { format: string, content: string }) {
       <div className="flex justify-between items-center mb-4 border-b border-stone-100 pb-4">
         <h3 className="font-bold text-sm text-stone-400 uppercase tracking-widest">{format}</h3>
         <button onClick={handleCopy} className="text-stone-400 hover:text-rose-800 transition flex items-center gap-2 text-sm font-bold bg-stone-50 hover:bg-rose-50 px-3 py-1.5 rounded-lg">
-          {copied ? <Check size={16} className="text-rose-700"/> : <Copy size={16} />} {copied ? 'Copied' : 'Copy'}
+          {copied ? <Check size={16} className="text-rose-700" /> : <Copy size={16} />} {copied ? 'Copied' : 'Copy'}
         </button>
       </div>
       <p className="text-stone-800 leading-relaxed font-serif text-lg">{content}</p>

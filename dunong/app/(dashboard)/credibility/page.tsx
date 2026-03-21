@@ -29,17 +29,17 @@ export default function CredibilityPage() {
       </div>
 
       <div className="relative mb-16">
-        <input 
+        <input
           className="w-full p-6 pl-8 pr-40 bg-white/80 backdrop-blur-md border-2 border-stone-200 rounded-[2.5rem] shadow-[0_10px_40px_-15px_rgba(123,24,24,0.1)] outline-none focus:ring-4 focus:ring-amber-500/20 focus:border-amber-400 text-xl transition-all font-serif placeholder:font-sans placeholder:text-stone-400"
           placeholder="Paste article URL or DOI..."
           value={url} onChange={(e) => setUrl(e.target.value)}
         />
-        <button 
+        <button
           onClick={handleCheck}
           disabled={analyzing}
           className="absolute right-3 top-1/2 -translate-y-1/2 bg-rose-900 text-amber-50 px-8 py-4 rounded-full font-bold hover:bg-rose-800 transition flex items-center gap-2 disabled:opacity-50 shadow-lg"
         >
-          {analyzing ? <AlertTriangle className="animate-pulse" size={18} /> : <Search size={18} />} 
+          {analyzing ? <AlertTriangle className="animate-pulse" size={18} /> : <Search size={18} />}
           {analyzing ? 'Checking...' : 'Analyze'}
         </button>
       </div>
@@ -58,8 +58,8 @@ export default function CredibilityPage() {
               </div>
             </div>
             <div>
-               <h2 className="text-3xl font-bold text-stone-900 mb-3 font-serif">High Credibility Source</h2>
-               <p className="text-stone-600 text-lg leading-relaxed">This article is published in a peer-reviewed, PHILJOL-indexed journal. The primary author is affiliated with a recognized Philippine State University.</p>
+              <h2 className="text-3xl font-bold text-stone-900 mb-3 font-serif">High Credibility Source</h2>
+              <p className="text-stone-600 text-lg leading-relaxed">This article is published in a peer-reviewed, PHILJOL-indexed journal. The primary author is affiliated with a recognized Philippine State University.</p>
             </div>
           </div>
 
