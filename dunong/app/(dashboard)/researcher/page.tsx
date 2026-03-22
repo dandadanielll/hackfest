@@ -3,11 +3,12 @@
 import {
   Search, Sparkles, Filter, ArrowRight, ArrowLeft, Globe,
   Eye, EyeOff, BookOpen, Quote, ExternalLink,
-  ChevronDown, ChevronUp, Bookmark, BookmarkCheck, X
+  ChevronDown, ChevronUp, Bookmark, BookmarkCheck, X, FolderOpen, Check
 } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import AgentThinking from "@/components/AgentThinking";
+import { useLibrary } from "@/lib/libraryContext";
 
 interface Article {
   id: string;
@@ -40,34 +41,73 @@ interface ExpandedCardState {
 type SortOption = "credibility" | "year_desc" | "year_asc" | "citations";
 type FilterOption = "all" | "local" | "open_access";
 
-function getSavedArticles(): Article[] {
-  if (typeof window === "undefined") return [];
-  try { return JSON.parse(localStorage.getItem("dunong_library") || "[]"); }
-  catch { return []; }
-}
 
-function saveArticle(article: Article) {
-  const saved = getSavedArticles();
-  if (!saved.find((a) => a.id === article.id)) {
-    saved.push(article);
-    localStorage.setItem("dunong_library", JSON.stringify(saved));
-  }
-}
-
-function unsaveArticle(id: string) {
-  localStorage.setItem("dunong_library", JSON.stringify(getSavedArticles().filter((a) => a.id !== id)));
-}
-
-function isArticleSaved(id: string): boolean {
-  return getSavedArticles().some((a) => a.id === id);
-}
 
 function saveSession(data: object) {
   if (typeof window === "undefined") return;
   sessionStorage.setItem("dunong_search", JSON.stringify(data));
 }
 
+// ─── Folder Picker Popup ─────────────────────────────────────────────────────
+function FolderPickerPopup({
+  article,
+  savedFolderIds,
+  folders,
+  onPick,
+  onClose,
+}: {
+  article: Article;
+  savedFolderIds: string[];
+  folders: ReturnType<typeof useLibrary>["folders"];
+  onPick: (folderId: string) => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" />
+      <div
+        className="relative bg-white rounded-2xl shadow-2xl p-5 w-72 border border-stone-200"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <p className="font-bold text-stone-900 text-sm">Save to Folder</p>
+            <p className="text-stone-400 text-xs mt-0.5 truncate max-w-[180px]">{article.title}</p>
+          </div>
+          <button onClick={onClose} className="text-stone-400 hover:text-stone-700 transition">
+            <X size={16} />
+          </button>
+        </div>
+        {folders.length === 0 ? (
+          <p className="text-sm text-stone-400 italic text-center py-4">No folders yet. Create one in the Library first.</p>
+        ) : (
+          <div className="flex flex-col gap-1 max-h-60 overflow-y-auto">
+            {folders.map((f) => {
+              const isSaved = savedFolderIds.includes(f.id);
+              return (
+                <button
+                  key={f.id}
+                  onClick={() => onPick(f.id)}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition text-left ${isSaved
+                      ? "bg-amber-50 text-amber-800 border border-amber-200"
+                      : "hover:bg-stone-50 text-stone-700 border border-transparent"
+                    }`}
+                >
+                  <FolderOpen size={14} className={isSaved ? "text-amber-500" : "text-stone-400"} />
+                  <span className="flex-1 truncate">{f.name}</span>
+                  {isSaved && <Check size={13} className="text-amber-600 shrink-0" />}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function ResearcherPage() {
+  const { folders, saveArticle } = useLibrary();
   const [mounted, setMounted] = useState(false);
   const [query, setQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
@@ -77,6 +117,8 @@ export default function ResearcherPage() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [agentLogs, setAgentLogs] = useState<string[]>([]);
   const [expandedCards, setExpandedCards] = useState<ExpandedCardState>({});
+  const [bookmarkPopupArticle, setBookmarkPopupArticle] = useState<Article | null>(null);
+  const [recentlySaved, setRecentlySaved] = useState<Record<string, boolean>>({});
 
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>("credibility");
@@ -243,7 +285,7 @@ export default function ResearcherPage() {
         citationFormat: current?.citationFormat || "APA",
         generatedCitation: current?.generatedCitation || "",
         loadingCitation: false,
-        saved: isArticleSaved(id),
+        saved: isArticleSavedInAnyFolder(id),
       },
     }));
 
@@ -299,11 +341,32 @@ export default function ResearcherPage() {
     }
   };
 
-  const handleSaveToggle = (article: Article) => {
-    const id = article.id;
-    const currently = expandedCards[id]?.saved ?? isArticleSaved(id);
-    currently ? unsaveArticle(id) : saveArticle(article);
-    setExpandedCards((prev) => ({ ...prev, [id]: { ...prev[id], saved: !currently } }));
+  const isArticleSavedInAnyFolder = (id: string) =>
+    recentlySaved[id] ??
+    folders.some((f) => f.articles.some((a) => a.id === id));
+
+  const handleBookmarkClick = (article: Article) => {
+    setBookmarkPopupArticle(article);
+  };
+
+  const handlePickFolder = (folderId: string) => {
+    if (!bookmarkPopupArticle) return;
+    const article = bookmarkPopupArticle;
+    saveArticle(folderId, {
+      id: article.id,
+      title: article.title,
+      authors: article.authors,
+      year: article.year,
+      journal: article.journal,
+      credibility: article.credibility,
+      abstract: article.abstract,
+      keywords: [],
+      localSource: article.localSource,
+      openAccess: article.openAccess,
+      url: article.url,
+    });
+    setRecentlySaved((prev) => ({ ...prev, [article.id]: true }));
+    setBookmarkPopupArticle(null);
   };
 
   const displayedArticles = [...articles]
@@ -371,7 +434,7 @@ export default function ResearcherPage() {
         <motion.div
           layout
           initial={false}
-          animate={{ 
+          animate={{
             scale: inputFocused && !resultsMode ? 1.02 : 1,
             y: inputFocused && !resultsMode ? -5 : 0
           }}
@@ -379,11 +442,10 @@ export default function ResearcherPage() {
           className={`w-full max-w-4xl relative z-20 mx-auto ${resultsMode ? "mb-6" : ""}`}
         >
           <form onSubmit={handleSearch} className="relative group">
-            <div className={`relative transition-all duration-500 rounded-[2.5rem] p-3 flex shadow-2xl ring-4 ${
-              inputFocused 
-                ? "bg-white border-[#521118]/20 shadow-[#521118]/20 ring-[#521118]/10" 
+            <div className={`relative transition-all duration-500 rounded-[2.5rem] p-3 flex shadow-2xl ring-4 ${inputFocused
+                ? "bg-white border-[#521118]/20 shadow-[#521118]/20 ring-[#521118]/10"
                 : "bg-[#e8e4df]/70 backdrop-blur-md border-[#e8e4df] shadow-[#2b090d]/10 ring-[#e8e4df]/50"
-            } border`}>
+              } border`}>
               <div className="pl-6 pr-4 flex items-center justify-center text-[#521118]/60">
                 <Search size={24} strokeWidth={2.5} />
               </div>
@@ -579,7 +641,7 @@ export default function ResearcherPage() {
                 {displayedArticles.map((article) => {
                   const cardState = expandedCards[article.id];
                   const isOpen = cardState?.open || false;
-                  const isSaved = cardState?.saved ?? isArticleSaved(article.id);
+                  const isSaved = isArticleSavedInAnyFolder(article.id);
 
                   return (
                     <div key={article.id} className="bg-[#e8e4df]/50 border border-[#e8e4df] rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
