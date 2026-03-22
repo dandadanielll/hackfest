@@ -23,6 +23,7 @@ export default function Sidebar() {
         <NavItem href="/synthesis" icon={<Zap size={18} />} label="AI Tools" active={['/synthesis', '/gaps', '/graph', '/audio'].includes(pathname)} />
         <NavItem href="/citation" icon={<Settings size={18} />} label="Citation Generator" active={pathname === '/citation'} />
         <NavItem href="/credibility" icon={<Bookmark size={18} />} label="Credibility Score" active={pathname === '/credibility'} />
+        <NavItem href="/topic-generator" icon={<LightbulbIcon size={18} />} label="Topic Generator" active={pathname === '/topic-generator'} />
       </nav>
 
       <div className="p-4 border-t border-stone-200/50 shrink-0">
@@ -43,6 +44,10 @@ export default function Sidebar() {
 // Temporary search icon until imported matching lucide icon is confirmed
 function SearchIcon({ size }: { size: number }) {
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+}
+
+function LightbulbIcon({ size }: { size: number }) {
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.9 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>
 }
 
 function NavItem({ href, icon, label, active = false }: { href: string; icon: any, label: string, active?: boolean }) {
