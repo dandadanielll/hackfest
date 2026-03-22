@@ -12,7 +12,7 @@ async function fetchCrossRef(doi: string) {
     if (!res.ok) return null;
     const { message: w } = await res.json();
     const authors = w.author
-      ? w.author.map((a: any) => (a.family || "") + (a.given ? ", " + a.given : "")).join("; ")
+      ? w.author.slice(0, 30).map((a: any) => (a.family || "") + (a.given ? ", " + a.given : "")).join("; ") + (w.author.length > 30 ? "; et al." : "")
       : null;
     const year =
       (w.published?.["date-parts"]?.[0]?.[0]) ||
@@ -49,7 +49,7 @@ async function fetchSemanticScholar(query: string) {
         const d = await r.json();
         if (d.title) return {
           title: d.title,
-          authors: d.authors?.map((a: any) => a.name).join("; ") || null,
+          authors: d.authors ? d.authors.slice(0, 30).map((a: any) => a.name).join("; ") + (d.authors.length > 30 ? "; et al." : "") : null,
           year: d.year ? String(d.year) : null,
           journal: d.journal?.name || d.venue || null,
           doi,
@@ -71,7 +71,7 @@ async function fetchSemanticScholar(query: string) {
     if (!paper) return null;
     return {
       title: paper.title,
-      authors: paper.authors?.map((a: any) => a.name).join("; ") || null,
+      authors: paper.authors ? paper.authors.slice(0, 30).map((a: any) => a.name).join("; ") + (paper.authors.length > 30 ? "; et al." : "") : null,
       year: paper.year ? String(paper.year) : null,
       journal: paper.journal?.name || paper.venue || null,
       doi: paper.externalIds?.DOI || null,
@@ -240,7 +240,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Priority 2: DOI ─────────────────────────────────────────────────────
-    else if (doi || extractDoi(rawInput)) {
+    else if (doi || (!text && extractDoi(rawInput))) {
       const detectedDoi = doi || extractDoi(rawInput)!;
       sourceType = "doi";
       console.log("[Citation] Fetching DOI:", detectedDoi);
@@ -261,24 +261,25 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Priority 3: URL ─────────────────────────────────────────────────────
-    else if (rawInput.startsWith("http")) {
+    else if (url || (!text && rawInput.startsWith("http"))) {
+      const detectedUrl = url || rawInput;
       sourceType = "url";
-      console.log("[Citation] Fetching URL:", rawInput);
+      console.log("[Citation] Fetching URL:", detectedUrl);
 
       // Try HTML meta tags first
-      let found = await fetchHtmlMeta(rawInput);
+      let found = await fetchHtmlMeta(detectedUrl);
 
       // If not found, try Semantic Scholar search with the URL
       if (!found || !found.title) {
         console.log("[Citation] HTML meta miss, trying Semantic Scholar search");
-        const ss = await fetchSemanticScholar(rawInput);
+        const ss = await fetchSemanticScholar(detectedUrl);
         if (ss?.title) found = ss as any;
       }
 
       if (found && found.title) {
-        contextForAI = "METADATA FROM SOURCE:\n" + formatMeta(found, rawInput);
+        contextForAI = "METADATA FROM SOURCE:\n" + formatMeta(found, detectedUrl);
       } else {
-        contextForAI = "URL: " + rawInput + "\n(Could not retrieve metadata — cite as a general webpage using the URL)";
+        contextForAI = "URL: " + detectedUrl + "\n(Could not retrieve metadata — cite as a general webpage using the URL)";
       }
       console.log("[Citation] Context:", contextForAI.slice(0, 200));
     }
@@ -303,7 +304,7 @@ export async function POST(req: NextRequest) {
       '- Output: {"apa": "...", "mla": "...", "chicago": "..."}\n\n' +
       "JSON ONLY:";
 
-    const result = await askGroqJSON<{ apa: string; mla: string; chicago: string }>(prompt, 1200);
+    const result = await askGroqJSON<{ apa: string; mla: string; chicago: string }>(prompt, 4000);
     console.log("--- CITATION RESPONSE ---\n", JSON.stringify(result), "\n-------------------------");
     return NextResponse.json({
       apa: result.apa || "Citation unavailable.",
