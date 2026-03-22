@@ -57,17 +57,31 @@ export default function CitationsPanel({
   };
 
   const handleGenerateBibliography = async () => {
-    if (!apiKey) { alert('Set your Groq API key via the ⚙ icon first.'); return; }
     setGenerating(true);
     try {
       const toProcess =
         citedIds.length > 0
           ? vaultSources.filter((s) => citedIds.includes(s.id || s.title))
           : vaultSources;
-      const entries = await Promise.all(
-        toProcess.map((s) => generateBibliographyEntry(s, citationFormat, apiKey))
-      );
-      setBibliography(entries.filter(Boolean));
+
+      if (toProcess.length === 0) {
+        alert("No sources available to generate bibliography from.");
+        return;
+      }
+
+      const res = await fetch("/api/bibliography", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sources: toProcess, format: citationFormat })
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Failed to generate bibliography");
+      }
+
+      const data = await res.json();
+      setBibliography(data.entries.filter(Boolean));
       setTab('bibliography');
     } catch (e: unknown) {
       alert('Error: ' + (e instanceof Error ? e.message : 'Unknown error'));
@@ -138,7 +152,7 @@ export default function CitationsPanel({
                 : 'text-gray-400 border-transparent hover:text-gray-600'
             }`}
           >
-            {t === 'sources' ? `Vault Sources (${vaultSources.length})` : 'Bibliography'}
+            {t === 'sources' ? `Articles (${vaultSources.length})` : 'Bibliography'}
           </button>
         ))}
       </div>
@@ -245,7 +259,16 @@ export default function CitationsPanel({
                     onClick={handleInsertBibliography}
                     className="flex-1 py-2.5 bg-[#8B1A1A] text-white text-xs font-semibold rounded-lg hover:bg-[#6B1212] transition-colors"
                   >
-                    ↳ Insert into Document
+                    ↳ Insert
+                  </button>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(bibliography.join('\n\n'));
+                      alert('Bibliography copied to clipboard!');
+                    }}
+                    className="flex-1 py-2.5 bg-stone-100 text-[#1A0A00] border border-stone-200 text-xs font-semibold rounded-lg hover:bg-stone-200 transition-colors"
+                  >
+                    ⎘ Copy
                   </button>
                   <button
                     onClick={handleGenerateBibliography}

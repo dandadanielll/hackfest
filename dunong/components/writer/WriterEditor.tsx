@@ -1,11 +1,13 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import type { Notebook, LibraryFolder, CitationFormat } from '@/lib/writer.types';
+import type { Notebook } from '@/lib/libraryStore';
+import type { LibraryFolder } from '@/lib/writer.types';
+import type { CitationFormat } from '@/lib/writer.types';
 import {
-  saveNotebook, renameNotebook, saveDocumentToVault,
-  getVaultSources, countWords, formatLastSaved,
+  saveNotebook, getVaultSources, countWords, formatLastSaved,
 } from '@/lib/writerStorage';
+import { useLibrary } from '@/lib/libraryContext';
 import { exportToDocx } from '@/lib/exportDocx';
 import VaultCopilot from './VaultCopilot';
 import CitationsPanel from './CitationsPanel';
@@ -14,8 +16,6 @@ interface Props {
   notebook: Notebook;
   folder: LibraryFolder;
   onBack: () => void;
-  apiKey: string;
-  onApiKeyChange: (key: string) => void;
 }
 
 const FONT_FAMILIES = ['Georgia', 'Times New Roman', 'Arial', 'Helvetica', 'Courier New', 'Verdana'];
@@ -28,21 +28,19 @@ const PARA_STYLES = [
   { label: 'Heading 4', tag: 'h4' },
 ];
 
-export default function WriterEditor({ notebook, folder, onBack, apiKey, onApiKeyChange }: Props) {
+export default function WriterEditor({ notebook, folder, onBack }: Props) {
+  const { editNotebook } = useLibrary();
   const editorRef = useRef<HTMLDivElement>(null);
   const autoSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [docName, setDocName] = useState(notebook.name);
   const [editingName, setEditingName] = useState(false);
-  const [lastSaved, setLastSaved] = useState(notebook.lastSaved);
   const [wordCount, setWordCount] = useState(notebook.wordCount ?? 0);
-  const [savedTs, setSavedTs] = useState(notebook.lastSaved);
+  const [savedTs, setSavedTs] = useState(notebook.updatedAt);
   const [citationFormat, setCitationFormat] = useState<CitationFormat>(notebook.citationFormat ?? 'APA');
   const [showCitations, setShowCitations] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [vaultSources, setVaultSources] = useState(getVaultSources(folder.id));
+  const [vaultSources, setVaultSources] = useState(() => getVaultSources(folder.id));
   const [selectedText, setSelectedText] = useState('');
-  const [vaultSaved, setVaultSaved] = useState(false);
-  const [localApiKey, setLocalApiKey] = useState(apiKey);
+
   // Toolbar state
   const [fmt, setFmt] = useState({ bold: false, italic: false, underline: false, strike: false });
   const [currentFont, setCurrentFont] = useState('Georgia');
@@ -58,12 +56,12 @@ export default function WriterEditor({ notebook, folder, onBack, apiKey, onApiKe
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Refresh vault if folder changes
+  // Refresh vault sources when folder changes
   useEffect(() => {
     setVaultSources(getVaultSources(folder.id));
-  }, [folder.id]);
+  }, [folder.id, folder.vault]);
 
-  // Track selection
+  // Track selection for toolbar state
   const onSelectionChange = useCallback(() => {
     const sel = window.getSelection();
     setSelectedText(sel?.toString().trim() ?? '');
@@ -80,33 +78,35 @@ export default function WriterEditor({ notebook, folder, onBack, apiKey, onApiKe
     return () => document.removeEventListener('selectionchange', onSelectionChange);
   }, [onSelectionChange]);
 
-  // Display last-saved label, refreshed every 30s
+  // Refresh last-saved label every 30s
   useEffect(() => {
     const id = setInterval(() => setSavedTs((t) => t), 30_000);
     return () => clearInterval(id);
   }, []);
 
-  // ─── Auto-save ──────────────────────────────────────────────────────────────
-
+  // Auto-save: write to unified library store via editNotebook
   const triggerAutoSave = useCallback(() => {
     if (autoSaveRef.current) clearTimeout(autoSaveRef.current);
     autoSaveRef.current = setTimeout(() => {
       const content = editorRef.current?.innerHTML ?? '';
       const wc = countWords(content);
-      const saved = saveNotebook(notebook.id, { content, wordCount: wc, citationFormat });
-      if (saved) { setLastSaved(saved.lastSaved); setSavedTs(saved.lastSaved); setWordCount(wc); }
+      // Save to unified libraryStore via context
+      editNotebook(folder.id, notebook.id, { content, wordCount: wc, citationFormat });
+      // Also sync writerStorage for vault source resolution
+      saveNotebook(notebook.id, { content, wordCount: wc, citationFormat });
+      setSavedTs(Date.now());
+      setWordCount(wc);
     }, 800);
-  }, [notebook.id, citationFormat]);
+  }, [notebook.id, folder.id, citationFormat, editNotebook]);
 
   useEffect(() => () => { if (autoSaveRef.current) clearTimeout(autoSaveRef.current); }, []);
 
-  // ─── Editor Commands ────────────────────────────────────────────────────────
-
-  const exec = (cmd: string, value?: string) => {
+  // Editor commands
+  const exec = useCallback((cmd: string, value?: string) => {
     editorRef.current?.focus();
     document.execCommand(cmd, false, value);
     triggerAutoSave();
-  };
+  }, [triggerAutoSave]);
 
   const handleInsertTable = () => {
     const rows = parseInt(prompt('Rows:', '3') ?? '3', 10);
@@ -127,7 +127,7 @@ export default function WriterEditor({ notebook, folder, onBack, apiKey, onApiKe
     exec('insertHTML', `<span style="color:#8B1A1A;font-weight:500">&nbsp;${citation}&nbsp;</span>`);
   };
 
-  const handleInsertBibliography = (formatted: string, fmt: CitationFormat) => {
+  const handleInsertBibliography = (formatted: string, _fmt: CitationFormat) => {
     const entries = formatted.split('\n\n').map((e) =>
       `<p style="margin-bottom:12pt;padding-left:40px;text-indent:-40px">${e}</p>`
     ).join('');
@@ -145,32 +145,22 @@ export default function WriterEditor({ notebook, folder, onBack, apiKey, onApiKe
     else exec('insertHTML', `<p>${text}</p>`);
   };
 
-  const handleSaveToVault = () => {
-    const content = editorRef.current?.innerHTML ?? '';
-    saveNotebook(notebook.id, { content });
-    saveDocumentToVault(folder.id, notebook.id);
-    setVaultSaved(true);
-    setTimeout(() => setVaultSaved(false), 2500);
-  };
-
   const handleRename = (name: string) => {
     if (!name.trim()) return;
     setDocName(name.trim());
-    renameNotebook(notebook.id, name.trim());
+    editNotebook(folder.id, notebook.id, { name: name.trim() });
+    saveNotebook(notebook.id, { name: name.trim() });
     setEditingName(false);
   };
 
-  const handleSaveApiKey = () => {
-    onApiKeyChange(localApiKey);
-    setShowSettings(false);
+  const handleRemoveHighlight = () => {
+    exec('hiliteColor', 'transparent');
   };
-
-  // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <div className="flex flex-col h-full bg-[#F5F0E8] overflow-hidden">
 
-      {/* ── Header ── */}
+      {/* Header */}
       <div className="flex items-center justify-between px-5 py-2.5 bg-white border-b border-[#E8DFD0] shrink-0 gap-3">
         <div className="flex items-center gap-3 min-w-0 flex-1">
           <button
@@ -203,65 +193,33 @@ export default function WriterEditor({ notebook, folder, onBack, apiKey, onApiKe
 
         <div className="flex items-center gap-2 shrink-0">
           <span className="text-xs text-gray-400">{wordCount.toLocaleString()} words</span>
-
           <button
             onClick={() => setShowCitations(!showCitations)}
             className="px-3 py-1.5 border border-[#D0C4B8] rounded-md text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
           >
-            📚 Citations
+            Citations
           </button>
-
           <button
             onClick={() => exportToDocx(editorRef.current?.innerHTML ?? '', docName)}
             className="px-3 py-1.5 border border-[#D0C4B8] rounded-md text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
           >
-            ↓ Export
-          </button>
-
-          <button
-            onClick={handleSaveToVault}
-            className={`px-3 py-1.5 rounded-md text-xs font-semibold text-white transition-colors ${
-              vaultSaved ? 'bg-green-600' : 'bg-[#1A0A00] hover:bg-[#2D1500]'
-            }`}
-          >
-            {vaultSaved ? '✓ Saved to Vault' : '🏛 Save to Vault'}
-          </button>
-
-          <button
-            onClick={() => setShowSettings(!showSettings)}
-            className="px-2 py-1.5 rounded-md text-base hover:bg-gray-100 transition-colors"
-            title="Settings"
-          >
-            ⚙
+            Export .docx
           </button>
         </div>
       </div>
 
-      {/* Settings Panel */}
-      {showSettings && (
-        <div className="bg-white border-b border-[#E8DFD0] px-5 py-2.5 shrink-0">
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-semibold text-gray-500 whitespace-nowrap">Groq API Key</span>
-            <input
-              type="password"
-              value={localApiKey}
-              onChange={(e) => setLocalApiKey(e.target.value)}
-              placeholder="gsk_…"
-              className="flex-1 max-w-xs px-2.5 py-1 border border-[#D0C4B8] rounded-md text-xs outline-none focus:border-[#8B1A1A]"
-            />
-            <button
-              onClick={handleSaveApiKey}
-              className="px-3 py-1 bg-[#8B1A1A] text-white text-xs font-semibold rounded-md hover:bg-[#6B1212] transition-colors"
-            >
-              Save
-            </button>
-            <span className="text-[10px] text-gray-400">Free key at console.groq.com</span>
-          </div>
-        </div>
-      )}
-
-      {/* ── Toolbar ── */}
+      {/* Toolbar */}
       <div className="flex items-center flex-wrap gap-0.5 px-3 py-1.5 bg-white border-b border-[#E8DFD0] shrink-0">
+
+        {/* Undo / Redo */}
+        <Btn onMouseDown={() => exec('undo')} title="Undo">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 7v6h6" /><path d="M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13" /></svg>
+        </Btn>
+        <Btn onMouseDown={() => exec('redo')} title="Redo">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 7v6h-6" /><path d="M3 17a9 9 0 019-9 9 9 0 016 2.3L21 13" /></svg>
+        </Btn>
+
+        <div className="w-px h-5 bg-[#E0D8CC] mx-1" />
 
         {/* Paragraph style */}
         <select
@@ -289,7 +247,14 @@ export default function WriterEditor({ notebook, folder, onBack, apiKey, onApiKe
         <select
           className="h-7 px-1 border border-[#D0C4B8] rounded text-[12px] bg-white cursor-pointer outline-none w-14 ml-1"
           value={currentSize}
-          onChange={(e) => { setCurrentSize(e.target.value); exec('fontSize', '7'); editorRef.current?.querySelectorAll('font[size="7"]').forEach((el) => { (el as HTMLElement).removeAttribute('size'); (el as HTMLElement).style.fontSize = `${e.target.value}pt`; }); }}
+          onChange={(e) => {
+            setCurrentSize(e.target.value);
+            exec('fontSize', '7');
+            editorRef.current?.querySelectorAll('font[size="7"]').forEach((el) => {
+              (el as HTMLElement).removeAttribute('size');
+              (el as HTMLElement).style.fontSize = `${e.target.value}pt`;
+            });
+          }}
         >
           {FONT_SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
@@ -307,50 +272,127 @@ export default function WriterEditor({ notebook, folder, onBack, apiKey, onApiKe
         {/* Text color */}
         <label className="relative w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 cursor-pointer" title="Text color">
           <span className="text-sm font-bold pointer-events-none" style={{ color: textColor }}>A</span>
-          <input type="color" value={textColor} onChange={(e) => { setTextColor(e.target.value); exec('foreColor', e.target.value); }} className="absolute opacity-0 inset-0 cursor-pointer w-full h-full" />
+          <input
+            type="color"
+            value={textColor}
+            onChange={(e) => { setTextColor(e.target.value); exec('foreColor', e.target.value); }}
+            className="absolute opacity-0 inset-0 cursor-pointer w-full h-full"
+          />
         </label>
 
         {/* Highlight color */}
         <label className="relative w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 cursor-pointer" title="Highlight color">
-          <span className="text-sm font-bold pointer-events-none px-0.5 rounded-sm" style={{ backgroundColor: hlColor }}>A</span>
-          <input type="color" value={hlColor} onChange={(e) => { setHlColor(e.target.value); exec('hiliteColor', e.target.value); }} className="absolute opacity-0 inset-0 cursor-pointer w-full h-full" />
+          <span className="text-sm font-bold pointer-events-none px-0.5 rounded-sm" style={{ backgroundColor: hlColor }}>H</span>
+          <input
+            type="color"
+            value={hlColor}
+            onChange={(e) => { setHlColor(e.target.value); exec('hiliteColor', e.target.value); }}
+            className="absolute opacity-0 inset-0 cursor-pointer w-full h-full"
+          />
         </label>
+
+        {/* Remove highlight */}
+        <Btn onMouseDown={handleRemoveHighlight} title="Remove highlight">
+          <span className="text-[11px] font-bold line-through opacity-60">H</span>
+        </Btn>
 
         <div className="w-px h-5 bg-[#E0D8CC] mx-1" />
 
         {/* Alignment */}
         <Btn onMouseDown={() => exec('justifyLeft')} title="Align left">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><rect x="0" y="1" width="14" height="2"/><rect x="0" y="5" width="10" height="2"/><rect x="0" y="9" width="14" height="2"/><rect x="0" y="13" width="8" height="2"/></svg>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+            <rect x="0" y="1" width="14" height="2" />
+            <rect x="0" y="5" width="10" height="2" />
+            <rect x="0" y="9" width="14" height="2" />
+            <rect x="0" y="13" width="8" height="2" />
+          </svg>
         </Btn>
         <Btn onMouseDown={() => exec('justifyCenter')} title="Center">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><rect x="0" y="1" width="14" height="2"/><rect x="2" y="5" width="10" height="2"/><rect x="0" y="9" width="14" height="2"/><rect x="3" y="13" width="8" height="2"/></svg>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+            <rect x="0" y="1" width="14" height="2" />
+            <rect x="2" y="5" width="10" height="2" />
+            <rect x="0" y="9" width="14" height="2" />
+            <rect x="3" y="13" width="8" height="2" />
+          </svg>
         </Btn>
         <Btn onMouseDown={() => exec('justifyRight')} title="Align right">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><rect x="0" y="1" width="14" height="2"/><rect x="4" y="5" width="10" height="2"/><rect x="0" y="9" width="14" height="2"/><rect x="6" y="13" width="8" height="2"/></svg>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+            <rect x="0" y="1" width="14" height="2" />
+            <rect x="4" y="5" width="10" height="2" />
+            <rect x="0" y="9" width="14" height="2" />
+            <rect x="6" y="13" width="8" height="2" />
+          </svg>
         </Btn>
         <Btn onMouseDown={() => exec('justifyFull')} title="Justify">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><rect x="0" y="1" width="14" height="2"/><rect x="0" y="5" width="14" height="2"/><rect x="0" y="9" width="14" height="2"/><rect x="0" y="13" width="14" height="2"/></svg>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+            <rect x="0" y="1" width="14" height="2" />
+            <rect x="0" y="5" width="14" height="2" />
+            <rect x="0" y="9" width="14" height="2" />
+            <rect x="0" y="13" width="14" height="2" />
+          </svg>
         </Btn>
 
         <div className="w-px h-5 bg-[#E0D8CC] mx-1" />
 
         {/* Lists */}
-        <Btn onMouseDown={() => exec('insertUnorderedList')} title="Bullet list">•≡</Btn>
-        <Btn onMouseDown={() => exec('insertOrderedList')} title="Numbered list">1≡</Btn>
+        <Btn onMouseDown={() => exec('insertUnorderedList')} title="Bullet list">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+            <circle cx="1.5" cy="2.5" r="1.5" />
+            <rect x="4" y="1.5" width="10" height="2" />
+            <circle cx="1.5" cy="7" r="1.5" />
+            <rect x="4" y="6" width="10" height="2" />
+            <circle cx="1.5" cy="11.5" r="1.5" />
+            <rect x="4" y="10.5" width="10" height="2" />
+          </svg>
+        </Btn>
+        <Btn onMouseDown={() => exec('insertOrderedList')} title="Numbered list">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+            <text x="0" y="4" fontSize="4" fontWeight="bold">1.</text>
+            <rect x="4" y="1.5" width="10" height="2" />
+            <text x="0" y="8.5" fontSize="4" fontWeight="bold">2.</text>
+            <rect x="4" y="6" width="10" height="2" />
+            <text x="0" y="13" fontSize="4" fontWeight="bold">3.</text>
+            <rect x="4" y="10.5" width="10" height="2" />
+          </svg>
+        </Btn>
 
         <div className="w-px h-5 bg-[#E0D8CC] mx-1" />
 
         {/* Indent / Outdent */}
-        <Btn onMouseDown={() => exec('indent')} title="Indent">⇥</Btn>
-        <Btn onMouseDown={() => exec('outdent')} title="Outdent">⇤</Btn>
+        <Btn onMouseDown={() => exec('indent')} title="Indent">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+            <rect x="0" y="1" width="14" height="1.5" />
+            <rect x="4" y="4.5" width="10" height="1.5" />
+            <rect x="4" y="8" width="10" height="1.5" />
+            <rect x="0" y="11.5" width="14" height="1.5" />
+            <path d="M0 4.5l3 3-3 3V4.5z" />
+          </svg>
+        </Btn>
+        <Btn onMouseDown={() => exec('outdent')} title="Outdent">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+            <rect x="0" y="1" width="14" height="1.5" />
+            <rect x="4" y="4.5" width="10" height="1.5" />
+            <rect x="4" y="8" width="10" height="1.5" />
+            <rect x="0" y="11.5" width="14" height="1.5" />
+            <path d="M3.5 4.5l-3 3 3 3V4.5z" />
+          </svg>
+        </Btn>
 
         <div className="w-px h-5 bg-[#E0D8CC] mx-1" />
 
         {/* Insert Table */}
-        <Btn onMouseDown={handleInsertTable} title="Insert table">⊞</Btn>
+        <Btn onMouseDown={handleInsertTable} title="Insert table">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.2">
+            <rect x="1" y="1" width="12" height="12" rx="1" />
+            <line x1="1" y1="5" x2="13" y2="5" />
+            <line x1="1" y1="9" x2="13" y2="9" />
+            <line x1="5" y1="1" x2="5" y2="13" />
+            <line x1="9" y1="1" x2="9" y2="13" />
+          </svg>
+        </Btn>
       </div>
 
-      {/* ── Body: Editor + Copilot ── */}
+      {/* Body: Editor + Copilot */}
       <div className="flex flex-1 overflow-hidden">
 
         {/* Editor scroll area */}
@@ -373,14 +415,14 @@ export default function WriterEditor({ notebook, folder, onBack, apiKey, onApiKe
           vaultSources={vaultSources}
           folderName={folder.name}
           citationFormat={citationFormat}
-          apiKey={apiKey}
           selectedText={selectedText}
           onApplyEdit={handleApplyEdit}
-          onInsertCitation={(citation) => exec('insertHTML', `<span style="color:#8B1A1A;font-weight:500">&nbsp;${citation}&nbsp;</span>`)}
+          onInsertCitation={(citation) =>
+            exec('insertHTML', `<span style="color:#8B1A1A;font-weight:500">&nbsp;${citation}&nbsp;</span>`)
+          }
         />
       </div>
 
-      {/* Citations Panel (overlay) */}
       <CitationsPanel
         isOpen={showCitations}
         onClose={() => setShowCitations(false)}
@@ -389,11 +431,10 @@ export default function WriterEditor({ notebook, folder, onBack, apiKey, onApiKe
         onFormatChange={(f) => { setCitationFormat(f); saveNotebook(notebook.id, { citationFormat: f }); }}
         onInsertInlineCitation={handleInsertInlineCitation}
         onInsertBibliography={handleInsertBibliography}
-        apiKey={apiKey}
         notebookId={notebook.id}
+        apiKey={""} // Passed empty for now as it's not currently used extensively, can wire to settings later
       />
 
-      {/* Global editor styles */}
       <style>{`
         [contenteditable][data-placeholder]:empty::before {
           content: attr(data-placeholder);
@@ -413,8 +454,6 @@ export default function WriterEditor({ notebook, folder, onBack, apiKey, onApiKe
   );
 }
 
-// ── Toolbar Button ──────────────────────────────────────────────────────────
-
 function Btn({ children, onMouseDown, active, title }: {
   children: React.ReactNode;
   onMouseDown: () => void;
@@ -425,11 +464,8 @@ function Btn({ children, onMouseDown, active, title }: {
     <button
       title={title}
       onMouseDown={(e) => { e.preventDefault(); onMouseDown(); }}
-      className={`w-7 h-7 flex items-center justify-center rounded text-[13px] transition-colors ${
-        active
-          ? 'bg-[#E8DFD0] text-[#8B1A1A]'
-          : 'text-gray-600 hover:bg-gray-100'
-      }`}
+      className={`w-7 h-7 flex items-center justify-center rounded text-[13px] transition-colors ${active ? 'bg-[#E8DFD0] text-[#8B1A1A]' : 'text-gray-600 hover:bg-gray-100'
+        }`}
     >
       {children}
     </button>
