@@ -59,11 +59,7 @@ export default function VaultCopilot({
           message: selectedText ? `[Selected text]: "${selectedText}"\n\n${msg}` : msg,
           history,
           context: {
-<<<<<<< HEAD
-            vaultSources,
-=======
             vaultSources: useVault ? vaultSources : [],
->>>>>>> origin/lib-new
             folderName,
             citationFormat,
           },
