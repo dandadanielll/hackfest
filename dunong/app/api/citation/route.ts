@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { askGroq } from "@/lib/groq";
+import { askGroqJSON } from "@/lib/groq";
 
 // ── CrossRef: best for DOIs ─────────────────────────────────────────────────
 async function fetchCrossRef(doi: string) {
@@ -303,15 +303,8 @@ export async function POST(req: NextRequest) {
       '- Output: {"apa": "...", "mla": "...", "chicago": "..."}\n\n' +
       "JSON ONLY:";
 
-    const raw = await askGroq(prompt, 1200);
-    console.log("--- CITATION RESPONSE ---\n", raw, "\n-------------------------");
-
-    const start = raw.indexOf("{");
-    const end = raw.lastIndexOf("}");
-    if (start === -1 || end === -1) {
-      return NextResponse.json({ error: "AI returned invalid response: " + raw.slice(0, 150) }, { status: 500 });
-    }
-    const result = JSON.parse(raw.substring(start, end + 1));
+    const result = await askGroqJSON<{ apa: string; mla: string; chicago: string }>(prompt, 1200);
+    console.log("--- CITATION RESPONSE ---\n", JSON.stringify(result), "\n-------------------------");
     return NextResponse.json({
       apa: result.apa || "Citation unavailable.",
       mla: result.mla || "Citation unavailable.",

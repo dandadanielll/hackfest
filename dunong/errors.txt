@@ -1,0 +1,18 @@
+﻿app/api/export/route.ts(1,24): error TS2307: Cannot find module 'html-to-docx' or its corresponding type declarations.
+app/api/research/route.ts(107,79): error TS1501: This regular expression flag is only available when targeting 'es2018' or later.
+app/api/research/route.ts(108,85): error TS1501: This regular expression flag is only available when targeting 'es2018' or later.
+app/api/research/route.ts(109,76): error TS1501: This regular expression flag is only available when targeting 'es2018' or later.
+app/api/research/route.ts(110,90): error TS1501: This regular expression flag is only available when targeting 'es2018' or later.
+app/api/research/route.ts(111,94): error TS1501: This regular expression flag is only available when targeting 'es2018' or later.
+components/RichTextEditor.tsx(6,8): error TS2613: Module '"C:/Users/Daniel Aldrin/.vscode/HACKATHON/dunong/dunong/node_modules/@tiptap/extension-text-style/dist/index"' has no default export. Did you mean to use 'import { TextStyle } from "C:/Users/Daniel Aldrin/.vscode/HACKATHON/dunong/dunong/node_modules/@tiptap/extension-text-style/dist/index"' instead?
+components/RichTextEditor.tsx(11,8): error TS2613: Module '"C:/Users/Daniel Aldrin/.vscode/HACKATHON/dunong/dunong/node_modules/@tiptap/extension-table/dist/index"' has no default export. Did you mean to use 'import { Table } from "C:/Users/Daniel Aldrin/.vscode/HACKATHON/dunong/dunong/node_modules/@tiptap/extension-table/dist/index"' instead?
+components/RichTextEditor.tsx(15,22): error TS2307: Cannot find module '@tiptap/extension-task-list' or its corresponding type declarations.
+components/RichTextEditor.tsx(16,22): error TS2307: Cannot find module '@tiptap/extension-task-item' or its corresponding type declarations.
+components/RichTextEditor.tsx(17,28): error TS2307: Cannot find module '@tiptap/extension-character-count' or its corresponding type declarations.
+components/writer/WriterPage.tsx(92,9): error TS2322: Type 'Folder' is not assignable to type 'LibraryFolder'.
+  Types of property 'notebooks' are incompatible.
+    Type 'import("C:/Users/Daniel Aldrin/.vscode/HACKATHON/dunong/dunong/lib/libraryStore").Notebook[]' is not assignable to type 'import("C:/Users/Daniel Aldrin/.vscode/HACKATHON/dunong/dunong/lib/writer.types").Notebook[]'.
+      Type 'import("C:/Users/Daniel Aldrin/.vscode/HACKATHON/dunong/dunong/lib/libraryStore").Notebook' is not assignable to type 'import("C:/Users/Daniel Aldrin/.vscode/HACKATHON/dunong/dunong/lib/writer.types").Notebook'.
+        Types of property 'citationFormat' are incompatible.
+          Type '"APA" | "MLA" | "Chicago" | undefined' is not assignable to type 'CitationFormat'.
+            Type 'undefined' is not assignable to type 'CitationFormat'.

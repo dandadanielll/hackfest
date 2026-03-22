@@ -20,7 +20,7 @@ export default function Sidebar() {
         <NavItem href="/researcher" icon={<SearchIcon size={18} />} label="Search Engine" active={pathname === '/researcher'} />
         <NavItem href="/library" icon={<Layers size={18} />} label="Library" active={pathname === '/library'} />
         <NavItem href="/writer" icon={<FileText size={18} />} label="Writer" active={pathname === '/writer'} />
-        <NavItem href="/synthesis" icon={<Zap size={18} />} label="AI Tools" active={['/synthesis', '/gaps', '/graph', '/audio'].includes(pathname)} />
+        <NavItem href="/aitools" icon={<Zap size={18} />} label="AI Tools" active={pathname.startsWith('/aitools')} />
         <NavItem href="/citation" icon={<Settings size={18} />} label="Citation Generator" active={pathname === '/citation'} />
         <NavItem href="/credibility" icon={<Bookmark size={18} />} label="Credibility Score" active={pathname === '/credibility'} />
       </nav>
