@@ -26,50 +26,56 @@ export default function ArticleCard({
   hideActions?: boolean;
 }) {
   return (
-    <div className="bg-white/80 backdrop-blur-sm border border-stone-200 p-5 rounded-2xl shadow-sm hover:shadow-md transition cursor-pointer group hover:border-amber-200/50 flex flex-col gap-3">
-      <div className="flex justify-between items-start">
-        <div className="flex gap-2 items-center flex-wrap">
-          <span className="bg-stone-100 text-stone-600 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest group-hover:bg-amber-100/50 group-hover:text-amber-900 transition">
-            {journal}
-          </span>
-          {localSource && (
-            <span className="bg-blue-50 text-blue-800 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest border border-blue-100/50 flex items-center gap-1">
-              <Flag size={10} /> Local Db
+    <div className="relative h-full w-full group/article">
+      <div className="bg-white/80 backdrop-blur-sm border border-[#2b090d]/10 p-5 rounded-2xl shadow-sm transition-all cursor-pointer flex flex-col gap-3 h-full 
+        group-hover/article:absolute group-hover/article:top-0 group-hover/article:left-0 group-hover/article:w-full group-hover/article:h-auto group-hover/article:z-50 
+        group-hover/article:shadow-[0_20px_50px_rgba(43,9,13,0.3)] group-hover/article:scale-[1.01] group-hover/article:bg-white/95 group-hover/article:border-[#521118]/20">
+        <div className="flex justify-between items-start gap-4">
+          <div className="flex gap-2 items-center flex-wrap">
+            <span className="bg-[#521118]/5 text-[#521118]/60 px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-widest transition border border-[#2b090d]/5">
+              {journal}
             </span>
-          )}
-          {openAccess && (
-            <span className="bg-orange-50 text-orange-700 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest border border-orange-100/50 flex items-center gap-1">
-              <Unlock size={10} /> Open Access
-            </span>
-          )}
+            {localSource && (
+              <span className="bg-rose-50 text-rose-800 px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-widest border border-rose-200/50 flex items-center gap-1">
+                <Flag size={10} strokeWidth={3} /> PH Source
+              </span>
+            )}
+            {openAccess && (
+              <span className="bg-emerald-50 text-emerald-800 px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-widest border border-emerald-200/50 flex items-center gap-1">
+                <Unlock size={10} strokeWidth={3} /> Open Access
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-1 bg-[#521118]/5 px-2 py-1 rounded-lg text-[10px] font-black text-[#521118] border border-[#2b090d]/5 shrink-0">
+            <ShieldCheck size={12} strokeWidth={3} /> {credibility}
+          </div>
         </div>
 
-        <div className="flex items-center gap-1 bg-emerald-50 px-2 py-1 rounded text-[10px] font-black text-emerald-800 border border-emerald-100/50 shrink-0">
-          <ShieldCheck size={12} /> {credibility}/100
-        </div>
+        <a href={url || "#"} target="_blank" rel="noreferrer" className="block transition">
+          <h3 className="font-bold text-[#2b090d] leading-tight font-serif text-lg transition flex items-start justify-between gap-4 group-hover/article:text-[#521118]">
+            <span className="line-clamp-6 group-hover/article:line-clamp-none">{title}</span>
+            <Link2 size={16} className="text-[#521118]/20 shrink-0 mt-1" />
+          </h3>
+        </a>
+        <p className="text-xs text-[#521118]/40 font-bold uppercase tracking-wide">{authors} • {year}</p>
+
+        {abstract && (
+          <div className="group-hover/article:max-h-[40vh] group-hover/article:overflow-y-auto transition-all pr-1 custom-scrollbar">
+            <p className="text-sm text-[#2b090d]/70 line-clamp-2 group-hover/article:line-clamp-none leading-relaxed italic mt-1 border-l-2 border-[#2b090d]/10 pl-3 transition-all">
+              {abstract}
+            </p>
+          </div>
+        )}
+
+        {!hideActions && (
+          <div className="flex justify-end mt-auto pt-2">
+            <button className="text-xs font-bold text-[#f4f2f0] bg-[#521118] hover:bg-[#2b090d] px-4 py-2 rounded-xl border border-[#2b090d]/10 transition-all flex items-center gap-2 shadow-md shadow-[#2b090d]/10">
+              <Bookmark size={14} /> Save to Library
+            </button>
+          </div>
+        )}
       </div>
-
-      <a href={url || "#"} target="_blank" rel="noreferrer" className="block group-hover:text-rose-900 transition">
-        <h3 className="font-bold text-stone-900 leading-tight font-serif text-lg group-hover:text-rose-900 transition flex items-start justify-between gap-4">
-          <span>{title}</span>
-          <Link2 size={16} className="text-stone-300 group-hover:text-rose-400 shrink-0 mt-1" />
-        </h3>
-      </a>
-      <p className="text-xs text-stone-500 font-medium">{authors} • {year}</p>
-
-      {abstract && (
-        <p className="text-sm text-stone-600 line-clamp-2 leading-relaxed italic mt-1 border-l-2 border-stone-200 pl-3 group-hover:border-amber-200 transition">
-          {abstract}
-        </p>
-      )}
-
-      {!hideActions && (
-        <div className="flex justify-end mt-2">
-          <button className="text-xs font-bold text-stone-500 hover:text-stone-900 bg-stone-50 hover:bg-stone-100 px-3 py-1.5 rounded-lg border border-stone-200 transition flex items-center gap-1.5">
-            <Bookmark size={14} /> Save to Library
-          </button>
-        </div>
-      )}
     </div>
   );
 }
