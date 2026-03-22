@@ -1,44 +1,65 @@
-import { Groq } from "groq-sdk";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { askGroq } from "@/lib/groq";
 
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
-});
+export async function POST(req: NextRequest) {
+  const { message, history, context, action } = await req.json();
 
-export async function POST(req: Request) {
+  if (!message) {
+    return NextResponse.json({ error: "No message provided" }, { status: 400 });
+  }
+
+  const { vaultSources = [], folderName = "Unnamed Folder", citationFormat = "APA" } = context || {};
+
+  const sourcesList =
+    vaultSources.length === 0
+      ? "NO SOURCES IN VAULT. Tell the user to save articles to this folder first."
+      : vaultSources
+        .map((s: { title?: string; authors?: string | string[]; year?: string | number; journal?: string; publisher?: string; abstract?: string; doi?: string; url?: string }, i: number) => {
+          const authors = Array.isArray(s.authors) ? s.authors.join("; ") : s.authors ?? "Unknown";
+          return [
+            `[SOURCE ${i + 1}]`,
+            `Title: ${s.title ?? "Untitled"}`,
+            `Authors: ${authors}`,
+            `Year: ${s.year ?? "n.d."}`,
+            `Journal: ${s.journal ?? s.publisher ?? "Unknown"}`,
+            `Abstract: ${s.abstract ?? "Not available."}`,
+            `DOI/URL: ${s.doi ? `https://doi.org/${s.doi}` : s.url ?? "N/A"}`,
+          ].join("\n");
+        })
+        .join("\n\n");
+
+  const systemPrompt = `You are the Vault Co-pilot for DUNONG, an AI research workspace for Filipino students.
+
+STRICT VAULT LOCK: You are ONLY permitted to reference the sources listed below from the "${folderName}" vault. You CANNOT use any outside knowledge. If you cannot support a claim from these sources, say: "I cannot find support for this in the current vault sources."
+
+CITATION FORMAT: ${citationFormat}
+
+VAULT CONTENTS (${vaultSources.length} source${vaultSources.length !== 1 ? "s" : ""}):
+${sourcesList}
+
+ACTION MODE: ${action || "chat"}
+
+OUTPUT RULES:
+- Every factual claim MUST include an inline citation [Author, Year]
+- Only cite sources from the vault — never fabricate citations
+- When asked to EDIT the document, wrap edited text in <DOCUMENT_EDIT> and </DOCUMENT_EDIT> tags
+- When inserting a citation only, wrap it in <INLINE_CITATION> and </INLINE_CITATION> tags
+- Be direct and concise`;
+
+  const conversationHistory = (history || [])
+    .slice(-6)
+    .map((m: { role: string; content: string }) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
+    .join("\n\n");
+
+  const fullPrompt = conversationHistory
+    ? `${systemPrompt}\n\nConversation so far:\n${conversationHistory}\n\nUser: ${message}`
+    : `${systemPrompt}\n\nUser: ${message}`;
+
   try {
-    const { message, history, context, action } = await req.json();
-
-    const systemPrompt = `You are "Vault Co-pilot", an AI writing assistant for the Dunong research platform.
-You are strictly locked to the provided Vault references.
-Do not use outside knowledge. If the answer is not in the references, say you don't know.
-
-Context (Vault References):
-${JSON.stringify(context, null, 2)}
-
-Action Mode: ${action || 'chat'}
-- chat: Respond to the user's message.
-- edit: The user wants you to edit the document. Provide the FULL EDITED HTML or a snippet to be inserted.
-- cite: The user wants a citation. Suggest a source from the Vault.
-
-Always provide citations in [Author, Year] format when referencing sources.
-Maintain a professional, academic tone.
-`;
-
-    const completion = await groq.chat.completions.create({
-      messages: [
-        { role: "system", content: systemPrompt },
-        ...history,
-        { role: "user", content: message },
-      ],
-      model: "llama-3.3-70b-versatile",
-    });
-
-    return NextResponse.json({
-      response: completion.choices[0]?.message?.content || "",
-    });
+    const response = await askGroq(fullPrompt, 1024);
+    return NextResponse.json({ response });
   } catch (error) {
-    console.error("Groq API Error:", error);
+    console.error("Writer route error:", error);
     return NextResponse.json({ error: "Failed to communicate with AI" }, { status: 500 });
   }
 }

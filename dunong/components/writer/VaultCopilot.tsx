@@ -2,13 +2,11 @@
 
 import { useState, useRef, useEffect } from 'react';
 import type { VaultSource, CitationFormat, CopilotMessage } from '@/lib/writer.types';
-import { sendCopilotMessage } from '@/lib/groqService';
 
 interface Props {
   vaultSources: VaultSource[];
   folderName: string;
   citationFormat: CitationFormat;
-  apiKey: string;
   selectedText: string;
   onApplyEdit: (text: string) => void;
   onInsertCitation: (citation: string) => void;
@@ -27,7 +25,6 @@ export default function VaultCopilot({
   vaultSources,
   folderName,
   citationFormat,
-  apiKey,
   selectedText,
   onApplyEdit,
   onInsertCitation,
@@ -52,33 +49,51 @@ export default function VaultCopilot({
     setLoading(true);
 
     try {
-      if (!apiKey) throw new Error('No Groq API key set. Click the ⚙ icon to add your key.');
+      const history = messages.map((m) => ({ role: m.role, content: m.content }));
 
-      const history = messages.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
-      const result = await sendCopilotMessage({
-        userMessage: msg,
-        vaultSources,
-        folderName,
-        citationFormat,
-        conversationHistory: history,
-        apiKey,
-        selectedText,
+      const res = await fetch('/api/writer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: selectedText ? `[Selected text]: "${selectedText}"\n\n${msg}` : msg,
+          history,
+          context: {
+            vaultSources,
+            folderName,
+            citationFormat,
+          },
+          action: 'chat',
+        }),
       });
+
+      if (!res.ok) throw new Error(`Server error ${res.status}`);
+
+      const data = await res.json();
+      const raw: string = data.response || '';
+
+      // Extract document edit and inline citation tags
+      const editMatch = raw.match(/<DOCUMENT_EDIT>([\s\S]*?)<\/DOCUMENT_EDIT>/);
+      const citationMatch = raw.match(/<INLINE_CITATION>([\s\S]*?)<\/INLINE_CITATION>/);
+      const documentEdit = editMatch?.[1]?.trim() ?? null;
+      const inlineCitation = citationMatch?.[1]?.trim() ?? null;
+      const content = raw
+        .replace(/<DOCUMENT_EDIT>[\s\S]*?<\/DOCUMENT_EDIT>/g, '')
+        .replace(/<INLINE_CITATION>[\s\S]*?<\/INLINE_CITATION>/g, '')
+        .trim();
 
       setMessages((p) => [
         ...p,
-        {
-          role: 'assistant',
-          content: result.content,
-          documentEdit: result.documentEdit,
-          inlineCitation: result.inlineCitation,
-          timestamp: Date.now(),
-        },
+        { role: 'assistant', content, documentEdit, inlineCitation, timestamp: Date.now() },
       ]);
     } catch (e: unknown) {
       setMessages((p) => [
         ...p,
-        { role: 'assistant', content: `⚠️ ${e instanceof Error ? e.message : 'Unknown error'}`, isError: true, timestamp: Date.now() },
+        {
+          role: 'assistant',
+          content: `⚠ ${e instanceof Error ? e.message : 'Unknown error'}`,
+          isError: true,
+          timestamp: Date.now(),
+        },
       ]);
     } finally {
       setLoading(false);
@@ -143,11 +158,8 @@ export default function VaultCopilot({
         {messages.map((m, i) => (
           <div
             key={i}
-            className={`rounded-xl p-3 ${
-              m.role === 'user'
-                ? 'bg-[#2D1500] ml-4'
-                : 'bg-[#231000] border border-[#3D2000]'
-            }`}
+            className={`rounded-xl p-3 ${m.role === 'user' ? 'bg-[#2D1500] ml-4' : 'bg-[#231000] border border-[#3D2000]'
+              }`}
           >
             {m.role === 'assistant' && (
               <div className="flex items-center gap-1 mb-1.5">
@@ -200,7 +212,7 @@ export default function VaultCopilot({
         <div ref={bottomRef} />
       </div>
 
-      {/* Quick Actions (shown when no messages) */}
+      {/* Quick Actions */}
       {messages.length === 0 && (
         <div className="px-3 pb-1 shrink-0">
           <p className="text-[10px] text-[#6B5040] font-semibold uppercase tracking-wider mb-1.5">Quick actions</p>

@@ -3,8 +3,7 @@
 import { useState, useEffect } from 'react';
 import type { LibraryFolder, Notebook } from '@/lib/writer.types';
 import {
-  getFolders, createFolder, createNotebook, deleteNotebook,
-  getWriterSettings, saveWriterSettings, formatDate,
+  getFolders, createFolder, createNotebook, deleteNotebook, formatDate,
 } from '@/lib/writerStorage';
 import WriterEditor from './WriterEditor';
 
@@ -16,13 +15,10 @@ export default function WriterPage() {
   const [activeNotebook, setActiveNotebook] = useState<Notebook | null>(null);
   const [activeFolder, setActiveFolder] = useState<LibraryFolder | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [apiKey, setApiKey] = useState('');
   const [search, setSearch] = useState('');
-  // New notebook modal
   const [showNewNb, setShowNewNb] = useState(false);
   const [newNbName, setNewNbName] = useState('');
   const [newNbFolder, setNewNbFolder] = useState('');
-  // New folder form
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
 
@@ -35,22 +31,12 @@ export default function WriterPage() {
     }
   };
 
-  useEffect(() => {
-  load();
-  const s = getWriterSettings();
-  // Use env key if no manually saved key
-  setApiKey(s.groqApiKey || process.env.NEXT_PUBLIC_GROQ_API_KEY || '');
-}, []);
+  useEffect(() => { load(); }, []);
 
   const openNotebook = (nb: Notebook, folder: LibraryFolder) => {
     setActiveNotebook(nb);
     setActiveFolder(folder);
     setView('editor');
-  };
-
-  const handleApiKeyChange = (key: string) => {
-    setApiKey(key);
-    saveWriterSettings({ groqApiKey: key });
   };
 
   const toggleFolder = (id: string) =>
@@ -86,11 +72,9 @@ export default function WriterPage() {
 
   const displayFolders = search
     ? folders
-        .map((f) => ({ ...f, notebooks: f.notebooks.filter((n) => n.name.toLowerCase().includes(search.toLowerCase())) }))
-        .filter((f) => f.notebooks.length > 0)
+      .map((f) => ({ ...f, notebooks: f.notebooks.filter((n) => n.name.toLowerCase().includes(search.toLowerCase())) }))
+      .filter((f) => f.notebooks.length > 0)
     : folders;
-
-  // ─── Editor view ──────────────────────────────────────────────────────────
 
   if (view === 'editor' && activeNotebook && activeFolder) {
     return (
@@ -98,18 +82,14 @@ export default function WriterPage() {
         notebook={activeNotebook}
         folder={activeFolder}
         onBack={() => { setView('select'); load(); }}
-        apiKey={apiKey}
-        onApiKeyChange={handleApiKeyChange}
       />
     );
   }
 
-  // ─── Selection view ───────────────────────────────────────────────────────
-
   return (
     <div className="flex h-full bg-[#F5F0E8] overflow-hidden">
 
-      {/* ── Sidebar ── */}
+      {/* Sidebar */}
       <aside className="w-[270px] min-w-[270px] flex flex-col bg-white border-r border-[#E8DFD0] overflow-hidden">
         <div className="px-5 pt-5 pb-3 shrink-0">
           <h2 className="font-bold text-[#1A0A00] text-base mb-0.5" style={{ fontFamily: 'Georgia, serif' }}>
@@ -136,7 +116,6 @@ export default function WriterPage() {
           + New Notebook
         </button>
 
-        {/* Folder list */}
         <div className="flex-1 overflow-y-auto">
           {displayFolders.length === 0 && search && (
             <p className="text-center text-xs text-gray-400 py-6">No results for &ldquo;{search}&rdquo;</p>
@@ -154,7 +133,7 @@ export default function WriterPage() {
                 <span className="flex-1 text-[13px] font-semibold text-[#1A0A00] truncate">{folder.name}</span>
                 {(folder.vault?.length ?? 0) > 0 && (
                   <span className="text-[10px] text-[#8B1A1A] shrink-0" title={`${folder.vault.length} vault sources`}>
-                    🏛{folder.vault.length}
+                    🛡{folder.vault.length}
                   </span>
                 )}
                 <span className="text-[10px] text-gray-400 bg-gray-100 rounded-full px-1.5 py-0.5 shrink-0">
@@ -196,7 +175,6 @@ export default function WriterPage() {
           ))}
         </div>
 
-        {/* New Folder */}
         <div className="px-4 py-3 border-t border-[#E8DFD0] shrink-0">
           {showNewFolder ? (
             <div>
@@ -224,7 +202,7 @@ export default function WriterPage() {
         </div>
       </aside>
 
-      {/* ── Main Area ── */}
+      {/* Main Area */}
       <main className="flex-1 overflow-auto p-8">
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-[#1A0A00] mb-1" style={{ fontFamily: 'Georgia, serif' }}>
@@ -233,7 +211,6 @@ export default function WriterPage() {
           <p className="text-sm text-gray-500">Select a notebook to open, or create a new one.</p>
         </div>
 
-        {/* Empty state */}
         {totalNb === 0 && (
           <div className="text-center pt-16">
             <div className="text-5xl mb-4">📝</div>
@@ -250,7 +227,6 @@ export default function WriterPage() {
           </div>
         )}
 
-        {/* Notebook grid */}
         {totalNb > 0 && (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-4">
             {folders.flatMap((folder) =>
@@ -266,7 +242,7 @@ export default function WriterPage() {
                     </span>
                     {(folder.vault?.length ?? 0) > 0 && (
                       <span className="text-[10px] bg-[#FFF0F0] text-[#8B1A1A] font-semibold px-2 py-0.5 rounded-full">
-                        🏛 {folder.vault.length}
+                        🛡 {folder.vault.length}
                       </span>
                     )}
                   </div>
@@ -290,7 +266,6 @@ export default function WriterPage() {
               ))
             )}
 
-            {/* New notebook card */}
             <button
               onClick={() => setShowNewNb(true)}
               className="border-2 border-dashed border-[#D0C4B8] rounded-xl min-h-[160px] flex flex-col items-center justify-center gap-2 hover:border-[#8B1A1A] hover:bg-[#FFF8F6] transition-all group"
@@ -302,14 +277,13 @@ export default function WriterPage() {
         )}
       </main>
 
-      {/* ── New Notebook Modal ── */}
+      {/* New Notebook Modal */}
       {showNewNb && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-7 w-[420px] shadow-2xl">
             <h3 className="text-lg font-bold text-[#1A0A00] mb-5" style={{ fontFamily: 'Georgia, serif' }}>
               Create New Notebook
             </h3>
-
             <div className="mb-4">
               <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
                 Document Name
@@ -319,11 +293,10 @@ export default function WriterPage() {
                 value={newNbName}
                 onChange={(e) => setNewNbName(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleCreateNotebook()}
-                placeholder="e.g. Chapter 1 — Introduction"
+                placeholder="e.g. Chapter 1 – Introduction"
                 className="w-full px-3 py-2 border border-[#D0C4B8] rounded-lg text-sm outline-none focus:border-[#8B1A1A]"
               />
             </div>
-
             <div className="mb-5">
               <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
                 Save to Folder
@@ -336,11 +309,9 @@ export default function WriterPage() {
                 {folders.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
               </select>
             </div>
-
             {folders.length === 0 && (
               <p className="text-xs text-[#8B1A1A] mb-4">Create a folder first (use the sidebar).</p>
             )}
-
             <div className="flex gap-3">
               <button
                 onClick={() => { setShowNewNb(false); setNewNbName(''); }}
@@ -353,7 +324,7 @@ export default function WriterPage() {
                 disabled={!newNbName.trim() || folders.length === 0}
                 className="flex-[2] py-2.5 bg-[#8B1A1A] text-white rounded-lg text-sm font-semibold hover:bg-[#6B1212] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                Create &amp; Open
+                Create & Open
               </button>
             </div>
           </div>
