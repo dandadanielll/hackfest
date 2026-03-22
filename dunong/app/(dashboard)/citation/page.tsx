@@ -24,9 +24,9 @@ async function extractPdfText(file: File): Promise<string> {
     const maxPages = Math.min(pdf.numPages, 6);
     const parts: string[] = [];
     for (let i = 1; i <= maxPages; i++) {
-        const page = await pdf.getPage(i);
-        const content = await page.getTextContent();
-        parts.push(content.items.map((item: unknown) => ((item as { str?: string }).str ?? "")).join(" "));
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      parts.push(content.items.map((item: unknown) => ((item as { str?: string }).str ?? "")).join(" "));
     }
     return parts.join(" ").replace(/\s+/g, " ").trim().slice(0, 5000);
   } catch {
@@ -106,7 +106,7 @@ export default function CitationPage() {
       } else if (mode === 'file' && selectedFile) {
         setStatusMsg('Reading and extracting file text…');
         const isPDF = selectedFile.type === "application/pdf" || selectedFile.name.toLowerCase().endsWith(".pdf");
-        
+
         let extracted = "";
         if (isPDF) {
           extracted = await extractPdfText(selectedFile);
@@ -163,6 +163,8 @@ export default function CitationPage() {
       setSelectedFile(file);
       setError(null);
       setCitation(null);
+      // Trigger generation immediately
+      handleGenerate(file);
     }
   };
 
@@ -213,8 +215,8 @@ export default function CitationPage() {
               setShowLibraryPicker(false);
             }}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold border transition ${mode === tab.id
-                ? 'bg-[#1A0A00] text-white border-[#1A0A00]'
-                : 'bg-white text-stone-500 border-stone-200 hover:border-[#8B1A1A] hover:text-[#8B1A1A]'
+              ? 'bg-[#1A0A00] text-white border-[#1A0A00]'
+              : 'bg-white text-stone-500 border-stone-200 hover:border-[#8B1A1A] hover:text-[#8B1A1A]'
               }`}
           >
             {tab.icon} {tab.label}

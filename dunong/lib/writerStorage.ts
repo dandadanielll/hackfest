@@ -81,6 +81,22 @@ export function deleteNotebook(notebookId: string): boolean {
 
 // ─── Vault Operations ─────────────────────────────────────────────────────────
 
+// Helper to ensure authors is always an array of Author objects
+function ensureAuthors(authors: any): Author[] {
+  if (Array.isArray(authors)) {
+    return authors.map((a: any) => {
+      if (typeof a === 'object' && a !== null) return a;
+      const parts = String(a).split(/\s+/);
+      if (parts.length === 1) return { firstName: "", lastName: parts[0] };
+      return { firstName: parts[0], lastName: parts.slice(1).join(" ") };
+    });
+  }
+  if (!authors) return [{ firstName: "", lastName: "Unknown" }];
+  const parts = String(authors).split(/\s+/);
+  if (parts.length === 1) return { firstName: "", lastName: parts[0] };
+  return { firstName: parts[0], lastName: parts.slice(1).join(" ") };
+}
+
 /**
  * Returns vault sources for a folder, resolving linked articles + notebooks
  * into a VaultSource shape that the Copilot API understands.
@@ -96,7 +112,7 @@ export function getVaultSources(folderId: string): VaultSource[] {
     sources.push({
       id: article.id,
       title: article.title,
-      authors: article.authors.split(',').map((a) => a.trim()),
+      authors: ensureAuthors(article.authors),
       year: article.year,
       journal: article.journal,
       abstract: article.abstract,
@@ -115,7 +131,7 @@ export function getVaultSources(folderId: string): VaultSource[] {
         sources.push({
           id: article.id,
           title: article.title,
-          authors: article.authors.split(',').map((a) => a.trim()),
+          authors: ensureAuthors(article.authors),
           year: article.year,
           journal: article.journal,
           abstract: article.abstract,
@@ -133,7 +149,7 @@ export function getVaultSources(folderId: string): VaultSource[] {
         sources.push({
           id: nb.id,
           title: nb.name,
-          authors: ['(Notebook)'],
+          authors: [{ firstName: '(Notebook)', lastName: '' }],
           year: new Date(nb.updatedAt).getFullYear().toString(),
           abstract: plainContent.slice(0, 500),
           addedAt: new Date(nb.updatedAt).toISOString(),
@@ -144,7 +160,7 @@ export function getVaultSources(folderId: string): VaultSource[] {
       sources.push({
         id: vf.id,
         title: vf.name,
-        authors: ['(Uploaded file)'],
+        authors: [{ firstName: '(Uploaded file)', lastName: '' }],
         year: new Date(vf.addedAt ?? Date.now()).getFullYear().toString(),
         abstract: `Uploaded file: ${vf.name} (${vf.type})`,
         addedAt: new Date(vf.addedAt ?? Date.now()).toISOString(),
