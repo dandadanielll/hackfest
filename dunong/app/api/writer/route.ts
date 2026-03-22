@@ -12,11 +12,6 @@ export async function POST(req: NextRequest) {
 
   const sourcesList =
     vaultSources.length === 0
-<<<<<<< HEAD
-      ? "NO SOURCES IN VAULT. Tell the user to save articles to this folder first."
-      : vaultSources
-        .map((s: { title?: string; authors?: string | string[]; year?: string | number; journal?: string; publisher?: string; abstract?: string; doi?: string; url?: string }, i: number) => {
-=======
       ? ""
       : vaultSources
         .map((s: { 
@@ -24,23 +19,12 @@ export async function POST(req: NextRequest) {
           journal?: string; publisher?: string; abstract?: string; doi?: string; 
           url?: string; content?: string 
         }, i: number) => {
->>>>>>> origin/lib-new
           const authors = Array.isArray(s.authors) ? s.authors.join("; ") : s.authors ?? "Unknown";
           return [
             `[SOURCE ${i + 1}]`,
             `Title: ${s.title ?? "Untitled"}`,
             `Authors: ${authors}`,
             `Year: ${s.year ?? "n.d."}`,
-<<<<<<< HEAD
-            `Journal: ${s.journal ?? s.publisher ?? "Unknown"}`,
-            `Abstract: ${s.abstract ?? "Not available."}`,
-            `DOI/URL: ${s.doi ? `https://doi.org/${s.doi}` : s.url ?? "N/A"}`,
-          ].join("\n");
-        })
-        .join("\n\n");
-
-  const systemPrompt = `You are the Vault Co-pilot for DUNONG, an AI research workspace for Filipino students.
-=======
             `Journal/Publisher: ${s.journal ?? s.publisher ?? "Unknown"}`,
             s.abstract ? `Abstract: ${s.abstract}` : "",
             s.content ? `Content: ${s.content.slice(0, 3000)}...` : "", // Truncate very long content
@@ -58,7 +42,6 @@ OUTPUT RULES:
 - When asked to EDIT the document, wrap edited text in <DOCUMENT_EDIT> and </DOCUMENT_EDIT> tags
 - Be direct, helpful, and concise.`
     : `You are the Vault Co-pilot for DUNONG, an AI research workspace for Filipino students.
->>>>>>> origin/lib-new
 
 STRICT VAULT LOCK: You are ONLY permitted to reference the sources listed below from the "${folderName}" vault. You CANNOT use any outside knowledge. If you cannot support a claim from these sources, say: "I cannot find support for this in the current vault sources."
 
