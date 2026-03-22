@@ -1,10 +1,18 @@
 import { Bookmark, ShieldCheck, Flag, Unlock, Link2 } from "lucide-react";
 
+export interface Author {
+  firstName: string;
+  middleName?: string;
+  lastName: string;
+}
+
 export default function ArticleCard({
   articleId,
   title,
   authors,
   year,
+  month,
+  day,
   journal,
   credibility,
   abstract,
@@ -15,8 +23,10 @@ export default function ArticleCard({
 }: {
   articleId?: string;
   title: string;
-  authors: string;
+  authors: string | Author[];
   year: string;
+  month?: string;
+  day?: string;
   journal: string;
   credibility: number;
   abstract?: string;
@@ -25,6 +35,12 @@ export default function ArticleCard({
   url?: string;
   hideActions?: boolean;
 }) {
+  const authorDisplay = Array.isArray(authors)
+    ? authors.map(a => `${a.firstName ? `${a.firstName.charAt(0)}. ` : ""}${a.lastName}`).join(", ")
+    : authors || "Unknown Author";
+
+  const dateDisplay = [year, month, day].filter(Boolean).join(" ");
+
   return (
     <div className="bg-white/80 backdrop-blur-sm border border-stone-200 p-5 rounded-2xl shadow-sm hover:shadow-md transition cursor-pointer group hover:border-amber-200/50 flex flex-col gap-3">
       <div className="flex justify-between items-start">
@@ -55,7 +71,7 @@ export default function ArticleCard({
           <Link2 size={16} className="text-stone-300 group-hover:text-rose-400 shrink-0 mt-1" />
         </h3>
       </a>
-      <p className="text-xs text-stone-500 font-medium">{authors} • {year}</p>
+      <p className="text-xs text-stone-500 font-medium">{authorDisplay} • {dateDisplay}</p>
 
       {abstract && (
         <p className="text-sm text-stone-600 line-clamp-2 leading-relaxed italic mt-1 border-l-2 border-stone-200 pl-3 group-hover:border-amber-200 transition">
