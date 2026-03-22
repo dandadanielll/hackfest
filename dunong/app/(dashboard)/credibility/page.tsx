@@ -118,6 +118,18 @@ const GRADE_STROKE: Record<Grade, string> = {
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
+function parseAuthors(authorString: string | null): { firstName: string, lastName: string }[] {
+  if (!authorString) return [];
+  return authorString.split(/[,;]+/).map(a => {
+    const parts = a.trim().split(/\s+/);
+    if (parts.length === 0) return { firstName: "", lastName: "Unknown" };
+    if (parts.length === 1) return { firstName: "", lastName: parts[0] };
+    const lastName = parts.pop() || "";
+    const firstName = parts.join(" ");
+    return { firstName, lastName };
+  }).filter(a => a.lastName);
+}
+
 function scoreToColor(score: number) {
   if (score >= 75) return "text-emerald-600";
   if (score >= 50) return "text-amber-600";
@@ -129,6 +141,28 @@ function scoreToIcon(score: number) {
   if (score >= 75) return <CheckCircle2 size={18} className="text-emerald-600 shrink-0 mt-0.5" />;
   if (score >= 40) return <HelpCircle size={18} className="text-amber-500 shrink-0 mt-0.5" />;
   return <XCircle size={18} className="text-red-500 shrink-0 mt-0.5" />;
+}
+
+async function extractPdfText(file: File): Promise<string> {
+  try {
+    const pdfjsLib = await import("pdfjs-dist");
+    pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+      "pdfjs-dist/build/pdf.worker.min.mjs",
+      import.meta.url
+    ).toString();
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const maxPages = Math.min(pdf.numPages, 6);
+    const parts: string[] = [];
+    for (let i = 1; i <= maxPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        parts.push(content.items.map((item: unknown) => ((item as { str?: string }).str ?? "")).join(" "));
+    }
+    return parts.join(" ").replace(/\s+/g, " ").trim().slice(0, 5000);
+  } catch {
+    return "";
+  }
 }
 
 async function extractDocxText(file: File): Promise<string> {
@@ -190,7 +224,7 @@ function LibrarySelector({
                       {article.title}
                     </h4>
                     <p className="text-xs text-stone-500 mt-1 truncate">
-                      {article.authors} {article.year ? `(${article.year})` : ""}
+                      {Array.isArray(article.authors) ? article.authors.map(a => `${a.firstName} ${a.lastName}`).join(", ") : (article.authors as any)} {article.year ? `(${article.year})` : ""}
                     </p>
                   </div>
                   <div className="shrink-0 text-[10px] font-black uppercase tracking-widest text-stone-400 bg-stone-100 px-2 py-1 rounded">
@@ -304,11 +338,15 @@ export default function CredibilityPage() {
     setError(null);
     
     let text = "";
-    if (f.name.endsWith(".docx")) {
+    if (f.name.toLowerCase().endsWith(".docx")) {
       text = await extractDocxText(f);
+    } else if (f.name.toLowerCase().endsWith(".pdf") || f.type === "application/pdf") {
+      text = await extractPdfText(f);
+      if (!text || text.length < 50) {
+        text = `[PDF Extraction Failed: ${f.name} — please evaluate based on filename]`;
+      }
     } else {
-      // PDF: send filename for AI to work with
-      text = `[PDF: ${f.name}, ${(f.size / 1024).toFixed(1)} KB — please evaluate based on filename and any available DOI/URL metadata]`;
+      text = (await f.text().catch(() => "")).slice(0, 5000);
     }
     setFileText(text);
     
@@ -349,17 +387,38 @@ export default function CredibilityPage() {
   const handleConfirmSave = (folderId: string) => {
     if (!result) return;
 
+    const meta = result.metadata;
+    const credibilityScore = result.grade === 'A' ? 95 : result.grade === 'B' ? 80 : result.grade === 'C' ? 60 : result.grade === 'D' ? 40 : 20;
+
+    // Helper function to parse authors from various formats
+    const parseAuthors = (authorsData: any): { firstName: string; lastName: string; }[] => {
+      if (!authorsData) return [];
+      if (Array.isArray(authorsData)) {
+        return authorsData.map(a => ({ firstName: a.firstName || '', lastName: a.lastName || '' }));
+      }
+      if (typeof authorsData === 'string' && authorsData.trim() !== '') {
+        // Simple parsing for string, e.g., "John Doe, Jane Smith"
+        return authorsData.split(',').map(name => {
+          const parts = name.trim().split(' ');
+          const lastName = parts.pop() || '';
+          const firstName = parts.join(' ');
+          return { firstName, lastName };
+        });
+      }
+      return [];
+    };
+
     const article = {
-      id: result.metadata?.doi || result.metadata?.title || `art_${Date.now()}`,
-      title: result.metadata?.title || "Untitled Article",
-      authors: result.metadata?.authors || "Unknown Authors",
-      year: result.metadata?.year || "",
-      journal: result.metadata?.journal || result.metadata?.publisher || "Unknown Source",
-      credibility: result.grade === 'A' ? 95 : result.grade === 'B' ? 80 : result.grade === 'C' ? 60 : result.grade === 'D' ? 40 : 20,
+      id: crypto.randomUUID(),
+      title: meta?.title || "Untitled Article",
+      authors: parseAuthors(meta?.authors),
+      year: meta?.year || new Date().getFullYear().toString(),
+      journal: meta?.journal || meta?.publisher || "Unknown Source",
+      credibility: credibilityScore,
       abstract: result.verdict,
       keywords: [],
-      localSource: !!file,
-      url: result.metadata?.doi ? `https://doi.org/${result.metadata.doi}` : urlOrDoi,
+      localSource: file !== null,
+      url: meta?.doi ? `https://doi.org/${meta.doi}` : urlOrDoi,
     };
 
     saveArticle(folderId, article);

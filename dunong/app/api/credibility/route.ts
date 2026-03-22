@@ -1,9 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import Groq from "groq-sdk";
-
-const groq = new Groq({
-  apiKey: process.env.NEXT_PUBLIC_GROQ_API_KEY,
-});
+import { askGroqJSON } from "@/lib/groq";
 
 const SYSTEM_PROMPT = `You are an academic credibility evaluator for Dunong, a Filipino research platform. 
 Your role is to analyze articles and assign credibility grades based on verifiable metadata.
@@ -141,32 +137,18 @@ Cross-reference against:
 
 Return ONLY the JSON object.`;
 
-    const completion = await groq.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: userMessage },
-      ],
-      temperature: 0.1, // Low temperature for consistency
-      max_tokens: 1500,
-    });
+    console.log("[Credibility API] Received analysisInput:", analysisInput.slice(0, 500) + (analysisInput.length > 500 ? "..." : ""));
 
-    const rawResponse = completion.choices[0]?.message?.content || "";
-
-    // Parse JSON safely
+    // Parse JSON safely using our helper
     let result;
     try {
-      // Strip any potential markdown fences
-      const cleaned = rawResponse
-        .replace(/```json\n?/g, "")
-        .replace(/```\n?/g, "")
-        .trim();
-      result = JSON.parse(cleaned);
-    } catch {
+      const fullPrompt = `${SYSTEM_PROMPT}\n\n${userMessage}`;
+      result = await askGroqJSON<any>(fullPrompt, 1500);
+    } catch (err: unknown) {
       return NextResponse.json(
         {
           error: "Failed to parse AI response. Please try again.",
-          raw: rawResponse,
+          raw: err instanceof Error ? err.message : "Unknown syntax error",
         },
         { status: 500 }
       );
