@@ -287,13 +287,23 @@ export default function ResearcherPage() {
     setBookmarkPopupArticle(article);
   };
 
+  const parseAuthors = (authorStr: string): { firstName: string, lastName: string }[] => {
+    if (!authorStr) return [];
+    return authorStr.split(/[,;]+/).map(a => {
+      const parts = a.trim().split(/\s+/);
+      const lastName = parts.pop() || "";
+      const firstName = parts.join(" ");
+      return { firstName, lastName };
+    }).filter(a => a.lastName);
+  };
+
   const handlePickFolder = (folderId: string) => {
     if (!bookmarkPopupArticle) return;
     const article = bookmarkPopupArticle;
     saveArticle(folderId, {
       id: article.id,
       title: article.title,
-      authors: article.authors,
+      authors: parseAuthors(article.authors),
       year: article.year,
       journal: article.journal,
       credibility: article.credibility,
