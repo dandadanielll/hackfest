@@ -89,8 +89,8 @@ function FolderPickerPopup({
                   key={f.id}
                   onClick={() => onPick(f.id)}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition text-left ${isSaved
-                      ? "bg-amber-50 text-amber-800 border border-amber-200"
-                      : "hover:bg-stone-50 text-stone-700 border border-transparent"
+                    ? "bg-amber-50 text-amber-800 border border-amber-200"
+                    : "hover:bg-stone-50 text-stone-700 border border-transparent"
                     }`}
                 >
                   <FolderOpen size={14} className={isSaved ? "text-amber-500" : "text-stone-400"} />
@@ -112,7 +112,7 @@ export default function ResearcherPage() {
   const [query, setQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [resultsMode, setResultsMode] = useState(false);
-  const [showInternational, setShowInternational] = useState(false);
+  const [localOnly, setLocalOnly] = useState(true);
   const [showAgentPanel, setShowAgentPanel] = useState(false);
   const [articles, setArticles] = useState<Article[]>([]);
   const [agentLogs, setAgentLogs] = useState<string[]>([]);
@@ -140,7 +140,7 @@ export default function ResearcherPage() {
         if (session.query) setQuery(session.query);
         if (session.articles?.length) setArticles(session.articles);
         if (session.agentLogs?.length) setAgentLogs(session.agentLogs);
-        if (session.showInternational) setShowInternational(session.showInternational);
+        if (session.localOnly !== undefined) setLocalOnly(session.localOnly); // Updated for localOnly
         if (session.resultsMode) setResultsMode(session.resultsMode);
       }
     } catch { /* ignore */ }
@@ -186,28 +186,24 @@ export default function ResearcherPage() {
     };
   }, [query, inputFocused]);
 
-  const runSearch = useCallback(async (searchQuery: string, international: boolean) => {
+  const runSearch = useCallback(async (searchQuery: string, local: boolean) => { // Parameter renamed
     if (!searchQuery.trim()) return;
     setIsSearching(true);
     setResultsMode(true);
     setInputFocused(false);
 
     const logs: string[] = [
-      `Analyzing query: "${searchQuery}"`,
-      `Querying OpenAlex (filter: institutions.country_code=PH)...`,
-      `Querying PHILJOL OAI-PMH...`,
+      `Initializing search for: "${searchQuery}"`,
+      local ? "Restricting to Philippine academic databases (HERDIN, PHILJOL)..." : "Searching international and local databases...",
+      "Analyzing query context...",
     ];
-    if (international) {
-      logs.push("International toggle ON — querying Semantic Scholar...");
-      logs.push("Querying CrossRef...");
-    }
     setAgentLogs(logs);
 
     try {
       const res = await fetch("/api/research", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: searchQuery, localSourcesOnly: !international }),
+        body: JSON.stringify({ query: searchQuery, international: !local }), // Logic flipped for international
       });
 
       const updatedLogs = [
@@ -223,7 +219,7 @@ export default function ResearcherPage() {
         setArticles(data.articles);
         const finalLogs = [...updatedLogs, `Returned ${data.articles.length} verified results.`, "Ready for review."];
         setAgentLogs(finalLogs);
-        saveSession({ query: searchQuery, resultsMode: true, showInternational: international, articles: data.articles, agentLogs: finalLogs });
+        saveSession({ query: searchQuery, resultsMode: true, localOnly: local, articles: data.articles, agentLogs: finalLogs }); // Updated for localOnly
       } else {
         setAgentLogs([...updatedLogs, "No results found. Try a different query."]);
       }
@@ -237,20 +233,20 @@ export default function ResearcherPage() {
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    await runSearch(query, showInternational);
+    await runSearch(query, localOnly); // Updated to localOnly
   };
 
   const handleSuggestionClick = (s: string) => {
     setQuery(s);
     setFilteredSuggestions([]);
-    runSearch(s, showInternational);
+    runSearch(s, localOnly); // Updated to localOnly
   };
 
-  const handleInternationalToggle = () => {
-    const next = !showInternational;
-    setShowInternational(next);
+  const handleLocalToggle = () => {
+    const nextLocalOnly = !localOnly;
+    setLocalOnly(nextLocalOnly);
     if (resultsMode && query.trim()) {
-      runSearch(query, next);
+      runSearch(query, nextLocalOnly);
     }
   };
 
@@ -397,7 +393,35 @@ export default function ResearcherPage() {
     <main className="min-h-screen w-full pb-24 relative flex font-sans bg-[#e8e4df]/30">
       <div className="fixed top-0 inset-x-0 h-96 bg-gradient-to-b from-[#521118]/8 to-transparent pointer-events-none -z-10" />
 
-      <div className={`flex-1 flex flex-col items-center ${resultsMode ? "px-8 py-8 justify-start" : "justify-center px-4"}`}>
+      {/* Bookmark folder picker popup */}
+      {bookmarkPopupArticle && (
+        <FolderPickerPopup
+          article={bookmarkPopupArticle}
+          savedFolderIds={folders
+            .filter((f) => f.articles.some((a) => a.id === bookmarkPopupArticle.id))
+            .map((f) => f.id)}
+          folders={folders}
+          onPick={handlePickFolder}
+          onClose={() => setBookmarkPopupArticle(null)}
+        />
+      )}
+
+      <div className={`flex-1 flex flex-col items-center ${resultsMode ? "px-8 py-8 justify-start" : "justify-center px-4"} relative`}>
+        {/* New Search Button (Top Left) */}
+        <AnimatePresence>
+          {resultsMode && (
+            <motion.button
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              onClick={handleNewSearch}
+              className="absolute top-8 left-8 z-30 flex items-center gap-1.5 text-sm font-bold text-[#521118]/70 hover:text-[#521118] transition bg-white/80 backdrop-blur-md border border-[#2b090d]/10 px-4 py-2 rounded-xl shadow-md shadow-[#2b090d]/5 group"
+            >
+              <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
+              New Search
+            </motion.button>
+          )}
+        </AnimatePresence>
 
         {/* Hero */}
         <AnimatePresence mode="popLayout">
@@ -442,9 +466,9 @@ export default function ResearcherPage() {
           className={`w-full max-w-4xl relative z-20 mx-auto ${resultsMode ? "mb-6" : ""}`}
         >
           <form onSubmit={handleSearch} className="relative group">
-            <div className={`relative transition-all duration-500 rounded-[2.5rem] p-3 flex shadow-2xl ring-4 ${inputFocused
-                ? "bg-white border-[#521118]/20 shadow-[#521118]/20 ring-[#521118]/10"
-                : "bg-[#e8e4df]/70 backdrop-blur-md border-[#e8e4df] shadow-[#2b090d]/10 ring-[#e8e4df]/50"
+            <div className={`relative transition-all duration-500 rounded-[2.5rem] p-3 flex ring-4 ${inputFocused
+              ? "bg-[#f4f2f0] border-[#521118]/40 shadow-[0_20px_80px_-15px_rgba(82,17,24,0.35)] ring-[#521118]/15"
+              : "bg-[#e8e4df]/85 backdrop-blur-md border-[#2b090d]/20 shadow-[0_20px_80px_-15px_rgba(43,9,13,0.30)] ring-[#e8e4df]/60"
               } border`}>
               <div className="pl-6 pr-4 flex items-center justify-center text-[#521118]/60">
                 <Search size={24} strokeWidth={2.5} />
@@ -514,27 +538,27 @@ export default function ResearcherPage() {
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, transition: { duration: 0 } }}
-              className="w-full max-w-4xl mt-3 flex items-center gap-4 px-2 relative z-20"
+              className="w-full max-w-4xl mt-3 flex items-center justify-between px-2 relative z-20"
             >
-              <label className="flex items-center gap-2 cursor-pointer select-none">
+              <label className="flex items-center gap-2 cursor-pointer select-none py-1">
                 <div
-                  onClick={handleInternationalToggle}
-                  className={`w-9 h-5 rounded-full transition-colors relative flex items-center cursor-pointer ${showInternational ? "bg-[#521118]" : "bg-[#e8e4df]"}`}
+                  onClick={handleLocalToggle}
+                  className={`w-9 h-5 rounded-full transition-colors relative flex items-center cursor-pointer ${localOnly ? "bg-[#521118]" : "bg-[#e8e4df]"}`}
                 >
-                  <div className={`w-3.5 h-3.5 rounded-full bg-white shadow-sm absolute transition-transform ${showInternational ? "translate-x-[18px]" : "translate-x-0.5"}`} />
+                  <div className={`w-3.5 h-3.5 rounded-full bg-white shadow-sm absolute transition-transform ${localOnly ? "translate-x-[18px]" : "translate-x-0.5"}`} />
                 </div>
-                <span className="text-xs font-semibold text-[#2b090d]/70 flex items-center gap-1">
+                <span className="text-xs font-semibold text-[#2b090d]/70 flex items-center gap-1.5 leading-none">
                   <Globe size={13} />
-                  {showInternational ? "All sources" : "Local only"}
+                  {localOnly ? "Local sources only" : "All sources"}
                 </span>
               </label>
 
-              <div className="flex items-center gap-2 ml-auto">
+              <div className="flex items-center gap-2">
                 <div className="relative" ref={filterMenuRef}>
                   <button
                     type="button"
                     onClick={() => setShowFilterMenu(!showFilterMenu)}
-                    className="flex items-center gap-2 text-sm font-semibold text-[#521118]/70 hover:text-[#2b090d] transition bg-[#e8e4df]/70 border border-[#e8e4df] px-3 py-1.5 rounded-xl shadow-sm"
+                    className="flex items-center gap-2 text-sm font-bold text-[#521118] hover:text-[#2b090d] transition bg-white border border-[#2b090d]/20 px-3 py-1.5 rounded-xl shadow-md shadow-[#2b090d]/5"
                   >
                     <Filter size={13} />
                     Filter & Sort
@@ -592,7 +616,7 @@ export default function ResearcherPage() {
 
                 <button
                   onClick={() => setShowAgentPanel(!showAgentPanel)}
-                  className="flex items-center gap-2 text-sm font-semibold text-[#521118]/70 hover:text-[#2b090d] transition bg-[#e8e4df]/70 border border-[#e8e4df] px-3 py-1.5 rounded-xl shadow-sm"
+                  className="flex items-center gap-2 text-sm font-bold text-[#521118] hover:text-[#2b090d] transition bg-white border border-[#2b090d]/20 px-3 py-1.5 rounded-xl shadow-md shadow-[#2b090d]/5"
                 >
                   {showAgentPanel ? <EyeOff size={13} /> : <Eye size={13} />}
                   Agent Thinking
@@ -610,30 +634,24 @@ export default function ResearcherPage() {
               animate={{ opacity: 1, y: 0 }}
               className="max-w-4xl mx-auto w-full pb-20"
             >
-              <div className="flex items-center justify-between mb-5">
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={handleNewSearch}
-                    className="flex items-center gap-1.5 text-sm font-semibold text-[#521118]/50 hover:text-[#2b090d] transition"
-                  >
-                    <ArrowLeft size={16} /> New search
-                  </button>
-                  <h2 className="text-xl font-black font-serif text-[#2b090d] flex items-center gap-2">
-                    {displayedArticles.length} Results
+              <div className="flex items-end justify-between mb-8 mt-6 border-b border-[#2b090d]/10 pb-4">
+                <h2 className="text-3xl font-black font-serif text-[#2b090d] flex items-center gap-4 flex-wrap">
+                  {displayedArticles.length} Results
+                  <div className="flex items-center gap-2 mt-1">
                     {filterBy !== "all" && (
-                      <span className="text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full">
+                      <span className="text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2.5 py-1 rounded-full uppercase tracking-wider">
                         {filterBy === "local" ? "Local only" : "Open access only"}
                       </span>
                     )}
-                    {!showInternational && filterBy === "all" && (
-                      <span className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                    {localOnly && filterBy === "all" && (
+                      <span className="text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full uppercase tracking-wider">
                         PH sources
                       </span>
                     )}
-                  </h2>
-                </div>
+                  </div>
+                </h2>
                 {isSearching && (
-                  <span className="text-xs text-stone-400 animate-pulse">Re-searching...</span>
+                  <span className="text-sm font-bold text-[#521118]/40 animate-pulse pb-1">Re-searching...</span>
                 )}
               </div>
 
@@ -666,14 +684,14 @@ export default function ResearcherPage() {
                                 <span className="text-xs text-stone-400">{article.citationCount} citations</span>
                               )}
                             </div>
-                            <button onClick={() => toggleCard(article)} className="text-left font-bold text-[#2b090d] text-base leading-snug hover:text-[#521118] transition-colors">
+                            <button onClick={() => toggleCard(article)} className="text-left font-bold text-[#2b090d] text-base leading-snug hover:text-[#521118] transition-colors line-clamp-6">
                               {article.title}
                             </button>
                             <p className="text-sm text-[#2b090d]/60 mt-1">{article.authors} · {article.journal} · {article.year}</p>
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
                             <button
-                              onClick={() => handleSaveToggle(article)}
+                              onClick={() => handleBookmarkClick(article)}
                               className={`p-2 rounded-xl border transition-all ${isSaved ? "bg-amber-50 border-amber-300 text-amber-700" : "bg-[#e8e4df]/80 border-[#e8e4df] text-[#521118]/40 hover:text-[#521118]"}`}
                               title={isSaved ? "Saved to Library" : "Save to Library"}
                             >
