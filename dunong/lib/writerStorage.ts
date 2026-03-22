@@ -1,107 +1,42 @@
 // lib/writerStorage.ts
-import type { LibraryFolder, Notebook, VaultSource, WriterSettings, CitationFormat } from './writer.types';
+// NOTE: This now reads/writes from the SAME key as libraryStore (dunong_library_v2)
+// so Library and Writer share one unified data store.
 
-const KEYS = {
-  FOLDERS: 'dunong_library_folders',
-  SETTINGS: 'dunong_writer_settings',
-};
+import type { Folder, Notebook, getStoredFolders, saveStoredFolders } from './libraryStore';
+import type { VaultSource, CitationFormat } from './writer.types';
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+const STORAGE_KEY = 'dunong_library_v2';
 
-function readFolders(): LibraryFolder[] {
+// ─── Low-level helpers ────────────────────────────────────────────────────────
+
+function readFolders(): Folder[] {
   if (typeof window === 'undefined') return [];
   try {
-    const raw = localStorage.getItem(KEYS.FOLDERS);
-    if (!raw) return defaultFolders();
-    return JSON.parse(raw) as LibraryFolder[];
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
   } catch {
-    return defaultFolders();
+    return [];
   }
 }
 
-function writeFolders(folders: LibraryFolder[]): void {
+function writeFolders(folders: Folder[]): void {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(KEYS.FOLDERS, JSON.stringify(folders));
-}
-
-function defaultFolders(): LibraryFolder[] {
-  const folder: LibraryFolder = {
-    id: 'unsorted',
-    name: 'Unsorted',
-    notebooks: [],
-    vault: [],
-    createdAt: new Date().toISOString(),
-  };
-  writeFolders([folder]);
-  return [folder];
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(folders));
 }
 
 // ─── Folder Operations ────────────────────────────────────────────────────────
 
-export function getFolders(): LibraryFolder[] {
+export function getFolders(): Folder[] {
   return readFolders();
 }
 
-export function getFolderById(folderId: string): LibraryFolder | null {
+export function getFolderById(folderId: string): Folder | null {
   return readFolders().find((f) => f.id === folderId) ?? null;
-}
-
-export function createFolder(name: string): LibraryFolder {
-  const folders = readFolders();
-  const newFolder: LibraryFolder = {
-    id: `folder_${Date.now()}`,
-    name: name.trim(),
-    notebooks: [],
-    vault: [],
-    createdAt: new Date().toISOString(),
-  };
-  writeFolders([...folders, newFolder]);
-  return newFolder;
-}
-
-export function renameFolder(folderId: string, newName: string): void {
-  const folders = readFolders();
-  const idx = folders.findIndex((f) => f.id === folderId);
-  if (idx !== -1) {
-    folders[idx].name = newName.trim();
-    writeFolders(folders);
-  }
-}
-
-export function deleteFolder(folderId: string): void {
-  const folders = readFolders().filter((f) => f.id !== folderId);
-  writeFolders(folders);
 }
 
 // ─── Notebook Operations ──────────────────────────────────────────────────────
 
-export function createNotebook(
-  folderId: string,
-  name = 'Untitled Document'
-): { notebook: Notebook; folder: LibraryFolder } | null {
-  const folders = readFolders();
-  const folder = folders.find((f) => f.id === folderId);
-  if (!folder) return null;
-
-  const notebook: Notebook = {
-    id: `nb_${Date.now()}`,
-    name: name.trim(),
-    content: '',
-    citationFormat: 'APA',
-    citedSourceIds: [],
-    lastSaved: new Date().toISOString(),
-    createdAt: new Date().toISOString(),
-    wordCount: 0,
-  };
-
-  folder.notebooks.unshift(notebook); // newest first
-  writeFolders(folders);
-  return { notebook, folder };
-}
-
-export function getNotebookById(
-  notebookId: string
-): { notebook: Notebook; folder: LibraryFolder } | null {
+export function getNotebookById(notebookId: string): { notebook: Notebook; folder: Folder } | null {
   const folders = readFolders();
   for (const folder of folders) {
     const nb = folder.notebooks.find((n) => n.id === notebookId);
@@ -118,7 +53,7 @@ export function saveNotebook(notebookId: string, updates: Partial<Notebook>): No
       folder.notebooks[idx] = {
         ...folder.notebooks[idx],
         ...updates,
-        lastSaved: new Date().toISOString(),
+        updatedAt: Date.now(),
       };
       writeFolders(folders);
       return folder.notebooks[idx];
@@ -146,69 +81,78 @@ export function deleteNotebook(notebookId: string): boolean {
 
 // ─── Vault Operations ─────────────────────────────────────────────────────────
 
+/**
+ * Returns vault sources for a folder, resolving linked articles + notebooks
+ * into a VaultSource shape that the Copilot API understands.
+ */
 export function getVaultSources(folderId: string): VaultSource[] {
-  return getFolderById(folderId)?.vault ?? [];
-}
+  const folder = getFolderById(folderId);
+  if (!folder) return [];
 
-export function addSourceToVault(folderId: string, source: VaultSource): boolean {
-  const folders = readFolders();
-  const folder = folders.find((f) => f.id === folderId);
-  if (!folder) return false;
-  if (!folder.vault) folder.vault = [];
+  const sources: VaultSource[] = [];
 
-  const exists = folder.vault.some(
-    (s) => (s.doi && s.doi === source.doi) || s.title === source.title
-  );
-  if (!exists) {
-    folder.vault.push({ ...source, addedAt: new Date().toISOString() });
-    writeFolders(folders);
-  }
-  return true;
-}
-
-export function saveDocumentToVault(folderId: string, notebookId: string): boolean {
-  const folders = readFolders();
-  const folder = folders.find((f) => f.id === folderId);
-  if (!folder) return false;
-
-  const notebook = folder.notebooks.find((n) => n.id === notebookId);
-  if (!notebook) return false;
-
-  if (!folder.vaultDocuments) folder.vaultDocuments = [];
-  const existingIdx = folder.vaultDocuments.findIndex((d) => d.notebookId === notebookId);
-  const snapshot = {
-    notebookId,
-    name: notebook.name,
-    content: notebook.content,
-    savedAt: new Date().toISOString(),
-  };
-
-  if (existingIdx !== -1) {
-    folder.vaultDocuments[existingIdx] = snapshot;
-  } else {
-    folder.vaultDocuments.push(snapshot);
+  // 1. Add all direct articles in the folder
+  for (const article of folder.articles ?? []) {
+    sources.push({
+      id: article.id,
+      title: article.title,
+      authors: article.authors.split(',').map((a) => a.trim()),
+      year: article.year,
+      journal: article.journal,
+      abstract: article.abstract,
+      url: article.url,
+      addedAt: new Date(article.savedAt ?? Date.now()).toISOString(),
+    });
   }
 
-  writeFolders(folders);
-  return true;
-}
-
-// ─── Settings ─────────────────────────────────────────────────────────────────
-
-export function getWriterSettings(): WriterSettings {
-  if (typeof window === 'undefined') return { groqApiKey: '' };
-  try {
-    const raw = localStorage.getItem(KEYS.SETTINGS);
-    return raw ? JSON.parse(raw) : { groqApiKey: '' };
-  } catch {
-    return { groqApiKey: '' };
+  // 2. Add vault items (notebooks, uploaded files, and linked articles from OTHER folders if any)
+  for (const vf of folder.vault ?? []) {
+    if (vf.type === 'article' && vf.linkedArticleId && vf.linkedFolderId && vf.linkedFolderId !== folderId) {
+      // Resolve linked article from another folder
+      const linkedFolder = getFolderById(vf.linkedFolderId);
+      const article = linkedFolder?.articles.find((a) => a.id === vf.linkedArticleId);
+      if (article) {
+        sources.push({
+          id: article.id,
+          title: article.title,
+          authors: article.authors.split(',').map((a) => a.trim()),
+          year: article.year,
+          journal: article.journal,
+          abstract: article.abstract,
+          url: article.url,
+          addedAt: new Date(vf.addedAt ?? Date.now()).toISOString(),
+        });
+      }
+    } else if (vf.type === 'notebook' && vf.linkedNotebookId && vf.linkedFolderId) {
+      // Resolve linked notebook
+      const linkedFolder = getFolderById(vf.linkedFolderId);
+      const nb = linkedFolder?.notebooks.find((n) => n.id === vf.linkedNotebookId);
+      if (nb) {
+        // Strip HTML tags for plain text content
+        const plainContent = nb.content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+        sources.push({
+          id: nb.id,
+          title: nb.name,
+          authors: ['(Notebook)'],
+          year: new Date(nb.updatedAt).getFullYear().toString(),
+          abstract: plainContent.slice(0, 500),
+          addedAt: new Date(nb.updatedAt).toISOString(),
+        });
+      }
+    } else if (vf.dataUrl) {
+      // Uploaded file — use name as title, no full content extraction here
+      sources.push({
+        id: vf.id,
+        title: vf.name,
+        authors: ['(Uploaded file)'],
+        year: new Date(vf.addedAt ?? Date.now()).getFullYear().toString(),
+        abstract: `Uploaded file: ${vf.name} (${vf.type})`,
+        addedAt: new Date(vf.addedAt ?? Date.now()).toISOString(),
+      });
+    }
   }
-}
 
-export function saveWriterSettings(settings: Partial<WriterSettings>): void {
-  if (typeof window === 'undefined') return;
-  const current = getWriterSettings();
-  localStorage.setItem(KEYS.SETTINGS, JSON.stringify({ ...current, ...settings }));
+  return sources;
 }
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
@@ -219,9 +163,9 @@ export function countWords(html: string): number {
   return text.split(' ').filter((w) => w.length > 0).length;
 }
 
-export function formatLastSaved(isoString: string): string {
-  if (!isoString) return 'Not saved';
-  const date = new Date(isoString);
+export function formatLastSaved(ts: number | string): string {
+  if (!ts) return 'Not saved';
+  const date = typeof ts === 'number' ? new Date(ts) : new Date(ts);
   const diffSec = Math.floor((Date.now() - date.getTime()) / 1000);
   if (diffSec < 10) return 'Saved just now';
   if (diffSec < 60) return `Saved ${diffSec}s ago`;
@@ -229,11 +173,8 @@ export function formatLastSaved(isoString: string): string {
   return `Saved at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
 }
 
-export function formatDate(isoString: string): string {
-  if (!isoString) return '';
-  return new Date(isoString).toLocaleDateString('en-PH', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
+export function formatDate(ts: number | string): string {
+  if (!ts) return '';
+  const date = typeof ts === 'number' ? new Date(ts) : new Date(ts);
+  return date.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
 }

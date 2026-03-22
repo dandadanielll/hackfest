@@ -1,6 +1,7 @@
 import { Bookmark, ShieldCheck, Flag, Unlock, Link2 } from "lucide-react";
 
 export default function ArticleCard({
+  articleId,
   title,
   authors,
   year,
@@ -9,8 +10,10 @@ export default function ArticleCard({
   abstract,
   localSource,
   openAccess,
-  url
+  url,
+  hideActions = false
 }: {
+  articleId?: string;
   title: string;
   authors: string;
   year: string;
@@ -20,6 +23,7 @@ export default function ArticleCard({
   localSource?: boolean;
   openAccess?: boolean;
   url?: string;
+  hideActions?: boolean;
 }) {
   return (
     <div className="bg-white/80 backdrop-blur-sm border border-stone-200 p-5 rounded-2xl shadow-sm hover:shadow-md transition cursor-pointer group hover:border-amber-200/50 flex flex-col gap-3">
@@ -59,11 +63,13 @@ export default function ArticleCard({
         </p>
       )}
 
-      <div className="flex justify-end mt-2">
-        <button className="text-xs font-bold text-stone-500 hover:text-stone-900 bg-stone-50 hover:bg-stone-100 px-3 py-1.5 rounded-lg border border-stone-200 transition flex items-center gap-1.5">
-          <Bookmark size={14} /> Save to Library
-        </button>
-      </div>
+      {!hideActions && (
+        <div className="flex justify-end mt-2">
+          <button className="text-xs font-bold text-stone-500 hover:text-stone-900 bg-stone-50 hover:bg-stone-100 px-3 py-1.5 rounded-lg border border-stone-200 transition flex items-center gap-1.5">
+            <Bookmark size={14} /> Save to Library
+          </button>
+        </div>
+      )}
     </div>
   );
 }
