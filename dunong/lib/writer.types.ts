@@ -19,7 +19,7 @@ export interface Notebook {
   content: string;
   citationFormat: CitationFormat;
   citedSourceIds: string[];
-  lastSaved: string;
+  updatedAt: number;
   createdAt: string;
   wordCount: number;
 }

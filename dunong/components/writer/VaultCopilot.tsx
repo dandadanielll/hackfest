@@ -32,6 +32,7 @@ export default function VaultCopilot({
   const [messages, setMessages] = useState<CopilotMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [useVault, setUseVault] = useState(true);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -58,7 +59,11 @@ export default function VaultCopilot({
           message: selectedText ? `[Selected text]: "${selectedText}"\n\n${msg}` : msg,
           history,
           context: {
+<<<<<<< HEAD
             vaultSources,
+=======
+            vaultSources: useVault ? vaultSources : [],
+>>>>>>> origin/lib-new
             folderName,
             citationFormat,
           },
@@ -112,19 +117,36 @@ export default function VaultCopilot({
 
       {/* Header */}
       <div className="px-4 py-3.5 border-b border-[#2D1500] shrink-0">
-        <div className="flex items-center gap-2 mb-2">
-          <span className="text-[#E8B86D] text-base">✦</span>
-          <span className="text-white font-bold text-[15px]" style={{ fontFamily: 'Georgia, serif' }}>
-            Vault Co-pilot
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <div className="flex items-center gap-2">
+            <span className="text-[#E8B86D] text-base">✦</span>
+            <span className="text-white font-bold text-[15px]" style={{ fontFamily: 'Georgia, serif' }}>
+              Vault Co-pilot
+            </span>
+          </div>
+          
+          <label className="flex items-center gap-2 cursor-pointer group" title="Toggle Vault Context" aria-label="Toggle Vault Context">
+            <div className={`relative w-7 h-4 rounded-full transition-colors ${useVault ? 'bg-[#D4A96A]' : 'bg-[#4A3525]'}`}>
+              <div className={`absolute top-[2px] left-[2px] w-3 h-3 bg-white rounded-full transition-transform ${useVault ? 'translate-x-[12px]' : 'translate-x-0'}`} />
+            </div>
+            <input
+              type="checkbox"
+              className="hidden"
+              checked={useVault}
+              onChange={(e) => setUseVault(e.target.checked)}
+            />
+          </label>
+        </div>
+        
+        <div className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 transition-colors ${useVault ? 'bg-[#2D1500]' : 'bg-[#1A1A1A] border border-[#333]'}`}>
+          <span className="text-[11px]">{useVault ? '🔒' : '🌐'}</span>
+          <span className={`text-[11px] font-medium leading-tight ${useVault ? 'text-[#D4A96A]' : 'text-gray-400'}`}>
+            {useVault 
+              ? (folderName ? `Locked to "${folderName}"` : 'No folder selected')
+              : 'General AI Assistant'}
           </span>
         </div>
-        <div className="flex items-center gap-1.5 bg-[#2D1500] rounded-md px-2.5 py-1.5">
-          <span className="text-[11px]">🔒</span>
-          <span className="text-[#D4A96A] text-[11px] font-medium leading-tight">
-            {folderName ? `Locked to "${folderName}"` : 'No folder selected'}
-          </span>
-        </div>
-        {vaultSources.length === 0 && (
+        {useVault && vaultSources.length === 0 && (
           <div className="mt-2 bg-[#2D1F00] rounded-md px-2.5 py-1.5 text-[10px] text-[#E8B86D]">
             ⚠ No vault sources. Save articles to this folder first.
           </div>

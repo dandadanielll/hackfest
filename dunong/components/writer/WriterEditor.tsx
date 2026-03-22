@@ -1,5 +1,6 @@
 'use client';
 
+<<<<<<< HEAD
 import { useState, useEffect, useRef } from 'react';
 import { useEditor, EditorContent, Extension } from '@tiptap/react';
 import { StarterKit } from '@tiptap/starter-kit';
@@ -26,6 +27,16 @@ import {
 
 import type { Notebook, LibraryFolder, CitationFormat } from '@/lib/writer.types';
 import { saveNotebook, renameNotebook, saveDocumentToVault, getVaultSources, countWords, formatLastSaved } from '@/lib/writerStorage';
+=======
+import { useState, useRef, useEffect, useCallback } from 'react';
+import type { Notebook } from '@/lib/libraryStore';
+import type { LibraryFolder } from '@/lib/writer.types';
+import type { CitationFormat } from '@/lib/writer.types';
+import {
+  saveNotebook, getVaultSources, countWords, formatLastSaved,
+} from '@/lib/writerStorage';
+import { useLibrary } from '@/lib/libraryContext';
+>>>>>>> origin/lib-new
 import { exportToDocx } from '@/lib/exportDocx';
 import VaultCopilot from './VaultCopilot';
 import CitationsPanel from './CitationsPanel';
@@ -167,13 +178,24 @@ const PARA_STYLES = [
 ];
 
 export default function WriterEditor({ notebook, folder, onBack }: Props) {
+<<<<<<< HEAD
   const [docName, setDocName] = useState(notebook.name);
   const [savedTs, setSavedTs] = useState(notebook.lastSaved);
   const [wordCount, setWordCount] = useState(notebook.wordCount ?? 0);
+=======
+  const { editNotebook } = useLibrary();
+  const editorRef = useRef<HTMLDivElement>(null);
+  const autoSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [docName, setDocName] = useState(notebook.name);
+  const [editingName, setEditingName] = useState(false);
+  const [wordCount, setWordCount] = useState(notebook.wordCount ?? 0);
+  const [savedTs, setSavedTs] = useState(notebook.updatedAt);
+>>>>>>> origin/lib-new
   const [citationFormat, setCitationFormat] = useState<CitationFormat>(notebook.citationFormat ?? 'APA');
   const [spellCheckEnabled, setSpellCheckEnabled] = useState(true);
   
   const [showCitations, setShowCitations] = useState(false);
+<<<<<<< HEAD
   const [vaultSources, setVaultSources] = useState(getVaultSources(folder.id));
   const [selectedText, setSelectedText] = useState('');
   
@@ -181,9 +203,21 @@ export default function WriterEditor({ notebook, folder, onBack }: Props) {
   const isRequestingAIRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [aiStatus, setAiStatus] = useState<'idle' | 'thinking'>('idle');
+=======
+  const [vaultSources, setVaultSources] = useState(() => getVaultSources(folder.id));
+  const [selectedText, setSelectedText] = useState('');
+
+  // Toolbar state
+  const [fmt, setFmt] = useState({ bold: false, italic: false, underline: false, strike: false });
+  const [currentFont, setCurrentFont] = useState('Georgia');
+  const [currentSize, setCurrentSize] = useState('12');
+  const [textColor, setTextColor] = useState('#000000');
+  const [hlColor, setHlColor] = useState('#FFFF00');
+>>>>>>> origin/lib-new
 
   const [, setForceUpdate] = useState(0);
 
+<<<<<<< HEAD
   const editor = useEditor({
     extensions: [
       StarterKit, Underline, TextStyle, Color, Highlight.configure({ multicolor: true }),
@@ -203,6 +237,24 @@ export default function WriterEditor({ notebook, folder, onBack }: Props) {
 
       const { from, to } = editor.state.selection;
       setSelectedText(editor.state.doc.textBetween(from, to, ' '));
+=======
+  // Refresh vault sources when folder changes
+  useEffect(() => {
+    setVaultSources(getVaultSources(folder.id));
+  }, [folder.id, folder.vault]);
+
+  // Track selection for toolbar state
+  const onSelectionChange = useCallback(() => {
+    const sel = window.getSelection();
+    setSelectedText(sel?.toString().trim() ?? '');
+    setFmt({
+      bold: document.queryCommandState('bold'),
+      italic: document.queryCommandState('italic'),
+      underline: document.queryCommandState('underline'),
+      strike: document.queryCommandState('strikeThrough'),
+    });
+  }, []);
+>>>>>>> origin/lib-new
 
       if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
       editor.view.dispatch(editor.state.tr.setMeta('ghostText', null));
@@ -213,6 +265,7 @@ export default function WriterEditor({ notebook, folder, onBack }: Props) {
         const textBeforeCursor = editor.state.doc.textBetween(Math.max(0, editor.state.selection.to - 800), editor.state.selection.to, '\n');
         if (textBeforeCursor.trim().length < 10) return;
 
+<<<<<<< HEAD
         isRequestingAIRef.current = true;
         setAiStatus('thinking');
         try {
@@ -251,11 +304,34 @@ export default function WriterEditor({ notebook, folder, onBack }: Props) {
   useEffect(() => setVaultSources(getVaultSources(folder.id)), [folder.id]);
 
   if (!editor) return null;
+=======
+  // Refresh last-saved label every 30s
+  useEffect(() => {
+    const id = setInterval(() => setSavedTs((t) => t), 30_000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Auto-save: write to unified library store via editNotebook
+  const triggerAutoSave = useCallback(() => {
+    if (autoSaveRef.current) clearTimeout(autoSaveRef.current);
+    autoSaveRef.current = setTimeout(() => {
+      const content = editorRef.current?.innerHTML ?? '';
+      const wc = countWords(content);
+      // Save to unified libraryStore via context
+      editNotebook(folder.id, notebook.id, { content, wordCount: wc, citationFormat });
+      // Also sync writerStorage for vault source resolution
+      saveNotebook(notebook.id, { content, wordCount: wc, citationFormat });
+      setSavedTs(Date.now());
+      setWordCount(wc);
+    }, 800);
+  }, [notebook.id, folder.id, citationFormat, editNotebook]);
+>>>>>>> origin/lib-new
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+<<<<<<< HEAD
     const reader = new FileReader();
     reader.onload = (event) => {
       const img = new globalThis.Image(); 
@@ -299,6 +375,75 @@ export default function WriterEditor({ notebook, folder, onBack }: Props) {
         <div className="flex items-center gap-4">
           <button onClick={onBack} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-[#8B1A1A]" title="Back to Dashboard">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+=======
+  // Editor commands
+  const exec = useCallback((cmd: string, value?: string) => {
+    editorRef.current?.focus();
+    document.execCommand(cmd, false, value);
+    triggerAutoSave();
+  }, [triggerAutoSave]);
+
+  const handleInsertTable = () => {
+    const rows = parseInt(prompt('Rows:', '3') ?? '3', 10);
+    const cols = parseInt(prompt('Columns:', '3') ?? '3', 10);
+    if (!rows || !cols) return;
+    let html = '<table style="border-collapse:collapse;width:100%;margin:12px 0"><tbody>';
+    for (let r = 0; r < rows; r++) {
+      html += '<tr>';
+      for (let c = 0; c < cols; c++)
+        html += '<td style="border:1px solid #ccc;padding:6px 8px;min-width:60px">&nbsp;</td>';
+      html += '</tr>';
+    }
+    html += '</tbody></table><p><br></p>';
+    exec('insertHTML', html);
+  };
+
+  const handleInsertInlineCitation = (citation: string, _sourceId: string) => {
+    exec('insertHTML', `<span style="color:#8B1A1A;font-weight:500">&nbsp;${citation}&nbsp;</span>`);
+  };
+
+  const handleInsertBibliography = (formatted: string, _fmt: CitationFormat) => {
+    const entries = formatted.split('\n\n').map((e) =>
+      `<p style="margin-bottom:12pt;padding-left:40px;text-indent:-40px">${e}</p>`
+    ).join('');
+    exec('insertHTML',
+      `<hr style="margin:24px 0;border-color:#ccc">
+       <h2 style="font-size:16pt;font-weight:bold;margin-bottom:12pt">References</h2>
+       <div style="font-size:12pt;line-height:1.6">${entries}</div>`
+    );
+    setShowCitations(false);
+  };
+
+  const handleApplyEdit = (text: string) => {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && !sel.isCollapsed) exec('insertText', text);
+    else exec('insertHTML', `<p>${text}</p>`);
+  };
+
+  const handleRename = (name: string) => {
+    if (!name.trim()) return;
+    setDocName(name.trim());
+    editNotebook(folder.id, notebook.id, { name: name.trim() });
+    saveNotebook(notebook.id, { name: name.trim() });
+    setEditingName(false);
+  };
+
+  const handleRemoveHighlight = () => {
+    exec('hiliteColor', 'transparent');
+  };
+
+  return (
+    <div className="flex flex-col h-full bg-[#F5F0E8] overflow-hidden">
+
+      {/* Header */}
+      <div className="flex items-center justify-between px-5 py-2.5 bg-white border-b border-[#E8DFD0] shrink-0 gap-3">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <button
+            onClick={onBack}
+            className="px-3 py-1.5 border border-[#D0C4B8] rounded-md text-xs text-gray-500 hover:bg-gray-50 transition-colors shrink-0"
+          >
+            ← Back
+>>>>>>> origin/lib-new
           </button>
           
           <div className="flex flex-col flex-1">
@@ -314,6 +459,7 @@ export default function WriterEditor({ notebook, folder, onBack }: Props) {
             </div>
           </div>
 
+<<<<<<< HEAD
           <div className="flex items-center gap-4">
             <span className="text-xs text-gray-500">{wordCount.toLocaleString()} words</span>
             <button onClick={() => setShowCitations(!showCitations)} className="px-3 py-1.5 border border-[#D0C4B8] rounded-md text-xs font-semibold text-gray-600 hover:bg-gray-50">
@@ -349,9 +495,228 @@ export default function WriterEditor({ notebook, folder, onBack }: Props) {
                onClick={() => editor.chain().focus().updateAttributes('image', { layout: 'break' }).run()} 
                active={editor.getAttributes('image').layout === 'break'} 
              />
+=======
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-xs text-gray-400">{wordCount.toLocaleString()} words</span>
+          <button
+            onClick={() => setShowCitations(!showCitations)}
+            className="px-3 py-1.5 border border-[#D0C4B8] rounded-md text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+          >
+            Citations
+          </button>
+          <button
+            onClick={() => exportToDocx(editorRef.current?.innerHTML ?? '', docName)}
+            className="px-3 py-1.5 border border-[#D0C4B8] rounded-md text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+          >
+            Export .docx
+          </button>
+        </div>
+      </div>
+
+      {/* Toolbar */}
+      <div className="flex items-center flex-wrap gap-0.5 px-3 py-1.5 bg-white border-b border-[#E8DFD0] shrink-0">
+
+        {/* Undo / Redo */}
+        <Btn onMouseDown={() => exec('undo')} title="Undo">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 7v6h6" /><path d="M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13" /></svg>
+        </Btn>
+        <Btn onMouseDown={() => exec('redo')} title="Redo">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 7v6h-6" /><path d="M3 17a9 9 0 019-9 9 9 0 016 2.3L21 13" /></svg>
+        </Btn>
+
+        <div className="w-px h-5 bg-[#E0D8CC] mx-1" />
+
+        {/* Paragraph style */}
+        <select
+          className="h-7 px-1.5 border border-[#D0C4B8] rounded text-[12px] bg-white cursor-pointer outline-none mr-1"
+          onChange={(e) => { editorRef.current?.focus(); document.execCommand('formatBlock', false, e.target.value); triggerAutoSave(); }}
+          defaultValue="p"
+        >
+          {PARA_STYLES.map((s) => (
+            <option key={s.tag} value={s.tag}>{s.label}</option>
+          ))}
+        </select>
+
+        <div className="w-px h-5 bg-[#E0D8CC] mx-1" />
+
+        {/* Font family */}
+        <select
+          className="h-7 px-1.5 border border-[#D0C4B8] rounded text-[12px] bg-white cursor-pointer outline-none w-[130px]"
+          value={currentFont}
+          onChange={(e) => { setCurrentFont(e.target.value); exec('fontName', e.target.value); }}
+        >
+          {FONT_FAMILIES.map((f) => <option key={f} value={f}>{f}</option>)}
+        </select>
+
+        {/* Font size */}
+        <select
+          className="h-7 px-1 border border-[#D0C4B8] rounded text-[12px] bg-white cursor-pointer outline-none w-14 ml-1"
+          value={currentSize}
+          onChange={(e) => {
+            setCurrentSize(e.target.value);
+            exec('fontSize', '7');
+            editorRef.current?.querySelectorAll('font[size="7"]').forEach((el) => {
+              (el as HTMLElement).removeAttribute('size');
+              (el as HTMLElement).style.fontSize = `${e.target.value}pt`;
+            });
+          }}
+        >
+          {FONT_SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
+        </select>
+
+        <div className="w-px h-5 bg-[#E0D8CC] mx-1" />
+
+        {/* Bold / Italic / Underline / Strike */}
+        <Btn active={fmt.bold} onMouseDown={() => exec('bold')} title="Bold"><b>B</b></Btn>
+        <Btn active={fmt.italic} onMouseDown={() => exec('italic')} title="Italic"><i>I</i></Btn>
+        <Btn active={fmt.underline} onMouseDown={() => exec('underline')} title="Underline"><u>U</u></Btn>
+        <Btn active={fmt.strike} onMouseDown={() => exec('strikeThrough')} title="Strikethrough"><s>S</s></Btn>
+
+        <div className="w-px h-5 bg-[#E0D8CC] mx-1" />
+
+        {/* Text color */}
+        <label className="relative w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 cursor-pointer" title="Text color">
+          <span className="text-sm font-bold pointer-events-none" style={{ color: textColor }}>A</span>
+          <input
+            type="color"
+            value={textColor}
+            onChange={(e) => { setTextColor(e.target.value); exec('foreColor', e.target.value); }}
+            className="absolute opacity-0 inset-0 cursor-pointer w-full h-full"
+          />
+        </label>
+
+        {/* Highlight color */}
+        <label className="relative w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 cursor-pointer" title="Highlight color">
+          <span className="text-sm font-bold pointer-events-none px-0.5 rounded-sm" style={{ backgroundColor: hlColor }}>H</span>
+          <input
+            type="color"
+            value={hlColor}
+            onChange={(e) => { setHlColor(e.target.value); exec('hiliteColor', e.target.value); }}
+            className="absolute opacity-0 inset-0 cursor-pointer w-full h-full"
+          />
+        </label>
+
+        {/* Remove highlight */}
+        <Btn onMouseDown={handleRemoveHighlight} title="Remove highlight">
+          <span className="text-[11px] font-bold line-through opacity-60">H</span>
+        </Btn>
+
+        <div className="w-px h-5 bg-[#E0D8CC] mx-1" />
+
+        {/* Alignment */}
+        <Btn onMouseDown={() => exec('justifyLeft')} title="Align left">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+            <rect x="0" y="1" width="14" height="2" />
+            <rect x="0" y="5" width="10" height="2" />
+            <rect x="0" y="9" width="14" height="2" />
+            <rect x="0" y="13" width="8" height="2" />
+          </svg>
+        </Btn>
+        <Btn onMouseDown={() => exec('justifyCenter')} title="Center">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+            <rect x="0" y="1" width="14" height="2" />
+            <rect x="2" y="5" width="10" height="2" />
+            <rect x="0" y="9" width="14" height="2" />
+            <rect x="3" y="13" width="8" height="2" />
+          </svg>
+        </Btn>
+        <Btn onMouseDown={() => exec('justifyRight')} title="Align right">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+            <rect x="0" y="1" width="14" height="2" />
+            <rect x="4" y="5" width="10" height="2" />
+            <rect x="0" y="9" width="14" height="2" />
+            <rect x="6" y="13" width="8" height="2" />
+          </svg>
+        </Btn>
+        <Btn onMouseDown={() => exec('justifyFull')} title="Justify">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+            <rect x="0" y="1" width="14" height="2" />
+            <rect x="0" y="5" width="14" height="2" />
+            <rect x="0" y="9" width="14" height="2" />
+            <rect x="0" y="13" width="14" height="2" />
+          </svg>
+        </Btn>
+
+        <div className="w-px h-5 bg-[#E0D8CC] mx-1" />
+
+        {/* Lists */}
+        <Btn onMouseDown={() => exec('insertUnorderedList')} title="Bullet list">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+            <circle cx="1.5" cy="2.5" r="1.5" />
+            <rect x="4" y="1.5" width="10" height="2" />
+            <circle cx="1.5" cy="7" r="1.5" />
+            <rect x="4" y="6" width="10" height="2" />
+            <circle cx="1.5" cy="11.5" r="1.5" />
+            <rect x="4" y="10.5" width="10" height="2" />
+          </svg>
+        </Btn>
+        <Btn onMouseDown={() => exec('insertOrderedList')} title="Numbered list">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+            <text x="0" y="4" fontSize="4" fontWeight="bold">1.</text>
+            <rect x="4" y="1.5" width="10" height="2" />
+            <text x="0" y="8.5" fontSize="4" fontWeight="bold">2.</text>
+            <rect x="4" y="6" width="10" height="2" />
+            <text x="0" y="13" fontSize="4" fontWeight="bold">3.</text>
+            <rect x="4" y="10.5" width="10" height="2" />
+          </svg>
+        </Btn>
+
+        <div className="w-px h-5 bg-[#E0D8CC] mx-1" />
+
+        {/* Indent / Outdent */}
+        <Btn onMouseDown={() => exec('indent')} title="Indent">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+            <rect x="0" y="1" width="14" height="1.5" />
+            <rect x="4" y="4.5" width="10" height="1.5" />
+            <rect x="4" y="8" width="10" height="1.5" />
+            <rect x="0" y="11.5" width="14" height="1.5" />
+            <path d="M0 4.5l3 3-3 3V4.5z" />
+          </svg>
+        </Btn>
+        <Btn onMouseDown={() => exec('outdent')} title="Outdent">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+            <rect x="0" y="1" width="14" height="1.5" />
+            <rect x="4" y="4.5" width="10" height="1.5" />
+            <rect x="4" y="8" width="10" height="1.5" />
+            <rect x="0" y="11.5" width="14" height="1.5" />
+            <path d="M3.5 4.5l-3 3 3 3V4.5z" />
+          </svg>
+        </Btn>
+
+        <div className="w-px h-5 bg-[#E0D8CC] mx-1" />
+
+        {/* Insert Table */}
+        <Btn onMouseDown={handleInsertTable} title="Insert table">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.2">
+            <rect x="1" y="1" width="12" height="12" rx="1" />
+            <line x1="1" y1="5" x2="13" y2="5" />
+            <line x1="1" y1="9" x2="13" y2="9" />
+            <line x1="5" y1="1" x2="5" y2="13" />
+            <line x1="9" y1="1" x2="9" y2="13" />
+          </svg>
+        </Btn>
+      </div>
+
+      {/* Body: Editor + Copilot */}
+      <div className="flex flex-1 overflow-hidden">
+
+        {/* Editor scroll area */}
+        <div className="flex-1 overflow-auto py-10 px-8 bg-[#F5F0E8]">
+          <div className="max-w-[760px] mx-auto bg-white rounded shadow-md min-h-[1056px] px-20 py-[72px]">
+            <div
+              ref={editorRef}
+              contentEditable
+              suppressContentEditableWarning
+              onInput={triggerAutoSave}
+              data-placeholder="Start drafting your research paper here…"
+              className="min-h-[900px] text-[#1A0A00] outline-none focus:outline-none"
+              style={{ fontFamily: 'Georgia, serif', fontSize: '12pt', lineHeight: '1.6' }}
+            />
+>>>>>>> origin/lib-new
           </div>
         ) : null}
 
+<<<<<<< HEAD
         <RibbonBtn icon={<Undo size={16}/>} onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} title="Undo" />
         <RibbonBtn icon={<Redo size={16}/>} onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()} title="Redo" />
         <RibbonBtn icon={<Printer size={16}/>} onClick={() => window.print()} title="Print" />
@@ -392,6 +757,18 @@ export default function WriterEditor({ notebook, folder, onBack }: Props) {
           icon={<Baseline size={16} className="text-gray-700"/>} 
           title="Text color" 
           onSelect={(c) => c === 'transparent' ? editor.chain().focus().unsetColor().run() : editor.chain().focus().setColor(c).run()} 
+=======
+        {/* Vault Co-pilot */}
+        <VaultCopilot
+          vaultSources={vaultSources}
+          folderName={folder.name}
+          citationFormat={citationFormat}
+          selectedText={selectedText}
+          onApplyEdit={handleApplyEdit}
+          onInsertCitation={(citation) =>
+            exec('insertHTML', `<span style="color:#8B1A1A;font-weight:500">&nbsp;${citation}&nbsp;</span>`)
+          }
+>>>>>>> origin/lib-new
         />
         <ColorDropdown 
           icon={<Highlighter size={16} className="text-gray-700"/>} 
@@ -434,6 +811,7 @@ export default function WriterEditor({ notebook, folder, onBack }: Props) {
         <RibbonBtn icon={<ListOrdered size={16}/>} onClick={() => editor.chain().focus().toggleOrderedList().run()} active={editor.isActive('orderedList')} title="Numbered List" />
       </div>
 
+<<<<<<< HEAD
       {/* Main Workspace */}
       <div className="flex flex-1 overflow-hidden bg-[#F4F5F7]">
         
@@ -460,18 +838,30 @@ export default function WriterEditor({ notebook, folder, onBack }: Props) {
       </div>
 
       {/* Citations Panel Overlay */}
+=======
+>>>>>>> origin/lib-new
       <CitationsPanel
         isOpen={showCitations}
         onClose={() => setShowCitations(false)}
         vaultSources={vaultSources}
         citationFormat={citationFormat}
         onFormatChange={(f) => { setCitationFormat(f); saveNotebook(notebook.id, { citationFormat: f }); }}
+<<<<<<< HEAD
         onInsertInlineCitation={(citation) => editor.chain().focus().setColor('#8B1A1A').insertContent(` ${citation} `).unsetColor().run()}
         onInsertBibliography={(formatted) => editor.chain().focus().insertContent(`<hr/><h2>References</h2><p>${formatted.replace(/\n\n/g, '</p><p>')}</p>`).run()}
+=======
+        onInsertInlineCitation={handleInsertInlineCitation}
+        onInsertBibliography={handleInsertBibliography}
+>>>>>>> origin/lib-new
         notebookId={notebook.id}
+        apiKey={""} // Passed empty for now as it's not currently used extensively, can wire to settings later
       />
+<<<<<<< HEAD
       
       {/* Global overrides for TipTap styling */}
+=======
+
+>>>>>>> origin/lib-new
       <style>{`
         .ProseMirror p.is-editor-empty:first-child::before {
           content: "Start drafting your research paper here...";
@@ -503,6 +893,7 @@ export default function WriterEditor({ notebook, folder, onBack }: Props) {
   );
 }
 
+<<<<<<< HEAD
 // Subcomponents
 function RibbonBtn({ icon, onClick, active, disabled, title }: any) {
   return (
@@ -513,10 +904,25 @@ function RibbonBtn({ icon, onClick, active, disabled, title }: any) {
       className={`w-8 h-8 flex items-center justify-center rounded transition-colors ${
         disabled ? 'opacity-30 cursor-not-allowed' : ''
       } ${active ? 'bg-[#D6E2F8] text-blue-700' : 'text-gray-700 hover:bg-gray-200 hover:text-gray-900'}`}
+=======
+function Btn({ children, onMouseDown, active, title }: {
+  children: React.ReactNode;
+  onMouseDown: () => void;
+  active?: boolean;
+  title?: string;
+}) {
+  return (
+    <button
+      title={title}
+      onMouseDown={(e) => { e.preventDefault(); onMouseDown(); }}
+      className={`w-7 h-7 flex items-center justify-center rounded text-[13px] transition-colors ${active ? 'bg-[#E8DFD0] text-[#8B1A1A]' : 'text-gray-600 hover:bg-gray-100'
+        }`}
+>>>>>>> origin/lib-new
     >
       {icon}
     </button>
   );
+<<<<<<< HEAD
 }
 
 function TextBtn({ label, onClick, active }: any) {
@@ -569,4 +975,6 @@ function ColorDropdown({ icon, title, onSelect }: { icon: React.ReactNode, title
       )}
     </div>
   );
+=======
+>>>>>>> origin/lib-new
 }
