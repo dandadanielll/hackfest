@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Layers, Bookmark, FileText, Lock, Settings, History, CheckCircle, Zap, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { BookOpen, Layers, Bookmark, FileText, Lock, Settings, History, CheckCircle, Zap, Search, ChevronLeft, ChevronRight, Lightbulb } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
@@ -34,38 +34,28 @@ export default function Sidebar() {
         <NavItem href="/aitools" icon={<Zap size={18} />} label="AI Tools" active={['/synthesis', '/gaps', '/graph', '/audio'].includes(pathname)} isCollapsed={isCollapsed} />
         <NavItem href="/citation" icon={<Settings size={18} />} label="Citation Generator" active={pathname === '/citation'} isCollapsed={isCollapsed} />
         <NavItem href="/credibility" icon={<Bookmark size={18} />} label="Credibility Score" active={pathname === '/credibility'} isCollapsed={isCollapsed} />
-        <NavItem href="/topic-generator" icon={<LightbulbIcon size={18} />} label="Topic Generator" active={pathname === '/topic-generator'} isCollapsed={isCollapsed} />
+        <NavItem href="/topic-generator" icon={<Lightbulb size={18} />} label="Topic Generator" active={pathname === '/topic-generator'} isCollapsed={isCollapsed} />
       </nav>
     </aside>
   );
 }
 
-// Temporary search icon until imported matching lucide icon is confirmed
-function SearchIcon({ size }: { size: number }) {
-  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+function NavItem({ href, icon, label, active = false, isCollapsed }: { href: string; icon: any, label: string, active?: boolean, isCollapsed: boolean }) {
+  return (
+    <Link
+      href={href}
+      title={isCollapsed ? label : ""}
+      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ${active
+        ? 'bg-[#521118] text-[#e8e4df] shadow-md shadow-[#521118]/25'
+        : 'text-[#2b090d]/60 hover:bg-[#2b090d]/8 hover:text-[#2b090d]'
+        }`}
+    >
+      <div className="shrink-0 w-6 flex items-center justify-center">
+        {icon}
+      </div>
+      <div className={`overflow-hidden transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0' : 'w-40 opacity-100'}`}>
+        <span className="truncate whitespace-nowrap">{label}</span>
+      </div>
+    </Link>
+  );
 }
-
-function LightbulbIcon({ size }: { size: number }) {
-  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.9 1.3 1.5 1.5 2.5" /><path d="M9 18h6" /><path d="M10 22h4" /></svg>
-}
-
-function NavItem({ href, icon, label, active = false }: { href: string; icon: any, label: string, active?: boolean }) {
-  function NavItem({ href, icon, label, active = false, isCollapsed }: { href: string; icon: any, label: string, active?: boolean, isCollapsed: boolean }) {
-    return (
-      <Link
-        href={href}
-        title={isCollapsed ? label : ""}
-        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ${active
-          ? 'bg-[#521118] text-[#e8e4df] shadow-md shadow-[#521118]/25'
-          : 'text-[#2b090d]/60 hover:bg-[#2b090d]/8 hover:text-[#2b090d]'
-          }`}
-      >
-        <div className="shrink-0 w-6 flex items-center justify-center">
-          {icon}
-        </div>
-        <div className={`overflow-hidden transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0' : 'w-40 opacity-100'}`}>
-          <span className="truncate whitespace-nowrap">{label}</span>
-        </div>
-      </Link>
-    );
-  }

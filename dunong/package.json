@@ -27,7 +27,6 @@
     "@tiptap/pm": "^3.20.4",
     "@tiptap/react": "^3.20.4",
     "@tiptap/starter-kit": "^3.20.4",
-    "@types/leaflet": "^1.9.21",
     "clsx": "^2.1.1",
     "docx": "^9.6.1",
     "framer-motion": "^12.38.0",
@@ -47,6 +46,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/html-to-docx": "^1.8.1",
+    "@types/leaflet": "^1.9.21",
     "@types/node": "^20",
     "@types/pdf-parse": "^1.1.5",
     "@types/react": "^19",
