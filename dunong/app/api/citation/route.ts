@@ -148,32 +148,7 @@ async function fetchHtmlMeta(url: string) {
   } catch { return null; }
 }
 
-// ── PDF base64 text extraction ───────────────────────────────────────────────
-function extractPdfText(b64: string): string {
-  try {
-    const buf = Buffer.from(b64, "base64");
-    // Method 1: try extracting raw text objects from PDF stream
-    const str = buf.toString("binary");
-    const textChunks: string[] = [];
-
-    // Look for text in parentheses (PDF text operators: (text) Tj  or [(text)] TJ)
-    const parens = str.match(/\(([^\)]{3,})\)/g) || [];
-    for (const p of parens) {
-      const clean = p.slice(1, -1).replace(/[^\x20-\x7E]/g, " ").trim();
-      if (clean.length > 3 && !/^[\d. ]+$/.test(clean)) textChunks.push(clean);
-    }
-
-    // Method 2: scan for longer readable ASCII strings (fallback)
-    const readable = str.match(/[ \w.,:\-\/]{5,}/g) || [];
-    for (const r of readable) {
-      const t = r.trim();
-      if (t.length > 5 && !/^[\d. ]+$/.test(t)) textChunks.push(t);
-    }
-
-    const combined = [...new Set(textChunks)].join(" ").slice(0, 6000);
-    return combined || "";
-  } catch { return ""; }
-}
+// ── Legacy extractor removed (we now extract text client-side via pdfjs-dist) ──
 
 // ── Extract DOI from string ──────────────────────────────────────────────────
 function extractDoi(s: string): string | null {
@@ -213,30 +188,11 @@ export async function POST(req: NextRequest) {
     let contextForAI = "";
     let sourceType = "unknown";
 
-    // ── Priority 1: File upload ──────────────────────────────────────────────
-    if (fileBase64 && fileName) {
+    // ── Priority 1: File text (sent from client-side extractor) ────────────────
+    if (text && text.startsWith("FILE:")) {
       sourceType = "file";
-      let extractedText = "";
-
-      if (fileName.toLowerCase().endsWith(".pdf")) {
-        extractedText = extractPdfText(fileBase64);
-        console.log("[Citation] PDF extracted text length:", extractedText.length);
-      } else {
-        // Plain text / docx fragment
-        extractedText = Buffer.from(fileBase64, "base64").toString("utf-8").slice(0, 6000);
-      }
-
-      if (extractedText.length > 30) {
-        contextForAI =
-          "FILE: " + fileName + "\n" +
-          "EXTRACTED TEXT (use to infer title, authors, year, journal from this):\n" +
-          extractedText;
-      } else {
-        contextForAI =
-          "FILE: " + fileName + "\n" +
-          "(Could not extract readable text from this file. " +
-          "Infer as much as possible from the filename. If it looks like an academic paper code, note that.)";
-      }
+      contextForAI = text;
+      console.log("[Citation] Processing file-extracted text:", text.slice(0, 100) + "...");
     }
 
     // ── Priority 2: DOI ─────────────────────────────────────────────────────
