@@ -147,10 +147,10 @@ export default function WriterPage() {
                     <p className="text-[11px] text-gray-300 italic py-1.5 pl-2">No notebooks yet.</p>
                   ) : (
                     folder.notebooks.map((nb) => (
-                      <button
+                      <div
                         key={nb.id}
                         onClick={() => openNotebook(nb, folder)}
-                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-[#F5F0E8] transition-colors group mb-0.5"
+                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-[#F5F0E8] transition-colors group mb-0.5 cursor-pointer"
                       >
                         <span className="text-sm shrink-0">📄</span>
                         <div className="flex-1 min-w-0 text-left">
@@ -163,10 +163,11 @@ export default function WriterPage() {
                         <button
                           onClick={(e) => handleDelete(e, nb.id)}
                           className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 text-xs px-1 transition-all"
+                          title="Delete Notebook"
                         >
                           ✕
                         </button>
-                      </button>
+                      </div>
                     ))
                   )}
                 </div>

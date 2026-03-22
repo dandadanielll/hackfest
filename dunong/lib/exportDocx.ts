@@ -12,19 +12,7 @@ export async function exportToDocx(htmlContent: string, documentName: string): P
   td,th{border:1px solid #000;padding:5pt 7pt}ul,ol{margin:0 0 10pt;padding-left:20pt}
 </style></head><body>${htmlContent}</body></html>`;
 
-  try {
-    // Try html-docx-js (must be installed: npm install html-docx-js)
-    const htmlDocx = await import('html-docx-js/dist/html-docx').catch(() => null);
-    if (htmlDocx?.default?.asBlob) {
-      const blob: Blob = htmlDocx.default.asBlob(fullHtml);
-      triggerDownload(blob, `${filename}.docx`);
-      return;
-    }
-  } catch {
-    // fall through
-  }
-
-  // Fallback: Word-compatible HTML blob
+  // Fallback: Word-compatible HTML blob (Requires no external dependencies)
   const blob = new Blob([fullHtml], { type: 'application/msword' });
   triggerDownload(blob, `${filename}.doc`);
 }
