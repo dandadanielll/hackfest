@@ -20,11 +20,11 @@ import {
   PlusCircle,
   ChevronRight,
 } from "lucide-react";
-import { useState, useMemo, useRef, useCallback } from "react";
+import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useLibrary } from "@/lib/libraryContext";
 import ArticleCard from "@/components/ArticleCard";
-import type { SavedArticle, Notebook, VaultFile } from "@/lib/libraryStore";
+import type { SavedArticle, Notebook, VaultFile, Author } from "@/lib/libraryStore";
 
 type SortOption = "savedAt" | "title" | "credibility";
 
@@ -51,9 +51,13 @@ async function extractPdfMetadata(file: File): Promise<Omit<SavedArticle, "saved
       reader.readAsDataURL(file);
     });
 
-    const authors = Array.isArray(meta.authors) && meta.authors.length > 0 
-      ? meta.authors.join(", ") 
-      : meta.authors || "Unknown";
+    const parsedAuthors: Author[] = Array.isArray(meta.authors) 
+      ? meta.authors.map(a => {
+          const parts = a.trim().split(/\s+/);
+          if (parts.length === 1) return { firstName: "", lastName: parts[0] };
+          return { firstName: parts[0], lastName: parts.slice(1).join(" ") };
+        })
+      : [{ firstName: "", lastName: "Unknown" }];
 
     const { saveFile } = await import("@/lib/idb");
     const id = `pdf_${Date.now()}_${Math.random().toString(36).slice(2)}`;
@@ -62,8 +66,10 @@ async function extractPdfMetadata(file: File): Promise<Omit<SavedArticle, "saved
     return {
       id,
       title: meta.title || file.name,
-      authors: authors,
+      authors: parsedAuthors,
       year: meta.year || new Date().getFullYear().toString(),
+      month: "",
+      day: "",
       journal: meta.journal || "Uploaded PDF",
       credibility: typeof meta.credibilityScore === "number" ? meta.credibilityScore : 85,
       abstract: meta.abstract || "",
@@ -86,8 +92,10 @@ async function extractPdfMetadata(file: File): Promise<Omit<SavedArticle, "saved
     return {
       id,
       title: file.name,
-      authors: "Unknown",
+      authors: [{ firstName: "", lastName: "Unknown" }],
       year: new Date().getFullYear().toString(),
+      month: "",
+      day: "",
       journal: "Uploaded PDF",
       credibility: 75,
       abstract: "",
@@ -198,6 +206,326 @@ function NewNotebookModal({ onConfirm, onClose }: { onConfirm: (name: string) =>
   );
 }
 
+// ─── Modal: Edit Article ─────────────────────────────────────────────────────
+function SearchableSelect({
+  value,
+  onChange,
+  options,
+  placeholder,
+  label,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  options: string[];
+  placeholder: string;
+  label: string;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const filtered = options.filter((o) =>
+    o.toLowerCase().includes(search.toLowerCase())
+  );
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div className="space-y-1.5 relative" ref={containerRef}>
+      <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 ml-1">{label}</label>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl text-sm font-bold text-stone-900 flex justify-between items-center focus:ring-2 focus:ring-amber-500 outline-none transition-all"
+      >
+        <span>{value || placeholder}</span>
+        <ChevronRight size={14} className={`transition-transform ${isOpen ? "rotate-90" : ""}`} />
+      </button>
+
+      {isOpen && (
+        <div className="absolute z-[60] mt-2 w-full bg-white border border-stone-200 rounded-2xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="p-2 border-b border-stone-100 bg-stone-50">
+            <div className="relative">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
+              <input
+                autoFocus
+                type="text"
+                className="w-full pl-9 pr-4 py-2 bg-white border border-stone-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-amber-500"
+                placeholder="Search..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="max-h-48 overflow-y-auto p-1">
+            {filtered.length === 0 && (
+              <div className="p-4 text-center text-xs text-stone-400 italic">No matches</div>
+            )}
+            {filtered.map((opt) => (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => {
+                  onChange(opt);
+                  setIsOpen(false);
+                  setSearch("");
+                }}
+                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+                  value === opt ? "bg-amber-100 text-amber-900 font-bold" : "hover:bg-stone-50 text-stone-700"
+                }`}
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EditArticleModal({
+  article,
+  onConfirm,
+  onClose,
+}: {
+  article: SavedArticle;
+  onConfirm: (updates: Partial<SavedArticle>) => void;
+  onClose: () => void;
+}) {
+  const [formData, setFormData] = useState({
+    title: article.title,
+    authors: Array.isArray(article.authors) ? article.authors : [{ firstName: "", lastName: article.authors || "Unknown" }],
+    year: article.year || new Date().getFullYear().toString(),
+    month: article.month || "",
+    day: article.day || "",
+    journal: article.journal,
+    abstract: article.abstract,
+    url: article.url,
+  });
+
+  const years = useMemo(() => {
+    const current = new Date().getFullYear();
+    return Array.from({ length: 150 }, (_, i) => (current + 5 - i).toString());
+  }, []);
+
+  const months = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+
+  const days = useMemo(() => {
+    let count = 31;
+    if (formData.month === "February") {
+      const yearNum = parseInt(formData.year);
+      const isLeap = (yearNum % 4 === 0 && yearNum % 100 !== 0) || (yearNum % 400 === 0);
+      count = isLeap ? 29 : 28;
+    } else if (["April", "June", "September", "November"].includes(formData.month)) {
+      count = 30;
+    }
+    return Array.from({ length: count }, (_, i) => (i + 1).toString());
+  }, [formData.year, formData.month]);
+
+  const addAuthor = () => {
+    setFormData({
+      ...formData,
+      authors: [...formData.authors, { firstName: "", lastName: "" }]
+    });
+  };
+
+  const updateAuthor = (index: number, field: keyof Author, val: string) => {
+    const newAuthors = [...formData.authors];
+    newAuthors[index] = { ...newAuthors[index], [field]: val };
+    setFormData({ ...formData, authors: newAuthors });
+  };
+
+  const removeAuthor = (index: number) => {
+    if (formData.authors.length <= 1) return;
+    setFormData({
+      ...formData,
+      authors: formData.authors.filter((_, i) => i !== index)
+    });
+  };
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onConfirm(formData);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-stone-900/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-2xl border border-stone-200 flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <div className="p-6 border-b border-stone-100 flex items-center justify-between bg-stone-50/50">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-amber-100 text-amber-700 rounded-xl">
+              <Edit3 size={20} />
+            </div>
+            <div>
+              <h2 className="font-bold text-lg text-stone-900">Edit Article Details</h2>
+              <p className="text-xs text-stone-500">Update metadata for citations</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-stone-200/50 rounded-full transition-colors text-stone-400">
+            <X size={20} />
+          </button>
+        </div>
+
+        <form onSubmit={submit} className="flex-1 overflow-y-auto p-6 space-y-6">
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 ml-1">Title</label>
+            <textarea
+              required
+              rows={2}
+              className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl text-sm font-bold text-stone-900 focus:ring-2 focus:ring-amber-500 outline-none transition-all resize-none"
+              value={formData.title}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+            />
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between ml-1">
+              <label className="text-[10px] font-black uppercase tracking-widest text-stone-400">Authors</label>
+              <button
+                type="button"
+                onClick={addAuthor}
+                className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-amber-600 hover:text-amber-700 transition-colors"
+              >
+                <PlusCircle size={14} /> Add Author
+              </button>
+            </div>
+            <div className="space-y-3">
+              {formData.authors.map((author, idx) => (
+                <div key={idx} className="flex gap-3 items-end bg-stone-50/50 p-3 rounded-2xl border border-stone-100 relative group">
+                  <div className="flex-1 space-y-1">
+                    <label className="text-[9px] font-bold text-stone-400 uppercase ml-1">First Name</label>
+                    <input
+                      type="text"
+                      placeholder="First Name"
+                      className="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-amber-500 outline-none"
+                      value={author.firstName}
+                      onChange={(e) => updateAuthor(idx, "firstName", e.target.value)}
+                    />
+                  </div>
+                  <div className="w-16 space-y-1">
+                    <label className="text-[9px] font-bold text-stone-400 uppercase ml-1">M.I.</label>
+                    <input
+                      type="text"
+                      placeholder="M.I."
+                      maxLength={2}
+                      className="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-amber-500 outline-none"
+                      value={author.middleName || ""}
+                      onChange={(e) => updateAuthor(idx, "middleName", e.target.value)}
+                    />
+                  </div>
+                  <div className="flex-[1.5] space-y-1">
+                    <label className="text-[9px] font-bold text-stone-400 uppercase ml-1">Last Name</label>
+                    <input
+                      type="text"
+                      placeholder="Last Name"
+                      className="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-amber-500 outline-none"
+                      value={author.lastName}
+                      onChange={(e) => updateAuthor(idx, "lastName", e.target.value)}
+                    />
+                  </div>
+                  {formData.authors.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeAuthor(idx)}
+                      className="p-2 text-stone-300 hover:text-rose-600 transition-colors mb-0.5"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            <SearchableSelect
+              label="Year"
+              value={formData.year}
+              options={years}
+              placeholder="Year"
+              onChange={(val) => setFormData({ ...formData, year: val })}
+            />
+            <SearchableSelect
+              label="Month"
+              value={formData.month}
+              options={months}
+              placeholder="Optional"
+              onChange={(val) => setFormData({ ...formData, month: val })}
+            />
+            <SearchableSelect
+              label="Day"
+              value={formData.day}
+              options={days}
+              placeholder="Optional"
+              onChange={(val) => setFormData({ ...formData, day: val })}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 ml-1">Publication/Journal</label>
+            <input
+              type="text"
+              className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl text-sm font-bold text-stone-900 focus:ring-2 focus:ring-amber-500 outline-none transition-all"
+              value={formData.journal}
+              onChange={(e) => setFormData({ ...formData, journal: e.target.value })}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 ml-1">URL / DOI Link</label>
+            <input
+              type="text"
+              className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl text-sm font-bold text-stone-900 focus:ring-2 focus:ring-amber-500 outline-none transition-all"
+              value={formData.url}
+              onChange={(e) => setFormData({ ...formData, url: e.target.value })}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 ml-1">Abstract / Verdict</label>
+            <textarea
+              rows={4}
+              className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl text-sm font-medium text-stone-700 focus:ring-2 focus:ring-amber-500 outline-none transition-all resize-none leading-relaxed"
+              value={formData.abstract}
+              onChange={(e) => setFormData({ ...formData, abstract: e.target.value })}
+            />
+          </div>
+        </form>
+
+        <div className="p-6 bg-stone-50 border-t border-stone-100 flex gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 py-3 text-sm font-bold text-stone-500 hover:text-stone-800 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            onClick={submit}
+            className="flex-[2] py-3 bg-rose-900 text-white rounded-2xl text-sm font-bold hover:bg-rose-800 transition-all shadow-lg shadow-rose-900/20"
+          >
+            Save Changes
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Modal: Library Picker (for Vault) ──────────────────────────────────────
 function LibraryPickerModal({
   title,
@@ -299,6 +627,7 @@ export default function LibraryPage() {
     deleteAFolder,
     removeArticle,
     saveArticle,
+    editArticle,
     addNotebook,
     removeNotebook,
     addToVault,
@@ -307,6 +636,7 @@ export default function LibraryPage() {
 
   const [showNewFolderModal, setShowNewFolderModal] = useState(false);
   const [showNotebookModal, setShowNotebookModal] = useState(false);
+  const [editingArticle, setEditingArticle] = useState<SavedArticle | null>(null);
   const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [search, setSearch] = useState("");
@@ -325,7 +655,11 @@ export default function LibraryPage() {
       arts = arts.filter(
         (a) =>
           a.title.toLowerCase().includes(q) ||
-          a.authors.toLowerCase().includes(q) ||
+          a.authors.some(auth => 
+            auth.firstName.toLowerCase().includes(q) || 
+            (auth.middleName || "").toLowerCase().includes(q) ||
+            auth.lastName.toLowerCase().includes(q)
+          ) ||
           a.journal.toLowerCase().includes(q)
       );
     }
@@ -435,6 +769,16 @@ export default function LibraryPage() {
             setShowNotebookModal(false);
           }}
           onClose={() => setShowNotebookModal(false)}
+        />
+      )}
+      {editingArticle && activeFolderId && (
+        <EditArticleModal
+          article={editingArticle}
+          onConfirm={(updates) => {
+            editArticle(activeFolderId, editingArticle.id, updates);
+            setEditingArticle(null);
+          }}
+          onClose={() => setEditingArticle(null)}
         />
       )}
       {vaultPickerType === "article" && (
@@ -640,25 +984,35 @@ export default function LibraryPage() {
                   {filteredArticles.map((article) => (
                     <div key={article.id} className="relative group/card">
                       <ArticleCard
-                        articleId={article.id}
-                        title={article.title}
-                        authors={article.authors}
-                        year={article.year}
-                        journal={article.journal}
-                        credibility={article.credibility}
-                        abstract={article.abstract}
-                        localSource={article.localSource}
-                        openAccess={article.openAccess}
-                        url={article.url}
-                        hideActions={true}
-                      />
-                      <button
-                        onClick={() => removeArticle(activeFolder.id, article.id)}
-                        title="Remove from folder"
-                        className="absolute top-3 right-3 z-10 opacity-0 group-hover/card:opacity-100 transition text-stone-300 hover:text-rose-600 bg-white rounded-lg p-1 border border-stone-200 shadow-sm"
-                      >
-                        <Trash2 size={12} />
-                      </button>
+                       articleId={article.id}
+                       title={article.title}
+                       authors={article.authors}
+                       year={article.year}
+                       month={article.month}
+                       day={article.day}
+                       journal={article.journal}
+                       credibility={article.credibility}
+                       abstract={article.abstract}
+                       localSource={article.localSource}
+                       openAccess={article.openAccess}
+                       url={article.url}
+                       hideActions={true}
+                      />                      <div className="absolute top-3 right-3 z-10 opacity-0 group-hover/card:opacity-100 transition flex gap-1">
+                        <button
+                          onClick={() => setEditingArticle(article)}
+                          title="Edit article details"
+                          className="text-stone-300 hover:text-amber-600 bg-white rounded-lg p-1.5 border border-stone-200 shadow-sm transition-colors"
+                        >
+                          <Edit3 size={14} />
+                        </button>
+                        <button
+                          onClick={() => removeArticle(activeFolder.id, article.id)}
+                          title="Remove from folder"
+                          className="text-stone-300 hover:text-rose-600 bg-white rounded-lg p-1.5 border border-stone-200 shadow-sm transition-colors"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>

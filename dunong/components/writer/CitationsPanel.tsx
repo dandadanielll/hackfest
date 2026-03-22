@@ -96,8 +96,14 @@ export default function CitationsPanel({
   };
 
   const firstAuthor = (s: VaultSource) => {
-    const a = Array.isArray(s.authors) ? s.authors[0] : s.authors;
-    return a?.split(',')[0]?.trim() ?? 'Unknown';
+    const a = Array.isArray(s.authors) ? s.authors[0] : null;
+    if (!a) return 'Unknown';
+    // If it's already an Author object (has firstName/lastName)
+    if (typeof a === 'object' && ('lastName' in a || 'firstName' in a)) {
+      return a.lastName || a.firstName || 'Unknown';
+    }
+    // Fallback for any lingering string authors (though they should be objects now)
+    return String(a).split(',')[0]?.trim() ?? 'Unknown';
   };
 
   return (

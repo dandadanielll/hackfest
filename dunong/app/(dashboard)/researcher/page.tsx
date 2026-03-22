@@ -9,6 +9,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import AgentThinking from "@/components/AgentThinking";
 import { useLibrary } from "@/lib/libraryContext";
+import FolderPickerPopup from "@/components/FolderPickerPopup";
 
 interface Article {
   id: string;
@@ -41,70 +42,9 @@ interface ExpandedCardState {
 type SortOption = "credibility" | "year_desc" | "year_asc" | "citations";
 type FilterOption = "all" | "local" | "open_access";
 
-
-
 function saveSession(data: object) {
   if (typeof window === "undefined") return;
   sessionStorage.setItem("dunong_search", JSON.stringify(data));
-}
-
-// ─── Folder Picker Popup ─────────────────────────────────────────────────────
-function FolderPickerPopup({
-  article,
-  savedFolderIds,
-  folders,
-  onPick,
-  onClose,
-}: {
-  article: Article;
-  savedFolderIds: string[];
-  folders: ReturnType<typeof useLibrary>["folders"];
-  onPick: (folderId: string) => void;
-  onClose: () => void;
-}) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" />
-      <div
-        className="relative bg-white rounded-2xl shadow-2xl p-5 w-72 border border-stone-200"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <p className="font-bold text-stone-900 text-sm">Save to Folder</p>
-            <p className="text-stone-400 text-xs mt-0.5 truncate max-w-[180px]">{article.title}</p>
-          </div>
-          <button onClick={onClose} className="text-stone-400 hover:text-stone-700 transition">
-            <X size={16} />
-          </button>
-        </div>
-        {folders.length === 0 ? (
-          <p className="text-sm text-stone-400 italic text-center py-4">No folders yet. Create one in the Library first.</p>
-        ) : (
-          <div className="flex flex-col gap-1 max-h-60 overflow-y-auto">
-            {folders.map((f) => {
-              const isSaved = savedFolderIds.includes(f.id);
-              return (
-                <button
-                  key={f.id}
-                  onClick={() => onPick(f.id)}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition text-left ${
-                    isSaved
-                      ? "bg-amber-50 text-amber-800 border border-amber-200"
-                      : "hover:bg-stone-50 text-stone-700 border border-transparent"
-                  }`}
-                >
-                  <FolderOpen size={14} className={isSaved ? "text-amber-500" : "text-stone-400"} />
-                  <span className="flex-1 truncate">{f.name}</span>
-                  {isSaved && <Check size={13} className="text-amber-600 shrink-0" />}
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    </div>
-  );
 }
 
 export default function ResearcherPage() {
@@ -405,11 +345,10 @@ export default function ResearcherPage() {
       {/* Bookmark folder picker popup */}
       {bookmarkPopupArticle && (
         <FolderPickerPopup
-          article={bookmarkPopupArticle}
+          articleTitle={bookmarkPopupArticle.title}
           savedFolderIds={folders
             .filter((f) => f.articles.some((a) => a.id === bookmarkPopupArticle.id))
             .map((f) => f.id)}
-          folders={folders}
           onPick={handlePickFolder}
           onClose={() => setBookmarkPopupArticle(null)}
         />
