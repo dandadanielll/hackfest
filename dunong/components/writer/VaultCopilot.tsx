@@ -2,13 +2,11 @@
 
 import { useState, useRef, useEffect } from 'react';
 import type { VaultSource, CitationFormat, CopilotMessage } from '@/lib/writer.types';
-import { sendCopilotMessage } from '@/lib/groqService';
 
 interface Props {
   vaultSources: VaultSource[];
   folderName: string;
   citationFormat: CitationFormat;
-  apiKey: string;
   selectedText: string;
   onApplyEdit: (text: string) => void;
   onInsertCitation: (citation: string) => void;
@@ -27,7 +25,6 @@ export default function VaultCopilot({
   vaultSources,
   folderName,
   citationFormat,
-  apiKey,
   selectedText,
   onApplyEdit,
   onInsertCitation,
@@ -35,6 +32,7 @@ export default function VaultCopilot({
   const [messages, setMessages] = useState<CopilotMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [useVault, setUseVault] = useState(true);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -52,33 +50,51 @@ export default function VaultCopilot({
     setLoading(true);
 
     try {
-      if (!apiKey) throw new Error('No Groq API key set. Click the ⚙ icon to add your key.');
+      const history = messages.map((m) => ({ role: m.role, content: m.content }));
 
-      const history = messages.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
-      const result = await sendCopilotMessage({
-        userMessage: msg,
-        vaultSources,
-        folderName,
-        citationFormat,
-        conversationHistory: history,
-        apiKey,
-        selectedText,
+      const res = await fetch('/api/writer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: selectedText ? `[Selected text]: "${selectedText}"\n\n${msg}` : msg,
+          history,
+          context: {
+            vaultSources: useVault ? vaultSources : [],
+            folderName,
+            citationFormat,
+          },
+          action: 'chat',
+        }),
       });
+
+      if (!res.ok) throw new Error(`Server error ${res.status}`);
+
+      const data = await res.json();
+      const raw: string = data.response || '';
+
+      // Extract document edit and inline citation tags
+      const editMatch = raw.match(/<DOCUMENT_EDIT>([\s\S]*?)<\/DOCUMENT_EDIT>/);
+      const citationMatch = raw.match(/<INLINE_CITATION>([\s\S]*?)<\/INLINE_CITATION>/);
+      const documentEdit = editMatch?.[1]?.trim() ?? null;
+      const inlineCitation = citationMatch?.[1]?.trim() ?? null;
+      const content = raw
+        .replace(/<DOCUMENT_EDIT>[\s\S]*?<\/DOCUMENT_EDIT>/g, '')
+        .replace(/<INLINE_CITATION>[\s\S]*?<\/INLINE_CITATION>/g, '')
+        .trim();
 
       setMessages((p) => [
         ...p,
-        {
-          role: 'assistant',
-          content: result.content,
-          documentEdit: result.documentEdit,
-          inlineCitation: result.inlineCitation,
-          timestamp: Date.now(),
-        },
+        { role: 'assistant', content, documentEdit, inlineCitation, timestamp: Date.now() },
       ]);
     } catch (e: unknown) {
       setMessages((p) => [
         ...p,
-        { role: 'assistant', content: `⚠️ ${e instanceof Error ? e.message : 'Unknown error'}`, isError: true, timestamp: Date.now() },
+        {
+          role: 'assistant',
+          content: `⚠ ${e instanceof Error ? e.message : 'Unknown error'}`,
+          isError: true,
+          timestamp: Date.now(),
+        },
       ]);
     } finally {
       setLoading(false);
@@ -97,19 +113,36 @@ export default function VaultCopilot({
 
       {/* Header */}
       <div className="px-4 py-3.5 border-b border-[#2D1500] shrink-0">
-        <div className="flex items-center gap-2 mb-2">
-          <span className="text-[#E8B86D] text-base">✦</span>
-          <span className="text-white font-bold text-[15px]" style={{ fontFamily: 'Georgia, serif' }}>
-            Vault Co-pilot
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <div className="flex items-center gap-2">
+            <span className="text-[#E8B86D] text-base">✦</span>
+            <span className="text-white font-bold text-[15px]" style={{ fontFamily: 'Georgia, serif' }}>
+              Vault Co-pilot
+            </span>
+          </div>
+          
+          <label className="flex items-center gap-2 cursor-pointer group" title="Toggle Vault Context" aria-label="Toggle Vault Context">
+            <div className={`relative w-7 h-4 rounded-full transition-colors ${useVault ? 'bg-[#D4A96A]' : 'bg-[#4A3525]'}`}>
+              <div className={`absolute top-[2px] left-[2px] w-3 h-3 bg-white rounded-full transition-transform ${useVault ? 'translate-x-[12px]' : 'translate-x-0'}`} />
+            </div>
+            <input
+              type="checkbox"
+              className="hidden"
+              checked={useVault}
+              onChange={(e) => setUseVault(e.target.checked)}
+            />
+          </label>
+        </div>
+        
+        <div className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 transition-colors ${useVault ? 'bg-[#2D1500]' : 'bg-[#1A1A1A] border border-[#333]'}`}>
+          <span className="text-[11px]">{useVault ? '🔒' : '🌐'}</span>
+          <span className={`text-[11px] font-medium leading-tight ${useVault ? 'text-[#D4A96A]' : 'text-gray-400'}`}>
+            {useVault 
+              ? (folderName ? `Locked to "${folderName}"` : 'No folder selected')
+              : 'General AI Assistant'}
           </span>
         </div>
-        <div className="flex items-center gap-1.5 bg-[#2D1500] rounded-md px-2.5 py-1.5">
-          <span className="text-[11px]">🔒</span>
-          <span className="text-[#D4A96A] text-[11px] font-medium leading-tight">
-            {folderName ? `Locked to "${folderName}"` : 'No folder selected'}
-          </span>
-        </div>
-        {vaultSources.length === 0 && (
+        {useVault && vaultSources.length === 0 && (
           <div className="mt-2 bg-[#2D1F00] rounded-md px-2.5 py-1.5 text-[10px] text-[#E8B86D]">
             ⚠ No vault sources. Save articles to this folder first.
           </div>
@@ -143,11 +176,8 @@ export default function VaultCopilot({
         {messages.map((m, i) => (
           <div
             key={i}
-            className={`rounded-xl p-3 ${
-              m.role === 'user'
-                ? 'bg-[#2D1500] ml-4'
-                : 'bg-[#231000] border border-[#3D2000]'
-            }`}
+            className={`rounded-xl p-3 ${m.role === 'user' ? 'bg-[#2D1500] ml-4' : 'bg-[#231000] border border-[#3D2000]'
+              }`}
           >
             {m.role === 'assistant' && (
               <div className="flex items-center gap-1 mb-1.5">
@@ -200,7 +230,7 @@ export default function VaultCopilot({
         <div ref={bottomRef} />
       </div>
 
-      {/* Quick Actions (shown when no messages) */}
+      {/* Quick Actions */}
       {messages.length === 0 && (
         <div className="px-3 pb-1 shrink-0">
           <p className="text-[10px] text-[#6B5040] font-semibold uppercase tracking-wider mb-1.5">Quick actions</p>
