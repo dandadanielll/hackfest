@@ -29,8 +29,9 @@ export default function CitationPage() {
     });
   };
 
-  const handleGenerate = async () => {
-    if (!input.trim() && !selectedFile) {
+  const handleGenerate = async (fileOverride?: File) => {
+    const fileToUse = fileOverride || selectedFile;
+    if (!input.trim() && !fileToUse) {
       setError("Please enter a URL, DOI, or upload a file.");
       return;
     }
@@ -42,11 +43,11 @@ export default function CitationPage() {
     try {
       let payload: { text?: string; url?: string; doi?: string; fileBase64?: string; fileName?: string } = {};
 
-      if (selectedFile) {
+      if (fileToUse) {
         setStatusMsg('Reading and encoding file…');
-        const base64 = await getFileBase64(selectedFile);
+        const base64 = await getFileBase64(fileToUse);
         payload.fileBase64 = base64;
-        payload.fileName = selectedFile.name;
+        payload.fileName = fileToUse.name;
         setStatusMsg('Extracting text and generating citation…');
       } else {
         const clean = input.trim();
@@ -77,8 +78,10 @@ export default function CitationPage() {
       }
 
       setCitation(data);
-      setInput('');
-      setSelectedFile(null);
+      if (!fileOverride) {
+        setInput('');
+        setSelectedFile(null);
+      }
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -94,6 +97,8 @@ export default function CitationPage() {
       setInput('');
       setError(null);
       setCitation(null);
+      // Trigger generation immediately
+      handleGenerate(file);
     }
   };
 

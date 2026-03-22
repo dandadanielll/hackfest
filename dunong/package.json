@@ -26,6 +26,7 @@
     "@tiptap/starter-kit": "^3.20.4",
     "clsx": "^2.1.1",
     "framer-motion": "^12.38.0",
+    "groq-sdk": "^1.1.1",
     "html-docx-js": "^0.1.0",
     "lucide-react": "^0.577.0",
     "next": "16.2.1",
