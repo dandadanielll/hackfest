@@ -29,7 +29,7 @@ export async function askGroq(prompt: string, maxTokens = 500): Promise<string> 
     return content;
 }
 
-export async function askGroqJSON<T>(prompt: string, maxTokens = 1500): Promise<T> {
+export async function askGroqJSON<T>(prompt: string, maxTokens = 4000): Promise<T> {
     const apiKey = process.env.GROQ_API_KEY;
     if (!apiKey) throw new Error("GROQ_API_KEY not configured");
 

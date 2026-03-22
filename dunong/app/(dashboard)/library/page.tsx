@@ -52,9 +52,14 @@ async function extractPdfMetadata(file: File): Promise<Omit<SavedArticle, "saved
       reader.readAsDataURL(file);
     });
 
-    const authors = Array.isArray(meta.authors) && meta.authors.length > 0
+    const authorString = Array.isArray(meta.authors) && meta.authors.length > 0
       ? meta.authors.join(", ")
       : meta.authors || "Unknown";
+    const parsedAuthors = authorString.split(",").map((name: string) => {
+      const parts = name.trim().split(/\s+/);
+      if (parts.length <= 1) return { firstName: "", lastName: parts[0] || "Unknown" };
+      return { firstName: parts.slice(0, -1).join(" "), lastName: parts[parts.length - 1] };
+    });
 
     const { saveFile } = await import("@/lib/idb");
     const id = `pdf_${Date.now()}_${Math.random().toString(36).slice(2)}`;
@@ -987,7 +992,7 @@ export default function LibraryPage() {
                       <button
                         onClick={() => removeArticle(activeFolder.id, article.id)}
                         title="Remove from folder"
-                        className="absolute top-3 right-3 z-10 opacity-0 group-hover/card:opacity-100 transition text-stone-300 hover:text-rose-600 bg-white rounded-lg p-1 border border-stone-200 shadow-sm"
+                        className="absolute top-3 right-3 z-[60] opacity-0 group-hover/card:opacity-100 transition text-stone-300 hover:text-rose-600 bg-white rounded-lg p-1 border border-stone-200 shadow-sm"
                       >
                         <Trash2 size={12} />
                       </button>
@@ -1129,8 +1134,7 @@ export default function LibraryPage() {
       {folderMenuId && (
         <div className="fixed inset-0 z-10" onClick={() => setFolderMenuId(null)} />
       )}
-    </div>
-    </main >
+    </main>
   );
 }
 
