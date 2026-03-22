@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  Search, Sparkles, Filter, ArrowRight, Globe,
+  Search, Sparkles, Filter, ArrowRight, ArrowLeft, Globe,
   Eye, EyeOff, BookOpen, Quote, ExternalLink,
   ChevronDown, ChevronUp, Bookmark, BookmarkCheck, X
 } from "lucide-react";
@@ -62,41 +62,48 @@ function isArticleSaved(id: string): boolean {
   return getSavedArticles().some((a) => a.id === id);
 }
 
-function loadSession() {
-  if (typeof window === "undefined") return null;
-  try { return JSON.parse(sessionStorage.getItem("dunong_search") || "null"); }
-  catch { return null; }
-}
-
 function saveSession(data: object) {
   if (typeof window === "undefined") return;
   sessionStorage.setItem("dunong_search", JSON.stringify(data));
 }
 
 export default function ResearcherPage() {
-  const session = loadSession();
-
-  const [query, setQuery] = useState(session?.query || "");
+  const [mounted, setMounted] = useState(false);
+  const [query, setQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
-  const [resultsMode, setResultsMode] = useState(session?.resultsMode || false);
-  const [showInternational, setShowInternational] = useState(session?.showInternational || false);
+  const [resultsMode, setResultsMode] = useState(false);
+  const [showInternational, setShowInternational] = useState(false);
   const [showAgentPanel, setShowAgentPanel] = useState(false);
-  const [articles, setArticles] = useState<Article[]>(session?.articles || []);
-  const [agentLogs, setAgentLogs] = useState<string[]>(session?.agentLogs || []);
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [agentLogs, setAgentLogs] = useState<string[]>([]);
   const [expandedCards, setExpandedCards] = useState<ExpandedCardState>({});
 
-  // Filter/sort state
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>("credibility");
   const [filterBy, setFilterBy] = useState<FilterOption>("all");
 
-  // Search bar focus state
   const [inputFocused, setInputFocused] = useState(false);
   const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const suggestionsDebounce = useRef<NodeJS.Timeout | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const filterMenuRef = useRef<HTMLDivElement>(null);
+
+  // Mount + restore session (client-only, no hydration mismatch)
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem("dunong_search");
+      if (raw) {
+        const session = JSON.parse(raw);
+        if (session.query) setQuery(session.query);
+        if (session.articles?.length) setArticles(session.articles);
+        if (session.agentLogs?.length) setAgentLogs(session.agentLogs);
+        if (session.showInternational) setShowInternational(session.showInternational);
+        if (session.resultsMode) setResultsMode(session.resultsMode);
+      }
+    } catch { /* ignore */ }
+    setMounted(true);
+  }, []);
 
   // Close filter menu on outside click
   useEffect(() => {
@@ -109,6 +116,7 @@ export default function ResearcherPage() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
+  // AI suggestions with debounce
   useEffect(() => {
     if (!inputFocused) {
       setFilteredSuggestions([]);
@@ -144,7 +152,6 @@ export default function ResearcherPage() {
 
     setIsSearching(true);
     setResultsMode(false);
-    // don't auto-open agent panel
     setInputFocused(false);
 
     const logs: string[] = [
@@ -202,13 +209,24 @@ export default function ResearcherPage() {
     runSearch(s, showInternational);
   };
 
-  // When international toggle changes AFTER results are shown, re-search
   const handleInternationalToggle = () => {
     const next = !showInternational;
     setShowInternational(next);
     if (resultsMode && query.trim()) {
       runSearch(query, next);
     }
+  };
+
+  const handleNewSearch = () => {
+    setResultsMode(false);
+    setArticles([]);
+    setQuery("");
+    setAgentLogs([]);
+    setExpandedCards({});
+    setShowAgentPanel(false);
+    setFilterBy("all");
+    setSortBy("credibility");
+    sessionStorage.removeItem("dunong_search");
   };
 
   const toggleCard = async (article: Article) => {
@@ -292,7 +310,6 @@ export default function ResearcherPage() {
     setExpandedCards((prev) => ({ ...prev, [id]: { ...prev[id], saved: !currently } }));
   };
 
-  // Apply sort and filter to articles
   const displayedArticles = [...articles]
     .filter((a) => {
       if (filterBy === "local") return a.localSource;
@@ -315,13 +332,15 @@ export default function ResearcherPage() {
 
   const heroCollapsed = inputFocused && !resultsMode;
 
+  if (!mounted) return null;
+
   return (
     <main className="min-h-screen pb-24 relative flex font-sans">
       <div className="fixed top-0 inset-x-0 h-96 bg-gradient-to-b from-rose-900/5 to-transparent pointer-events-none -z-10" />
 
       <div className={`flex-1 transition-all duration-700 ease-[0.16,1,0.3,1] ${resultsMode ? "px-8 py-8" : "flex flex-col items-center justify-start pt-20 px-4"}`}>
 
-        {/* Hero — collapses on input focus */}
+        {/* Hero */}
         <AnimatePresence>
           {!resultsMode && !isSearching && !heroCollapsed && (
             <motion.div
@@ -352,7 +371,7 @@ export default function ResearcherPage() {
           )}
         </AnimatePresence>
 
-        {/* Condensed label when focused */}
+        {/* Condensed label on focus */}
         <AnimatePresence>
           {heroCollapsed && (
             <motion.div
@@ -390,7 +409,10 @@ export default function ResearcherPage() {
               {query && (
                 <button
                   type="button"
-                  onClick={() => { setQuery(""); setFilteredSuggestions(SUGGESTIONS.slice(0, 5)); inputRef.current?.focus(); }}
+                  onClick={() => {
+                    setQuery("");
+                    inputRef.current?.focus();
+                  }}
                   className="flex items-center justify-center text-stone-300 hover:text-stone-500 transition mr-2"
                 >
                   <X size={18} />
@@ -448,7 +470,7 @@ export default function ResearcherPage() {
             </AnimatePresence>
           </form>
 
-          {/* Toggles below search bar — shown after search */}
+          {/* Toggles below search bar */}
           <AnimatePresence>
             {(resultsMode || isSearching) && (
               <motion.div
@@ -471,7 +493,6 @@ export default function ResearcherPage() {
                 </label>
 
                 <div className="flex items-center gap-2 ml-auto">
-                  {/* Filter button with dropdown */}
                   <div className="relative" ref={filterMenuRef}>
                     <button
                       type="button"
@@ -532,7 +553,6 @@ export default function ResearcherPage() {
                     </AnimatePresence>
                   </div>
 
-                  {/* Agent toggle */}
                   <button
                     type="button"
                     onClick={() => setShowAgentPanel(!showAgentPanel)}
@@ -557,19 +577,28 @@ export default function ResearcherPage() {
               className="max-w-4xl mx-auto w-full pb-20"
             >
               <div className="flex items-center justify-between mb-5">
-                <h2 className="text-xl font-black font-serif text-stone-900 flex items-center gap-2">
-                  {displayedArticles.length} Results
-                  {filterBy !== "all" && (
-                    <span className="text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full">
-                      {filterBy === "local" ? "Local only" : "Open access only"}
-                    </span>
-                  )}
-                  {!showInternational && filterBy === "all" && (
-                    <span className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
-                      PH sources
-                    </span>
-                  )}
-                </h2>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handleNewSearch}
+                    className="flex items-center gap-1.5 text-sm font-semibold text-stone-400 hover:text-stone-900 transition"
+                  >
+                    <ArrowLeft size={16} />
+                    New search
+                  </button>
+                  <h2 className="text-xl font-black font-serif text-stone-900 flex items-center gap-2">
+                    {displayedArticles.length} Results
+                    {filterBy !== "all" && (
+                      <span className="text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full">
+                        {filterBy === "local" ? "Local only" : "Open access only"}
+                      </span>
+                    )}
+                    {!showInternational && filterBy === "all" && (
+                      <span className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                        PH sources
+                      </span>
+                    )}
+                  </h2>
+                </div>
                 {isSearching && (
                   <span className="text-xs text-stone-400 animate-pulse">Re-searching...</span>
                 )}
@@ -703,7 +732,7 @@ export default function ResearcherPage() {
               {displayedArticles.length === 0 && articles.length > 0 && (
                 <div className="text-center py-16 text-stone-400">
                   <Filter size={32} className="mx-auto mb-3 opacity-30" />
-                  <p className="font-semibold">No results match your filter. Try changing the filter options.</p>
+                  <p className="font-semibold">No results match your filter.</p>
                   <button onClick={() => setFilterBy("all")} className="mt-3 text-sm text-rose-900 font-bold hover:underline">Clear filter</button>
                 </div>
               )}
