@@ -9,7 +9,10 @@ export async function POST(req: NextRequest) {
 
     const entries = await Promise.all(sources.map(async (source) => {
       const authors = Array.isArray(source.authors)
-        ? source.authors.join('; ')
+        ? source.authors.map((a: any) => {
+            if (typeof a === 'string') return a;
+            return `${a.lastName}, ${a.firstName}${a.middleName ? ` ${a.middleName}` : ''}`;
+          }).join('; ')
         : source.authors ?? 'Unknown Author';
 
       const prompt = `Generate a single ${format} bibliography entry for this source. Return ONLY the formatted citation text with no preamble, explanation, or quotes.

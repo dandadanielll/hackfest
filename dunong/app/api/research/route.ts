@@ -104,11 +104,11 @@ export async function POST(req: Request) {
 
         if (philjolRes.ok) {
           const xml = await philjolRes.text();
-          const titleMatches = [...xml.matchAll(/<dc:title>(.*?)<\/dc:title>/gs)];
-          const creatorMatches = [...xml.matchAll(/<dc:creator>(.*?)<\/dc:creator>/gs)];
-          const dateMatches = [...xml.matchAll(/<dc:date>(.*?)<\/dc:date>/gs)];
-          const descMatches = [...xml.matchAll(/<dc:description>(.*?)<\/dc:description>/gs)];
-          const identifierMatches = [...xml.matchAll(/<dc:identifier>(.*?)<\/dc:identifier>/gs)];
+          const titleMatches = [...xml.matchAll(/<dc:title>([\s\S]*?)<\/dc:title>/g)];
+          const creatorMatches = [...xml.matchAll(/<dc:creator>([\s\S]*?)<\/dc:creator>/g)];
+          const dateMatches = [...xml.matchAll(/<dc:date>([\s\S]*?)<\/dc:date>/g)];
+          const descMatches = [...xml.matchAll(/<dc:description>([\s\S]*?)<\/dc:description>/g)];
+          const identifierMatches = [...xml.matchAll(/<dc:identifier>([\s\S]*?)<\/dc:identifier>/g)];
 
           const queryLower = query.toLowerCase();
           let added = 0;
