@@ -98,7 +98,7 @@ export default function CitationPage() {
         // Build a rich text string from the article metadata
         payload.text = [
           `Title: ${selectedArticle.title}`,
-          `Authors: ${selectedArticle.authors}`,
+          `Authors: ${Array.isArray(selectedArticle.authors) ? selectedArticle.authors.map(a => `${a.firstName} ${a.lastName}`).join(", ") : (selectedArticle.authors as any)}`,
           `Year: ${selectedArticle.year}`,
           `Journal: ${selectedArticle.journal}`,
           selectedArticle.url ? `URL: ${selectedArticle.url}` : '',
@@ -164,7 +164,7 @@ export default function CitationPage() {
       setError(null);
       setCitation(null);
       // Trigger generation immediately
-      handleGenerate(file);
+      handleGenerate();
     }
   };
 
@@ -305,7 +305,7 @@ export default function CitationPage() {
                 <div className="min-w-0">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1">{selectedFolderName}</p>
                   <p className="font-bold text-[#1A0A00] text-sm leading-snug">{selectedArticle.title}</p>
-                  <p className="text-xs text-stone-500 mt-0.5">{selectedArticle.authors} · {selectedArticle.year} · {selectedArticle.journal}</p>
+                  <p className="text-xs text-stone-500 mt-0.5">{Array.isArray(selectedArticle.authors) ? selectedArticle.authors.map(a => `${a.firstName} ${a.lastName}`).join(", ") : (selectedArticle.authors as any)} · {selectedArticle.year} · {selectedArticle.journal}</p>
                 </div>
                 <button
                   onClick={() => { setSelectedArticle(null); setShowLibraryPicker(true); }}
@@ -371,7 +371,7 @@ export default function CitationPage() {
                                     <FileText size={14} className="text-stone-300 group-hover:text-[#8B1A1A] mt-0.5 shrink-0 transition" />
                                     <div className="min-w-0">
                                       <p className="text-sm font-semibold text-stone-800 leading-snug group-hover:text-[#8B1A1A] transition">{article.title}</p>
-                                      <p className="text-xs text-stone-400 mt-0.5">{article.authors} · {article.year} · {article.journal}</p>
+                                      <p className="text-xs text-stone-400 mt-0.5">{Array.isArray(article.authors) ? article.authors.map(a => `${a.firstName} ${a.lastName}`).join(", ") : (article.authors as any)} · {article.year} · {article.journal}</p>
                                     </div>
                                   </button>
                                 ))

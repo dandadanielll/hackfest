@@ -792,7 +792,7 @@ function SourceSelector({
                                                 onClick={() => onToggle({
                                                     id: article.id,
                                                     title: article.title,
-                                                    authors: article.authors,
+                                                    authors: Array.isArray(article.authors) ? article.authors.map((a: any) => `${a.firstName} ${a.lastName}`).join(", ") : (article.authors as string),
                                                     year: article.year,
                                                     journal: article.journal,
                                                     abstract: article.abstract || "",
@@ -808,7 +808,9 @@ function SourceSelector({
                                                 </span>
                                                 <div className="min-w-0">
                                                     <p className="text-sm font-semibold text-stone-800 leading-snug">{article.title}</p>
-                                                    <p className="text-xs text-stone-400 mt-0.5">{article.authors} · {article.year}</p>
+                                                    <p className="text-xs text-stone-400 mt-0.5">
+                                                        {Array.isArray(article.authors) ? article.authors.map((a: any) => `${a.firstName} ${a.lastName}`).join(", ") : (article.authors as string)} · {article.year}
+                                                    </p>
                                                 </div>
                                             </button>
                                         ))
