@@ -88,8 +88,8 @@ function WriterPageInner() {
   if (view === 'editor' && activeNotebook && activeFolder) {
     return (
       <WriterEditor
-        notebook={activeNotebook}
-        folder={activeFolder}
+        notebook={activeNotebook as any}
+        folder={activeFolder as any}
         onBack={handleBack}
       />
     );

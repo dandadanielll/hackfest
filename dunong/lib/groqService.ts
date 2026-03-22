@@ -27,15 +27,16 @@ function buildSystemPrompt(
       ? 'NO SOURCES IN VAULT. Tell the user to save articles to this folder first before you can help.'
       : vaultSources
           .map((s, i) => {
-            const authors = Array.isArray(s.authors)
-              ? s.authors.join('; ')
-              : s.authors ?? 'Unknown';
+            const authors = s.authors && s.authors.length > 0
+              ? s.authors.map(a => `${a.firstName}${a.middleName ? ` ${a.middleName}` : ''} ${a.lastName}`).join('; ')
+              : 'Unknown';
+            const dateStr = [s.year, s.month, s.day].filter(Boolean).join('-');
             return [
               `[SOURCE ${i + 1}]`,
               `ID: ${s.id}`,
               `Title: ${s.title ?? 'Untitled'}`,
               `Authors: ${authors}`,
-              `Year: ${s.year ?? 'n.d.'}`,
+              `Date: ${dateStr || 'n.d.'}`,
               `Journal/Publisher: ${s.journal ?? s.publisher ?? 'Unknown'}`,
               `Abstract: ${s.abstract ?? 'Not available.'}`,
               `DOI/URL: ${s.doi ? `https://doi.org/${s.doi}` : s.url ?? 'N/A'}`,
@@ -150,14 +151,25 @@ export function generateInlineCitation(
   source: VaultSource,
   format: CitationFormat
 ): string {
-  const firstAuthor =
-    (Array.isArray(source.authors) ? source.authors[0] : source.authors)
-      ?.split(',')[0]
-      ?.trim() ?? 'Unknown';
+  let authorText = 'Unknown';
+  if (source.authors && source.authors.length > 0) {
+    const getAuthorName = (a: any) => {
+      if (typeof a === 'string') return a.split(',')[0].trim();
+      return a.lastName || a.firstName || 'Unknown';
+    };
+
+    if (source.authors.length === 1) {
+      authorText = getAuthorName(source.authors[0]);
+    } else if (source.authors.length === 2) {
+      authorText = `${getAuthorName(source.authors[0])} & ${getAuthorName(source.authors[1])}`;
+    } else {
+      authorText = `${getAuthorName(source.authors[0])} et al.`;
+    }
+  }
   const year = source.year ?? 'n.d.';
 
-  if (format === 'MLA') return `(${firstAuthor} ${year})`;
-  return `(${firstAuthor}, ${year})`; // APA and Chicago
+  if (format === 'MLA') return `(${authorText} ${year})`;
+  return `(${authorText}, ${year})`; // APA and Chicago
 }
 
 export async function generateBibliographyEntry(
@@ -165,14 +177,19 @@ export async function generateBibliographyEntry(
   format: CitationFormat,
   apiKey: string
 ): Promise<string> {
-  const authors = Array.isArray(source.authors)
-    ? source.authors.join('; ')
-    : source.authors ?? 'Unknown Author';
+  const authors = source.authors && source.authors.length > 0
+    ? source.authors.map(a => {
+        if (typeof a === 'string') return a;
+        return `${a.lastName}, ${a.firstName}${a.middleName ? ` ${a.middleName}` : ''}`;
+      }).join('; ')
+    : 'Unknown Author';
+
+  const dateStr = [source.year, source.month, source.day].filter(Boolean).join('-');
 
   const prompt = `Generate a single ${format} bibliography entry for this source. Return ONLY the formatted citation text with no preamble, explanation, or quotes.
 Title: ${source.title ?? 'Untitled'}
 Authors: ${authors}
-Year: ${source.year ?? 'n.d.'}
+Date: ${dateStr || 'n.d.'}
 Journal/Publisher: ${source.journal ?? source.publisher ?? ''}
 DOI/URL: ${source.doi ? `https://doi.org/${source.doi}` : source.url ?? ''}`;
 

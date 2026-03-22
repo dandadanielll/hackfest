@@ -1,10 +1,18 @@
 // writer.types.ts — Shared TypeScript interfaces for the Writer module
 
+export interface Author {
+  firstName: string;
+  middleName?: string;
+  lastName: string;
+}
+
 export interface VaultSource {
   id: string;
   title: string;
-  authors: string[];
+  authors: Author[];
   year: string | number;
+  month?: string;
+  day?: string;
   journal?: string;
   publisher?: string;
   abstract?: string;

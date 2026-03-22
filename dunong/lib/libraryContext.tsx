@@ -14,11 +14,12 @@ interface LibraryContextType {
   folders: Folder[];
   activeFolderId: string | null;
   setActiveFolderId: (id: string | null) => void;
-  addFolder: (name: string) => void;
+  addFolder: (name: string) => string;
   renameAFolder: (id: string, name: string) => void;
   deleteAFolder: (id: string) => void;
   removeArticle: (folderId: string, articleId: string) => void;
   saveArticle: (folderId: string, article: Omit<SavedArticle, "savedAt">) => void;
+  editArticle: (folderId: string, articleId: string, updates: Partial<SavedArticle>) => void;
   addNotebook: (folderId: string, name: string) => string;
   editNotebook: (folderId: string, notebookId: string, updates: Partial<Notebook>) => void;
   removeNotebook: (folderId: string, notebookId: string) => void;
@@ -59,6 +60,7 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
     };
     setFolders((prev) => [...prev, newFolder]);
     setActiveFolderId(newFolder.id);
+    return newFolder.id;
   };
 
   const renameAFolder = (id: string, name: string) => {
@@ -94,6 +96,21 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
                 ...f.articles,
                 { ...article, savedAt: Date.now() },
               ],
+            }
+          : f
+      )
+    );
+  };
+
+  const editArticle = (folderId: string, articleId: string, updates: Partial<SavedArticle>) => {
+    setFolders((prev) =>
+      prev.map((f) =>
+        f.id === folderId
+          ? {
+              ...f,
+              articles: f.articles.map((a) =>
+                a.id === articleId ? { ...a, ...updates } : a
+              ),
             }
           : f
       )
@@ -178,6 +195,7 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
         deleteAFolder,
         removeArticle,
         saveArticle,
+        editArticle,
         addNotebook,
         editNotebook,
         removeNotebook,

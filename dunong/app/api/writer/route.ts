@@ -15,11 +15,16 @@ export async function POST(req: NextRequest) {
       ? ""
       : vaultSources
         .map((s: { 
-          title?: string; authors?: string | string[]; year?: string | number; 
+          title?: string; authors?: any | any[]; year?: string | number; 
           journal?: string; publisher?: string; abstract?: string; doi?: string; 
           url?: string; content?: string 
         }, i: number) => {
-          const authors = Array.isArray(s.authors) ? s.authors.join("; ") : s.authors ?? "Unknown";
+          const authors = Array.isArray(s.authors) 
+            ? s.authors.map((a: any) => {
+                if (typeof a === 'string') return a;
+                return `${a.firstName} ${a.lastName}`;
+              }).join("; ") 
+            : s.authors ?? "Unknown";
           return [
             `[SOURCE ${i + 1}]`,
             `Title: ${s.title ?? "Untitled"}`,

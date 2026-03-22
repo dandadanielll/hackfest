@@ -29,13 +29,13 @@ export default function Sidebar() {
         </div>
       </Link>
 
-      <nav className="flex-1 p-4 space-y-1 overflow-y-auto custom-scrollbar">
-        <NavItem href="/researcher" icon={<Search size={18} />} label="Search Engine" active={pathname === '/researcher'} isCollapsed={isCollapsed} />
-        <NavItem href="/library" icon={<Layers size={18} />} label="Library" active={pathname === '/library'} isCollapsed={isCollapsed} />
-        <NavItem href="/writer" icon={<FileText size={18} />} label="Writer" active={pathname === '/writer'} isCollapsed={isCollapsed} />
-        <NavItem href="/synthesis" icon={<RiGeminiLine size={18} />} label="AI Tools" active={['/synthesis', '/gaps', '/graph', '/audio'].includes(pathname)} isCollapsed={isCollapsed} />
-        <NavItem href="/citation" icon={<RiDoubleQuotesL size={18} />} label="Citation Generator" active={pathname === '/citation'} isCollapsed={isCollapsed} />
-        <NavItem href="/credibility" icon={<FaRegCheckCircle size={18} />} label="Credibility Score" active={pathname === '/credibility'} isCollapsed={isCollapsed} />
+      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+        <NavItem href="/researcher" icon={<SearchIcon size={18} />} label="Search Engine" active={pathname === '/researcher'} />
+        <NavItem href="/library" icon={<Layers size={18} />} label="Library" active={pathname === '/library'} />
+        <NavItem href="/writer" icon={<FileText size={18} />} label="Writer" active={pathname === '/writer'} />
+        <NavItem href="/synthesis" icon={<Zap size={18} />} label="AI Tools" active={['/synthesis', '/gaps', '/graph', '/audio'].includes(pathname)} />
+        <NavItem href="/citation" icon={<Settings size={18} />} label="Citation Generator" active={pathname === '/citation'} />
+        <NavItem href="/credibility" icon={<Bookmark size={18} />} label="Credibility Score" active={pathname === '/credibility'} />
       </nav>
     </aside>
   );
@@ -46,9 +46,9 @@ function NavItem({ href, icon, label, active = false, isCollapsed }: { href: str
     <Link
       href={href}
       title={isCollapsed ? label : ""}
-      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ${active 
-          ? 'bg-[#521118] text-[#e8e4df] shadow-md shadow-[#521118]/25' 
-          : 'text-[#2b090d]/60 hover:bg-[#2b090d]/8 hover:text-[#2b090d]'
+      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ${active
+        ? 'bg-[#521118] text-[#e8e4df] shadow-md shadow-[#521118]/25'
+        : 'text-[#2b090d]/60 hover:bg-[#2b090d]/8 hover:text-[#2b090d]'
         }`}
     >
       <div className="shrink-0 w-6 flex items-center justify-center">

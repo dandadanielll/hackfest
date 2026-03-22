@@ -1,10 +1,18 @@
 // lib/libraryStore.ts
 
+export type Author = {
+  firstName: string;
+  middleName?: string;
+  lastName: string;
+};
+
 export type SavedArticle = {
   id: string;
   title: string;
-  authors: string;
+  authors: Author[];
   year: string;
+  month?: string;
+  day?: string;
   journal: string;
   credibility: number;
   abstract: string;

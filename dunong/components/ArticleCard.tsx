@@ -1,10 +1,18 @@
 import { Bookmark, ShieldCheck, Flag, Unlock, Link2 } from "lucide-react";
 
+export interface Author {
+  firstName: string;
+  middleName?: string;
+  lastName: string;
+}
+
 export default function ArticleCard({
   articleId,
   title,
   authors,
   year,
+  month,
+  day,
   journal,
   credibility,
   abstract,
@@ -15,8 +23,10 @@ export default function ArticleCard({
 }: {
   articleId?: string;
   title: string;
-  authors: string;
+  authors: string | Author[];
   year: string;
+  month?: string;
+  day?: string;
   journal: string;
   credibility: number;
   abstract?: string;
@@ -25,6 +35,12 @@ export default function ArticleCard({
   url?: string;
   hideActions?: boolean;
 }) {
+  const authorDisplay = Array.isArray(authors)
+    ? authors.map(a => `${a.firstName ? `${a.firstName.charAt(0)}. ` : ""}${a.lastName}`).join(", ")
+    : authors || "Unknown Author";
+
+  const dateDisplay = [year, month, day].filter(Boolean).join(" ");
+
   return (
     <div className="relative h-full w-full group/article">
       <div className="bg-white/80 backdrop-blur-sm border border-[#2b090d]/10 p-5 rounded-2xl shadow-sm transition-all cursor-pointer flex flex-col gap-3 h-full 
@@ -58,7 +74,7 @@ export default function ArticleCard({
             <Link2 size={16} className="text-[#521118]/20 shrink-0 mt-1" />
           </h3>
         </a>
-        <p className="text-xs text-[#521118]/40 font-bold uppercase tracking-wide">{authors} • {year}</p>
+        <p className="text-xs text-[#521118]/40 font-bold uppercase tracking-wide">{authorDisplay} • {dateDisplay}</p>
 
         {abstract && (
           <div className="group-hover/article:max-h-[40vh] group-hover/article:overflow-y-auto transition-all pr-1 custom-scrollbar">
