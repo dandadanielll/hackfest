@@ -8,6 +8,7 @@ import {
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLibrary } from '@/lib/libraryContext';
+import { useDevMode } from '@/lib/devModeContext';
 import type { SavedArticle } from '@/lib/libraryStore';
 import { TfiQuoteLeft } from 'react-icons/tfi';
 
@@ -37,6 +38,7 @@ async function extractPdfText(file: File): Promise<string> {
 
 export default function CitationPage() {
   const { folders } = useLibrary();
+  const { addLog, startLogGroup } = useDevMode();
   const [mode, setMode] = useState<InputMode>('link');
   const [input, setInput] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -80,6 +82,12 @@ export default function CitationPage() {
     setError(null);
     setCitation(null);
 
+    const sourceName = "Citation Generator";
+    const runTitle = mode === 'library' && selectedArticle ? `Citing: ${selectedArticle.title}` : mode === 'file' && selectedFile ? `Citing: ${selectedFile.name}` : `Citing Link / DOI`;
+    const groupId = startLogGroup("/citation", runTitle, sourceName);
+
+    addLog(`Initiating automated citation builder sequence...`, groupId);
+
     try {
       let payload: {
         text?: string;
@@ -91,6 +99,7 @@ export default function CitationPage() {
 
       if (mode === 'library' && selectedArticle) {
         setStatusMsg('Building citation from library metadata…');
+        addLog(`Sourcing from library database metadata (ID: ${selectedArticle.id})`, groupId);
         payload.text = [
           `Title: ${selectedArticle.title}`,
           `Authors: ${Array.isArray(selectedArticle.authors) ? selectedArticle.authors.map(a => `${a.firstName ? `${a.firstName.charAt(0)}. ` : ""}${a.lastName}`).join(", ") : (selectedArticle.authors || "Unknown")}`,
@@ -100,6 +109,7 @@ export default function CitationPage() {
         ].filter(Boolean).join('\n');
       } else if (mode === 'file' && selectedFile) {
         setStatusMsg('Reading and extracting file text…');
+        addLog(`Analyzing uploaded document payload: ${selectedFile.name}`, groupId);
         const isPDF = selectedFile.type === "application/pdf" || selectedFile.name.toLowerCase().endsWith(".pdf");
 
         let extracted = "";
@@ -120,17 +130,21 @@ export default function CitationPage() {
         const doiMatch = clean.match(/10\.\d{4,}\/\S+/);
         if (doiMatch) {
           setStatusMsg('Fetching metadata from CrossRef…');
+          addLog(`Identified external DOI match: ${doiMatch[0]}... querying CrossRef resolver`, groupId);
           payload.doi = doiMatch[0].replace(/[.,;)]+$/, '');
         } else if (clean.startsWith('http')) {
           setStatusMsg('Fetching page metadata…');
+          addLog(`Identified standard HTTP link... scraping page metadata`, groupId);
           payload.url = clean;
         } else {
           payload.text = clean;
           setStatusMsg('Generating citation from text…');
+          addLog(`Parsing unstructured plain text for references (${payload.text.length} chars)`, groupId);
         }
       }
 
       setStatusMsg('Generating citations with Groq…');
+      addLog(`Sending formatted payload to GROQ LLM endpoint for parsing & generation...`, groupId);
       const res = await fetch('/api/citation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -140,11 +154,14 @@ export default function CitationPage() {
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error || 'Server error occurred.');
 
+      addLog(`Success. Extracted multi-format citations. Displaying to user.`, groupId);
       setCitation(data);
       setInput('');
       setSelectedFile(null);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to generate citation.');
+      const errMsg = err instanceof Error ? err.message : 'Failed to generate citation.';
+      addLog(`Citation compilation failed: ${errMsg}`, groupId);
+      setError(errMsg);
     } finally {
       setIsGenerating(false);
       setStatusMsg('');

@@ -11,6 +11,7 @@ import {
     ChevronRight,
 } from "lucide-react";
 import { useLibrary } from "@/lib/libraryContext";
+import { useDevMode } from "@/lib/devModeContext";
 import { getStoredFolders, type Folder } from "@/lib/libraryStore";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -184,12 +185,17 @@ function ToolBanner({
 function SynthesisBanner({ sources }: {
     sources: Source[];
 }) {
+    const { addLog, startLogGroup } = useDevMode();
     const [result, setResult] = useState<SynthesisResult | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
     const run = useCallback(async () => {
         setLoading(true); setError(""); setResult(null);
+        const sourceName = "AI Synthesis";
+        const groupId = startLogGroup("/aitools", "Synthesizing Literature", sourceName);
+        addLog(`Initiating multi-document synthesis algorithm for ${sources.length} sources...`, groupId);
+        addLog(`Aggregating cross-references and detecting thematic overlaps...`, groupId);
         try {
             const res = await fetch("/api/synthesis", {
                 method: "POST",
@@ -198,16 +204,25 @@ function SynthesisBanner({ sources }: {
             });
             const data = await res.json();
             if (data.error) throw new Error(data.error);
+            addLog(`Synthesis completed successfully. Found commonalities and gap indicators.`, groupId);
             setResult(data);
 
         } catch (e: unknown) {
-            setError(e instanceof Error ? e.message : "Failed to synthesize.");
+            const errMsg = e instanceof Error ? e.message : "Failed to synthesize.";
+            addLog(`Synthesis aborted: ${errMsg}`, groupId);
+            setError(errMsg);
         } finally {
             setLoading(false);
         }
-    }, [sources]);
+    }, [sources, addLog]);
 
-    useEffect(() => { run(); }, [run]);
+    const startedRef = useRef(false);
+    useEffect(() => { 
+        if (!startedRef.current) {
+            startedRef.current = true;
+            run(); 
+        }
+    }, [run]);
 
     if (loading) return <BannerLoading label="Synthesizing research..." color="border-emerald-500" />;
     if (error) return <BannerError message={error} onRetry={run} />;
@@ -242,6 +257,7 @@ function SynthesisBanner({ sources }: {
 // ── Gaps Banner ────────────────────────────────────────────────────────────
 
 function GapsBanner({ sources }: { sources: Source[] }) {
+    const { addLog, startLogGroup } = useDevMode();
     const [gaps, setGaps] = useState<GapResult[]>([]);
     const [topSuggestion, setTopSuggestion] = useState("");
     const [loading, setLoading] = useState(false);
@@ -249,6 +265,10 @@ function GapsBanner({ sources }: { sources: Source[] }) {
 
     const run = useCallback(async () => {
         setLoading(true); setError(""); setGaps([]); setTopSuggestion("");
+        const sourceName = "Gap Detection";
+        const groupId = startLogGroup("/aitools", "Detecting Literature Gaps", sourceName);
+        addLog(`Analyzing ${sources.length} articles for missing literature links...`, groupId);
+        addLog(`Evaluating abstract coverage...`, groupId);
         try {
             const res = await fetch("/api/gaps", {
                 method: "POST",
@@ -257,16 +277,25 @@ function GapsBanner({ sources }: { sources: Source[] }) {
             });
             const data = await res.json();
             if (data.error) throw new Error(data.error);
+            addLog(`Detected ${data.gaps?.length || 0} potential research gaps.`, groupId);
             setGaps(data.gaps || []);
             setTopSuggestion(data.topSuggestion || "");
         } catch (e: unknown) {
-            setError(e instanceof Error ? e.message : "Failed to analyze gaps.");
+            const errMsg = e instanceof Error ? e.message : "Failed to analyze gaps.";
+            addLog(`Gap detection failed: ${errMsg}`, groupId);
+            setError(errMsg);
         } finally {
             setLoading(false);
         }
-    }, [sources]);
+    }, [sources, addLog, startLogGroup]);
 
-    useEffect(() => { run(); }, [run]);
+    const startedRef = useRef(false);
+    useEffect(() => { 
+        if (!startedRef.current) {
+            startedRef.current = true;
+            run(); 
+        }
+    }, [run]);
 
     if (loading) return <BannerLoading label="Analyzing literature gaps…" color="border-amber-500" />;
     if (error) return <BannerError message={error} onRetry={run} />;
@@ -324,6 +353,7 @@ function GapsBanner({ sources }: { sources: Source[] }) {
 // ── Graph Banner ───────────────────────────────────────────────────────────
 
 function GraphBanner({ sources }: { sources: Source[] }) {
+    const { addLog, startLogGroup } = useDevMode();
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [graphData, setGraphData] = useState<GraphData | null>(null);
     const [loading, setLoading] = useState(false);
@@ -333,6 +363,10 @@ function GraphBanner({ sources }: { sources: Source[] }) {
 
     const buildGraph = useCallback(async () => {
         setLoading(true); setError(""); setGraphData(null); setSelectedNode(null);
+        const sourceName = "Knowledge Graph";
+        const groupId = startLogGroup("/aitools", "Building Relational Graph", sourceName);
+        addLog(`Building relational graph nodes from ${sources.length} academic sources...`, groupId);
+        addLog(`Extracting paper constraints, authors, and conceptual vertices...`, groupId);
         try {
             const res = await fetch("/api/graph", {
                 method: "POST",
@@ -341,15 +375,24 @@ function GraphBanner({ sources }: { sources: Source[] }) {
             });
             const data = await res.json();
             if (data.error) throw new Error(data.error);
+            addLog(`Graph constructed: ${data.nodes?.length} nodes mapped across ${data.edges?.length} edges.`, groupId);
             setGraphData(data);
         } catch (e: unknown) {
-            setError(e instanceof Error ? e.message : "Failed to build knowledge graph.");
+            const errMsg = e instanceof Error ? e.message : "Failed to build knowledge graph.";
+            addLog(`Graph construction aborted: ${errMsg}`, groupId);
+            setError(errMsg);
         } finally {
             setLoading(false);
         }
-    }, [sources]);
+    }, [sources, addLog, startLogGroup]);
 
-    useEffect(() => { buildGraph(); }, [buildGraph]);
+    const startedRef = useRef(false);
+    useEffect(() => { 
+        if (!startedRef.current) {
+            startedRef.current = true;
+            buildGraph(); 
+        }
+    }, [buildGraph]);
 
     useEffect(() => {
         if (!graphData || !canvasRef.current) return;
@@ -514,6 +557,7 @@ function GraphBanner({ sources }: { sources: Source[] }) {
 // ── Contradiction Banner ───────────────────────────────────────────────────
 
 function ContradictionBanner({ sources }: { sources: Source[] }) {
+    const { addLog, startLogGroup } = useDevMode();
     const [inputMode, setInputMode] = useState<"custom" | "notebook">("custom");
     const [thesis, setThesis] = useState("");
     const [folders, setFolders] = useState<Folder[]>([]);
@@ -543,6 +587,10 @@ function ContradictionBanner({ sources }: { sources: Source[] }) {
         const content = getContent();
         if (!content.trim()) return;
         setLoading(true); setError(""); setResult(null);
+        const sourceName = "Contradiction Scan";
+        const groupId = startLogGroup("/aitools", "Scanning Content for Contradictions", sourceName);
+        addLog(`Analyzing user thesis (${content.length} chars) against ${sources.length} sources...`, groupId);
+        addLog(`Probing for semantic conflicts and direct claim contradictions...`, groupId);
         try {
             const res = await fetch("/api/synthesis", {
                 method: "POST",
@@ -551,9 +599,12 @@ function ContradictionBanner({ sources }: { sources: Source[] }) {
             });
             const data = await res.json();
             if (data.error) throw new Error(data.error);
+            addLog(`Contradiction analysis complete. Resolved claims.`, groupId);
             setResult(data);
         } catch (e: unknown) {
-            setError(e instanceof Error ? e.message : "Failed to analyze.");
+            const errMsg = e instanceof Error ? e.message : "Failed to analyze.";
+            addLog(`Contradiction scan failed: ${errMsg}`, groupId);
+            setError(errMsg);
         } finally {
             setLoading(false);
         }

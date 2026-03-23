@@ -387,7 +387,7 @@ function ResearchPopup({
 
 
           <div className="flex items-center gap-3 mb-7 text-xs font-bold text-stone-400 uppercase tracking-widest">
-            <span className="text-[#8B1538]">{item.match}% Research Match</span>
+            <span className="text-[#8B1538]">Curated Data</span>
           </div>
 
 
@@ -476,7 +476,7 @@ function FrontierCard({ trend, height, onClick }: { trend: Frontier; height: str
           {trend.author}
         </p>
         <div className={`text-[9px] md:text-[10px] font-black italic uppercase ${isDark ? "text-white/90" : "text-[#8B1538]"}`}>
-          {trend.match}% MATCH
+          TOP TIER
         </div>
       </div>
     </div>
@@ -793,8 +793,8 @@ export default function TopicGenerator() {
 
 
   return (
-    <div className="flex-1 min-w-0 overflow-x-hidden bg-[#F9F8F6] min-h-screen p-6 md:p-10 text-stone-800 w-full">
-      <div className="w-full flex flex-col gap-16">
+    <div className="w-full overflow-y-auto bg-[#F9F8F6] text-stone-800">
+      <div className="max-w-[1400px] mx-auto w-full flex flex-col gap-14 p-6 md:p-10 pb-20">
 
 
         {/* ── Header ─────────────────────────────────────────── */}
@@ -848,10 +848,13 @@ export default function TopicGenerator() {
           <>
             {/* ── Local Priority Watch — looping marquee row ─────── */}
             <section className="w-full min-w-0">
-              <div className="flex items-center justify-between border-b border-stone-200 pb-4 mb-6">
+              <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-stone-200 pb-4 mb-6 gap-3">
                 <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#8B1538] flex items-center gap-2">
                   <TrendingUp size={14} /> Local Priority Watch (Top 20)
                 </h3>
+                <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest bg-stone-100 px-3 py-1.5 rounded-full w-max flex-shrink-0">
+                   Curated from DA, DOST & DENR Priority Lists
+                </span>
               </div>
 
 
@@ -887,7 +890,7 @@ export default function TopicGenerator() {
                       </div>
                       <div className="flex items-center justify-between pt-3 border-t border-stone-100">
                         <span className="text-[9px] font-bold text-stone-400">PRIORITY</span>
-                        <span className="text-[9px] font-black text-[#8B1538]">{topic.match}%</span>
+                        <span className="text-[9px] font-black text-[#8B1538]">HIGH</span>
                       </div>
                     </div>
                   ))}
@@ -898,8 +901,11 @@ export default function TopicGenerator() {
 
             {/* ── Global & Local Frontiers ────────────────────────── */}
             <section className="space-y-8 pb-20 w-full">
-              <div className="flex items-center gap-4 border-b border-stone-200 pb-4">
-                <h3 className="text-xs font-black uppercase tracking-[0.2em] text-stone-400">Global &amp; Local Frontiers (Award-Winning)</h3>
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-stone-200 pb-4 mb-6">
+                <h3 className="text-xs font-black uppercase tracking-[0.2em] text-stone-400">Global & Local Frontiers (Award-Winning)</h3>
+                <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest bg-stone-100 px-3 py-1.5 rounded-full w-max flex-shrink-0">
+                   Published Academic Literature Seed Data
+                </span>
               </div>
 
 

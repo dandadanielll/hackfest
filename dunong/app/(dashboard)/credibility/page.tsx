@@ -9,6 +9,7 @@ import { FaCheck } from 'react-icons/fa6';
 import { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLibrary } from "@/lib/libraryContext";
+import { useDevMode } from "@/lib/devModeContext";
 import { SavedArticle } from "@/lib/libraryStore";
 import FolderPickerPopup from "@/components/FolderPickerPopup";
 
@@ -219,6 +220,7 @@ function DimensionRow({ dim, index }: { dim: Dimension; index: number }) {
 
 export default function CredibilityPage() {
   const { folders, saveArticle } = useLibrary();
+  const { addLog, startLogGroup } = useDevMode();
   const [mode, setMode] = useState<InputMode>('link');
   const [urlOrDoi, setUrlOrDoi] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -249,6 +251,16 @@ export default function CredibilityPage() {
     setResult(null);
     setAddedToLibrary(false);
 
+    const source = "Credibility Score";
+    const runTitle = payload.doi ? `Scoring DOI: ${payload.doi}` : payload.url ? `Scoring Link: ${payload.url}` : `Scoring Text Content`;
+    const groupId = startLogGroup("/credibility", runTitle, source);
+    
+    addLog(`Initiating credibility analysis logic...`, groupId);
+    if (payload.doi) addLog(`Target DOI: ${payload.doi}`, groupId);
+    if (payload.url) addLog(`Target URL: ${payload.url}`, groupId);
+    if (payload.text) addLog(`Target text payload loaded (${payload.text.length} chars)`, groupId);
+    addLog("Cross-referencing CHED, PHILJOL, and Scopus databases...", groupId);
+
     try {
       const res = await fetch("/api/credibility", {
         method: "POST",
@@ -258,9 +270,12 @@ export default function CredibilityPage() {
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Analysis failed. Please try again.");
+      addLog(`Received grading matrix completion. Result processed: ${data.grade}`, groupId);
       setResult(data as CredibilityResult);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
+      const errMsg = err instanceof Error ? err.message : "Something went wrong.";
+      addLog(`Analysis failed: ${errMsg}`, groupId);
+      setError(errMsg);
     } finally {
       setAnalyzing(false);
     }

@@ -3,13 +3,13 @@
 import {
   Search, Sparkles, Filter, ArrowRight, ArrowLeft, Globe,
   Eye, EyeOff, BookOpen, Quote, ExternalLink,
-  ChevronDown, ChevronUp, Bookmark, BookmarkCheck, X, FolderOpen, Check, Unlock
+  ChevronDown, ChevronUp, Bookmark, BookmarkCheck, X, FolderOpen, Check, Unlock, RefreshCw
 } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaCheck } from 'react-icons/fa6';
-import AgentThinking from "@/components/AgentThinking";
 import { useLibrary } from "@/lib/libraryContext";
+import { useDevMode } from "@/lib/devModeContext";
 import FolderPickerPopup from "@/components/FolderPickerPopup";
 
 interface Article {
@@ -49,16 +49,18 @@ function saveSession(data: object) {
 }
 
 
-export default function ResearcherPage() {
-  const { folders, saveArticle } = useLibrary();
+export default function ResearchDashboard() {
+  const { saveArticle, folders } = useLibrary();
+  const { addLog, startLogGroup } = useDevMode();
   const [mounted, setMounted] = useState(false);
   const [query, setQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [resultsMode, setResultsMode] = useState(false);
   const [localOnly, setLocalOnly] = useState(true);
-  const [showAgentPanel, setShowAgentPanel] = useState(false);
   const [articles, setArticles] = useState<Article[]>([]);
-  const [agentLogs, setAgentLogs] = useState<string[]>([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
   const [expandedCards, setExpandedCards] = useState<ExpandedCardState>({});
   const [bookmarkPopupArticle, setBookmarkPopupArticle] = useState<Article | null>(null);
   const [recentlySaved, setRecentlySaved] = useState<Record<string, boolean>>({});
@@ -82,9 +84,10 @@ export default function ResearcherPage() {
         const session = JSON.parse(raw);
         if (session.query) setQuery(session.query);
         if (session.articles?.length) setArticles(session.articles);
-        if (session.agentLogs?.length) setAgentLogs(session.agentLogs);
-        if (session.localOnly !== undefined) setLocalOnly(session.localOnly); // Updated for localOnly
+        if (session.localOnly !== undefined) setLocalOnly(session.localOnly); 
         if (session.resultsMode) setResultsMode(session.resultsMode);
+        if (session.page) setPage(session.page);
+        if (session.hasMore !== undefined) setHasMore(session.hasMore);
       }
     } catch { /* ignore */ }
     setMounted(true);
@@ -129,60 +132,76 @@ export default function ResearcherPage() {
     };
   }, [query, inputFocused]);
 
-  const runSearch = useCallback(async (searchQuery: string, local: boolean) => { // Parameter renamed
+  const runSearch = useCallback(async (searchQuery: string, local: boolean, fetchPage = 1, currentArticles: Article[] = []) => { 
     if (!searchQuery.trim()) return;
-    setIsSearching(true);
-    setResultsMode(true);
-    setInputFocused(false);
+    
+    if (fetchPage === 1) setIsSearching(true);
+    else setLoadingMore(true);
 
-    const logs: string[] = [
-      `Initializing search for: "${searchQuery}"`,
-      local ? "Restricting to Philippine academic databases (HERDIN, PHILJOL)..." : "Searching international and local databases...",
-      "Analyzing query context...",
-    ];
-    setAgentLogs(logs);
+    if (fetchPage === 1) {
+      setResultsMode(true);
+      setInputFocused(false);
+      setPage(1);
+      setHasMore(true);
+    }
+
+    const source = "Search Engine";
+    const groupId = startLogGroup("/researcher", fetchPage === 1 ? `Query: "${searchQuery}"` : `Fetching page ${fetchPage} for: "${searchQuery}"`, source);
+    if (fetchPage === 1) {
+       addLog(`Initiating search routing...`, groupId);
+       addLog(local ? "Restricting to Philippine academic databases (HERDIN, PHILJOL)..." : "Searching international and local databases...", groupId);
+    } else {
+       addLog(`Retrieving next batch of results from upstream APIs...`, groupId);
+    }
 
     try {
       const res = await fetch("/api/research", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: searchQuery, localSourcesOnly: local }), // Match backend name
+        body: JSON.stringify({ query: searchQuery, localSourcesOnly: local, page: fetchPage }), 
       });
 
-      const updatedLogs = [
-        ...logs,
-        "Deduplicating results by DOI and title...",
-        "Scoring credibility across all sources...",
-        "Surfacing Philippine-authored papers first...",
-      ];
-      setAgentLogs(updatedLogs);
+      if (fetchPage === 1) addLog("Deduplicating results by DOI and title...", groupId);
+      if (fetchPage === 1) addLog("Scoring credibility across all sources...", groupId);
+      if (fetchPage === 1) addLog(local ? "Surfacing Philippine-authored papers first..." : "Ranking global results by impact factor and credibility...", groupId);
 
       const data = await res.json();
       if (data.articles) {
-        setArticles(data.articles);
-        const finalLogs = [...updatedLogs, `Returned ${data.articles.length} verified results.`, "Ready for review."];
-        setAgentLogs(finalLogs);
-        saveSession({ query: searchQuery, resultsMode: true, localOnly: local, articles: data.articles, agentLogs: finalLogs }); // Updated for localOnly
+        const hasNext = data.articles.length >= 10;
+        setHasMore(hasNext);
+        const newArticles = fetchPage === 1 ? data.articles : [...currentArticles, ...data.articles];
+        setArticles(newArticles);
+        if (fetchPage === 1) setPage(1); 
+        
+        addLog(fetchPage === 1 ? `Returned ${data.articles.length} verified results.` : `Appended ${data.articles.length} additional results.`, groupId);
+        if (fetchPage === 1) addLog("Ready for review.", groupId);
+        
+        saveSession({ query: searchQuery, resultsMode: true, localOnly: local, articles: newArticles, page: fetchPage, hasMore: hasNext });
       } else {
-        setAgentLogs([...updatedLogs, "No results found. Try a different query."]);
+        if (fetchPage === 1) addLog("No results found. Try a different query.", groupId);
+        setHasMore(false);
       }
     } catch (err) {
       console.error(err);
-      setAgentLogs([...logs, "Network error. Please try again."]);
+      addLog("Network error. Please try again.", groupId);
     } finally {
-      setTimeout(() => { setIsSearching(false); }, 1500);
+      if (fetchPage === 1) {
+        setTimeout(() => { setIsSearching(false); }, 1500);
+      } else {
+        setLoadingMore(false);
+      }
     }
-  }, []);
+  }, [addLog, saveSession, startLogGroup]);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    await runSearch(query, localOnly); // Updated to localOnly
+    await runSearch(query, localOnly, 1, []); 
   };
 
   const handleSuggestionClick = (s: string) => {
     setQuery(s);
     setFilteredSuggestions([]);
-    runSearch(s, localOnly); // Updated to localOnly
+    runSearch(s, localOnly, 1, []); 
   };
 
   const handleLocalToggle = () => {
@@ -198,9 +217,7 @@ export default function ResearcherPage() {
     setIsSearching(false);
     setArticles([]);
     setQuery("");
-    setAgentLogs([]);
     setExpandedCards({});
-    setShowAgentPanel(false);
     setFilterBy("all");
     setSortBy("credibility");
     sessionStorage.removeItem("dunong_search");
@@ -229,6 +246,8 @@ export default function ResearcherPage() {
     }));
 
     if (!current?.laymanDesc && article.abstract) {
+      const groupId = startLogGroup('/researcher', `Generating Layman Summary: ${article.title.substring(0, 30)}...`, 'AI Summarizer');
+      addLog('Extracting academic abstract and sending to LLM for simplification...', groupId);
       try {
         const res = await fetch("/api/layman", {
           method: "POST",
@@ -236,11 +255,13 @@ export default function ResearcherPage() {
           body: JSON.stringify({ title: article.title, abstract: article.abstract }),
         });
         const data = await res.json();
+        addLog('Successfully simplified abstract to layman terms.', groupId);
         setExpandedCards((prev) => ({
           ...prev,
           [id]: { ...prev[id], laymanDesc: data.description || "Could not generate description.", loadingLayman: false },
         }));
       } catch {
+        addLog('Failed to generate layman description.', groupId);
         setExpandedCards((prev) => ({
           ...prev,
           [id]: { ...prev[id], laymanDesc: "Could not generate description.", loadingLayman: false },
@@ -255,6 +276,10 @@ export default function ResearcherPage() {
     const id = article.id;
     const format = expandedCards[id]?.citationFormat || "APA";
     setExpandedCards((prev) => ({ ...prev, [id]: { ...prev[id], loadingCitation: true, generatedCitation: "" } }));
+    
+    const groupId = startLogGroup('/researcher', `Formatting Citation: ${article.title.substring(0, 30)}...`, 'Citation Generator');
+    addLog(`Generating ${format} citation for article...`, groupId);
+
     try {
       const res = await fetch("/api/citation", {
         method: "POST",
@@ -268,11 +293,13 @@ export default function ResearcherPage() {
       });
       const data = await res.json();
       const citation = format === "APA" ? data.apa : format === "MLA" ? data.mla : data.chicago;
+      addLog(`Citation compilation successful.`, groupId);
       setExpandedCards((prev) => ({
         ...prev,
         [id]: { ...prev[id], generatedCitation: citation || "Could not generate citation.", loadingCitation: false },
       }));
     } catch {
+      addLog(`Failed to compile citation data.`, groupId);
       setExpandedCards((prev) => ({
         ...prev,
         [id]: { ...prev[id], generatedCitation: "Error generating citation.", loadingCitation: false },
@@ -574,14 +601,6 @@ export default function ResearcherPage() {
                     )}
                   </AnimatePresence>
                 </div>
-
-                <button
-                  onClick={() => setShowAgentPanel(!showAgentPanel)}
-                  className="group flex items-center gap-2 text-sm font-bold text-[#521118] hover:text-[#2b090d] hover:bg-[#521118]/5 transition-all bg-white border border-[#2b090d]/20 px-3 py-1.5 rounded-xl shadow-sm hover:shadow-md shadow-[#2b090d]/5"
-                >
-                  {showAgentPanel ? <EyeOff size={13} className="transition-all duration-300 ease-out group-hover:scale-90 opacity-70 group-hover:opacity-100" /> : <Eye size={13} className="transition-transform duration-300 ease-out group-hover:scale-110 group-hover:rotate-12" />}
-                  Agent Thinking
-                </button>
               </div>
             </motion.div>
           )}
@@ -597,7 +616,7 @@ export default function ResearcherPage() {
             >
               <div className="flex items-end justify-between mb-8 mt-6 border-b border-[#2b090d]/10 pb-4">
                 <h2 className="text-3xl font-black font-serif text-[#2b090d] flex items-center gap-4 flex-wrap">
-                  {displayedArticles.length} Results
+                  Top Results
                   <div className="flex items-center gap-2 mt-1">
                     {filterBy !== "all" && (
                       <span className="text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2.5 py-1 rounded-full uppercase tracking-wider">
@@ -741,6 +760,32 @@ export default function ResearcherPage() {
                 })}
               </div>
 
+              {hasMore && displayedArticles.length > 0 && !isSearching && (
+                <div className="flex justify-center mt-10 mb-6">
+                  <button
+                    onClick={() => {
+                      const nextPage = page + 1;
+                      setPage(nextPage);
+                      runSearch(query, localOnly, nextPage, articles);
+                    }}
+                    disabled={loadingMore}
+                    className="flex items-center gap-2 px-8 py-3.5 rounded-2xl font-bold text-sm bg-white border border-[#2b090d]/10 text-[#521118] hover:bg-[#521118]/5 hover:border-[#521118]/30 transition shadow-sm disabled:opacity-60 disabled:cursor-not-allowed group active:scale-[0.98]"
+                  >
+                    {loadingMore ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-[#521118]/30 border-t-[#521118] rounded-full animate-spin" />
+                        <span className="opacity-70">Loading sources...</span>
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw size={16} className="text-[#521118]/60 group-hover:rotate-180 transition-transform duration-500" />
+                        Load More Results
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+
               {displayedArticles.length === 0 && articles.length > 0 && (
                 <div className="text-center py-16 text-[#521118]/40">
                   <Filter size={32} className="mx-auto mb-3 opacity-30" />
@@ -753,26 +798,6 @@ export default function ResearcherPage() {
         </AnimatePresence>
       </div>
 
-      {/* Agent Panel */}
-      <AnimatePresence>
-        {showAgentPanel && (isSearching || resultsMode) && (
-          <motion.div
-            initial={{ x: 400 }}
-            animate={{ x: 0 }}
-            exit={{ x: 400 }}
-            className="w-80 bg-[#e8e4df] border-l border-[#2b090d]/10 shadow-2xl flex flex-col h-screen sticky top-0 shrink-0 z-40 overflow-hidden"
-          >
-            <div className="p-5 border-b border-[#2b090d]/10 bg-[#e8e4df]/80 flex justify-between items-center">
-              <h3 className="font-bold text-[#2b090d] flex items-center gap-2">
-                <Sparkles size={18} className="text-amber-500" /> Agent Thinking
-              </h3>
-            </div>
-            <div className="flex-1 overflow-y-auto p-5 custom-scrollbar">
-              <AgentThinking logs={agentLogs} />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </main>
   );
 }

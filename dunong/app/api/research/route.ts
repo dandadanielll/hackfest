@@ -19,7 +19,7 @@ function reconstructAbstract(invertedIndex: Record<string, number[]> | null): st
 
 export async function POST(req: Request) {
   try {
-    const { query, localSourcesOnly } = await req.json();
+    const { query, localSourcesOnly, page = 1 } = await req.json();
 
     if (!query) {
       return NextResponse.json({ error: "Query is required" }, { status: 400 });
@@ -29,7 +29,7 @@ export async function POST(req: Request) {
 
     // --- OpenAlex (Primary) ---
     try {
-      let openAlexUrl = `https://api.openalex.org/works?search=${encodeURIComponent(query)}&per-page=12&mailto=dunong@up.edu.ph`;
+      let openAlexUrl = `https://api.openalex.org/works?search=${encodeURIComponent(query)}&per-page=15&page=${page}&mailto=dunong@up.edu.ph`;
 
       if (localSourcesOnly) {
         openAlexUrl += `&filter=institutions.country_code:PH`;
@@ -92,7 +92,7 @@ export async function POST(req: Request) {
     }
 
     // --- PHILJOL OAI-PMH (always for local) ---
-    if (localSourcesOnly || results.length < 5) {
+    if ((localSourcesOnly || results.length < 5) && page === 1) {
       try {
         const philjolUrl = `https://philjol.info/index.php/oai?verb=ListRecords&metadataPrefix=oai_dc`;
         const controller = new AbortController();
@@ -151,7 +151,7 @@ export async function POST(req: Request) {
     // --- Semantic Scholar (international only) ---
     if (!localSourcesOnly) {
       try {
-        const ssUrl = `https://api.semanticscholar.org/graph/v1/paper/search?query=${encodeURIComponent(query)}&limit=5&fields=title,authors,year,abstract,venue,externalIds,citationCount,isOpenAccess`;
+        const ssUrl = `https://api.semanticscholar.org/graph/v1/paper/search?query=${encodeURIComponent(query)}&limit=10&offset=${(page - 1) * 10}&fields=title,authors,year,abstract,venue,externalIds,citationCount,isOpenAccess`;
         const ssRes = await fetch(ssUrl, {
           headers: { "User-Agent": "Dunong/1.0 (dunong@up.edu.ph)" },
         });
@@ -221,7 +221,7 @@ export async function POST(req: Request) {
       });
     }
 
-    return NextResponse.json({ articles: deduplicated.slice(0, 12) });
+    return NextResponse.json({ articles: deduplicated.slice(0, 10) });
 
   } catch (error) {
     console.error("Research route error:", error);
