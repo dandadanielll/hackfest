@@ -6,6 +6,7 @@ import dynamic from "next/dynamic";
 import {
   Sparkles, Lightbulb, ArrowRight, TrendingUp, FlaskConical, X, ChevronRight, Zap, Loader2, AlertTriangle
 } from "lucide-react";
+import { motion } from "framer-motion";
 
 
 const GenerateResearchModal = dynamic(() => import("@/components/GenerateResearchModal"), { ssr: false });
@@ -795,7 +796,12 @@ export default function TopicGenerator() {
 
 
   return (
-    <div className="flex-1 w-full text-stone-800 flex flex-col">
+    <motion.div
+      initial={{ opacity: 0, y: 30 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, ease: "easeOut" }}
+      className="flex-1 w-full text-stone-800 flex flex-col"
+    >
       <div className="w-full flex flex-col gap-14 p-6 md:p-14 md:px-20 pb-32">
 
 
@@ -987,7 +993,7 @@ export default function TopicGenerator() {
          animation-play-state: paused;
        }
      `}</style>
-    </div>
+    </motion.div>
   );
 }
 

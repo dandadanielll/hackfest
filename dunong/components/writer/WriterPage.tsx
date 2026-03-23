@@ -18,6 +18,7 @@ import {
   ArrowRight,
   PlusCircle
 } from 'lucide-react';
+import { motion } from 'framer-motion';
 import WriterEditor from './WriterEditor';
 
 type View = 'select' | 'editor';
@@ -109,7 +110,12 @@ function WriterPageInner() {
   }
 
   return (
-    <div className="flex h-full bg-transparent overflow-hidden relative font-sans">
+    <motion.div
+      initial={{ opacity: 0, y: 30 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, ease: "easeOut" }}
+      className="flex h-full bg-transparent overflow-hidden relative font-sans"
+    >
 
 
       {/* Sidebar */}
@@ -315,7 +321,7 @@ function WriterPageInner() {
           </div>
         )}
       </main>
-    </div>
+    </motion.div>
   );
 }
 
