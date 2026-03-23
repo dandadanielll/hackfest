@@ -374,7 +374,7 @@ export default function ResearchDashboard() {
   if (!mounted) return null;
 
   return (
-    <main className="min-h-screen w-full pb-24 relative flex font-sans bg-[#e8e4df]/30">
+    <main className="min-h-screen w-full pb-24 relative flex font-sans">
 
 
       {/* Bookmark folder picker popup */}

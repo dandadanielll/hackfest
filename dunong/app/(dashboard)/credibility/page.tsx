@@ -362,7 +362,7 @@ export default function CredibilityPage() {
 
   return (
     <motion.main 
-      className={`min-h-screen w-full pb-24 relative font-sans bg-[#e8e4df]/30 overflow-x-hidden ${isAnimating ? "overflow-hidden" : "overflow-y-auto"}`}
+      className={`min-h-screen w-full pb-24 relative font-sans overflow-x-hidden ${isAnimating ? "overflow-hidden" : "overflow-y-auto"}`}
     >
       <motion.div
         initial={{ opacity: 0, y: 30 }}

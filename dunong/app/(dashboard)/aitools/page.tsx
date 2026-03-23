@@ -192,9 +192,9 @@ function SynthesisBanner({ sources }: {
 
     const run = useCallback(async () => {
         setLoading(true); setError(""); setResult(null);
-        const sourceName = "AI Synthesis";
-        const groupId = startLogGroup("/aitools", "Synthesizing Literature", sourceName);
-        addLog(`Initiating multi-document synthesis algorithm for ${sources.length} sources...`, groupId);
+        const sourceName = "Systematic Review";
+        const groupId = startLogGroup("/aitools", "Performing Systematic Review", sourceName);
+        addLog(`Initiating Systematic Review algorithm for ${sources.length} sources...`, groupId);
         addLog(`Aggregating cross-references and detecting thematic overlaps...`, groupId);
         try {
             const res = await fetch("/api/synthesis", {
@@ -204,12 +204,12 @@ function SynthesisBanner({ sources }: {
             });
             const data = await res.json();
             if (data.error) throw new Error(data.error);
-            addLog(`Synthesis completed successfully. Found commonalities and gap indicators.`, groupId);
+            addLog(`Systematic Review completed successfully. Found commonalities and gap indicators.`, groupId);
             setResult(data);
 
         } catch (e: unknown) {
             const errMsg = e instanceof Error ? e.message : "Failed to synthesize.";
-            addLog(`Synthesis aborted: ${errMsg}`, groupId);
+            addLog(`Systematic Review aborted: ${errMsg}`, groupId);
             setError(errMsg);
         } finally {
             setLoading(false);
@@ -224,7 +224,7 @@ function SynthesisBanner({ sources }: {
         }
     }, [run]);
 
-    if (loading) return <BannerLoading label="Synthesizing research..." color="border-emerald-500" />;
+    if (loading) return <BannerLoading label="Performing Systematic Review..." color="border-emerald-500" />;
     if (error) return <BannerError message={error} onRetry={run} />;
     if (!result) return null;
 
@@ -236,7 +236,7 @@ function SynthesisBanner({ sources }: {
                         <Zap size={18} className="text-emerald-600" />
                     </div>
                     <div>
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600/50 block">AI SYNTHESIS</span>
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600/50 block">SYSTEMATIC REVIEW</span>
                         <h4 className="font-bold text-lg font-serif">Comprehensive Overview</h4>
                     </div>
                 </div>
@@ -923,7 +923,7 @@ function SourceSelector({
 // ── Main Page ──────────────────────────────────────────────────────────────
 
 const TOOL_BUTTONS: { id: Tool; label: string; icon: React.ReactNode; color: string }[] = [
-    { id: "synthesis", label: "Synthesis", icon: <Zap size={16} className="transition-transform duration-300 ease-out group-hover:scale-110 group-hover:rotate-12" />, color: "emerald" },
+    { id: "synthesis", label: "Systematic Review", icon: <Zap size={16} className="transition-transform duration-300 ease-out group-hover:scale-110 group-hover:rotate-12" />, color: "emerald" },
     { id: "gaps", label: "Gap Analysis", icon: <AlertTriangle size={16} className="transition-transform duration-300 ease-out group-hover:scale-110 group-hover:-rotate-12" />, color: "amber" },
     { id: "graph", label: "Knowledge Graph", icon: <GitGraph size={16} className="transition-transform duration-300 ease-out group-hover:scale-110 group-hover:rotate-12" />, color: "indigo" },
     { id: "contradiction", label: "Contradiction Catcher", icon: <ShieldCheck size={16} className="transition-transform duration-300 ease-out group-hover:scale-110 group-hover:-rotate-12" />, color: "rose" },
@@ -994,7 +994,7 @@ export default function AIToolsPage() {
         <motion.main
             initial={false}
             animate={{ opacity: 1 }}
-            className={`min-h-screen w-full pb-20 relative font-sans bg-[#e8e4df]/30 ${isAnimating ? "overflow-hidden" : "overflow-y-auto"}`}
+            className={`min-h-screen w-full pb-20 relative font-sans ${isAnimating ? "overflow-hidden" : "overflow-y-auto"}`}
         >
             <motion.div
                 initial={{ opacity: 0, y: 30 }}
@@ -1015,7 +1015,7 @@ export default function AIToolsPage() {
                             <p className="text-[#521118]/60 text-lg mt-1 font-medium">
                                 {selectedSources.length === 0
                                     ? "Select research sources to begin advanced analysis."
-                                    : `${selectedSources.length} source${selectedSources.length > 1 ? "s" : ""} selected for synthesis.`
+                                    : `${selectedSources.length} source${selectedSources.length > 1 ? "s" : ""} selected for Systematic Review.`
                                 }
                             </p>
                         </div>
@@ -1029,6 +1029,28 @@ export default function AIToolsPage() {
                         <FolderOpen size={18} />
                         {showSelector ? "Hide Library" : "Select Articles"}
                     </button>
+                </div>
+                
+                {/* Tool buttons */}
+                <div className="flex gap-4 flex-wrap mb-8">
+                    {TOOL_BUTTONS.map((tool) => (
+                        <button
+                            key={tool.id}
+                            onClick={() => handleToolClick(tool.id)}
+                            className={`flex items-center gap-2.5 px-6 py-3 rounded-full text-sm font-bold border-2 transition-all group ${activeTool === tool.id
+                                ? tool.color === "emerald" ? "bg-emerald-50 text-emerald-900 border-emerald-500 shadow-sm"
+                                    : tool.color === "amber" ? "bg-amber-50 text-amber-900 border-amber-500 shadow-sm"
+                                        : tool.color === "indigo" ? "bg-indigo-50 text-indigo-900 border-indigo-500 shadow-sm"
+                                            : "bg-rose-50 text-rose-900 border-rose-500 shadow-sm"
+                                : tool.color === "emerald" ? "bg-white text-stone-400 border-stone-200 hover:border-emerald-500/50 hover:bg-emerald-50 hover:text-emerald-700"
+                                    : tool.color === "amber" ? "bg-white text-stone-400 border-stone-200 hover:border-amber-500/50 hover:bg-amber-50 hover:text-amber-700"
+                                        : tool.color === "indigo" ? "bg-white text-stone-400 border-stone-200 hover:border-indigo-500/50 hover:bg-indigo-50 hover:text-indigo-700"
+                                            : "bg-white text-stone-400 border-stone-200 hover:border-rose-500/50 hover:bg-rose-50 hover:text-rose-700"
+                                }`}
+                        >
+                            {tool.icon} {tool.label}
+                        </button>
+                    ))}
                 </div>
 
                 {/* Unified Interaction Zone */}
@@ -1063,7 +1085,7 @@ export default function AIToolsPage() {
                                 <div className="bg-[#521118]/5 border border-[#521118]/10 p-10 rounded-[2.5rem] w-fit mx-auto shadow-inner mb-6">
                                     <Sparkles size={48} className="text-[#521118]/20" />
                                 </div>
-                                <h3 className="font-bold text-2xl text-[#2b090d] font-serif tracking-tight">Ready for Synthesis</h3>
+                                <h3 className="font-bold text-2xl text-[#2b090d] font-serif tracking-tight">Ready for Systematic Review</h3>
                                 <p className="text-[#521118]/60 text-base mt-2 max-w-sm mx-auto font-medium">Click "Select Sources" to pick from your research folders and let AI find deep connections.</p>
                                 <button
                                     onClick={() => setShowSelector(true)}
@@ -1100,29 +1122,7 @@ export default function AIToolsPage() {
                     </AnimatePresence>
                 </div>
 
-                {/* Tool buttons */}
-                {canUseTool && (
-                    <div className="flex gap-4 flex-wrap mb-10">
-                        {TOOL_BUTTONS.map((tool) => (
-                            <button
-                                key={tool.id}
-                                onClick={() => handleToolClick(tool.id)}
-                                className={`flex items-center gap-2.5 px-6 py-3 rounded-full text-sm font-bold border-2 transition-all group ${activeTool === tool.id
-                                    ? tool.color === "emerald" ? "bg-emerald-50 text-emerald-900 border-emerald-500 shadow-sm"
-                                        : tool.color === "amber" ? "bg-amber-50 text-amber-900 border-amber-500 shadow-sm"
-                                            : tool.color === "indigo" ? "bg-indigo-50 text-indigo-900 border-indigo-500 shadow-sm"
-                                                : "bg-rose-50 text-rose-900 border-rose-500 shadow-sm"
-                                    : tool.color === "emerald" ? "bg-white text-stone-400 border-stone-200 hover:border-emerald-500/50 hover:bg-emerald-50 hover:text-emerald-700"
-                                        : tool.color === "amber" ? "bg-white text-stone-400 border-stone-200 hover:border-amber-500/50 hover:bg-amber-50 hover:text-amber-700"
-                                            : tool.color === "indigo" ? "bg-white text-stone-400 border-stone-200 hover:border-indigo-500/50 hover:bg-indigo-50 hover:text-indigo-700"
-                                                : "bg-white text-stone-400 border-stone-200 hover:border-rose-500/50 hover:bg-rose-50 hover:text-rose-700"
-                                    }`}
-                            >
-                                {tool.icon} {tool.label}
-                            </button>
-                        ))}
-                    </div>
-                )}
+
 
                 {!canUseTool && selectedSources.length > 0 && (
                     <div className="bg-[#521118]/5 border border-[#521118]/10 rounded-2xl px-6 py-4 mb-10 flex items-center gap-3">
