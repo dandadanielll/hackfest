@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Layers, Bookmark, FileText, Lock, Settings, History, CheckCircle, Zap, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { BookOpen, Layers, Bookmark, FileText, Lock, Settings, History, CheckCircle, Zap, Search, ChevronLeft, ChevronRight, Lightbulb } from 'lucide-react';
 import { RiGeminiLine } from 'react-icons/ri';
 import { FaCheck } from 'react-icons/fa6';
 import { TfiQuoteLeft } from 'react-icons/tfi';
