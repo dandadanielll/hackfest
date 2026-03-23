@@ -96,7 +96,8 @@ function WriterPageInner() {
   }
 
   return (
-    <div className="flex h-full bg-[#F5F0E8] overflow-hidden">
+    <div className="flex h-full bg-[#e8e4df]/30 overflow-hidden relative font-sans">
+
 
       {/* Sidebar */}
       <aside className="w-[270px] min-w-[270px] flex flex-col bg-white border-r border-[#E8DFD0] overflow-hidden">

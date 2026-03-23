@@ -1,6 +1,9 @@
 "use client";
 
-import { BookOpen, Layers, Bookmark, FileText, Lock, Settings, History, CheckCircle, Zap, Search, ChevronLeft, ChevronRight, Lightbulb } from 'lucide-react';
+import { BookOpen, Layers, Bookmark, FileText, Lock, Settings, History, CheckCircle, Zap, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { RiGeminiLine } from 'react-icons/ri';
+import { FaCheck } from 'react-icons/fa6';
+import { TfiQuoteLeft } from 'react-icons/tfi';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
@@ -31,9 +34,9 @@ export default function Sidebar() {
         <NavItem href="/researcher" icon={<Search size={18} />} label="Search Engine" active={pathname === '/researcher'} isCollapsed={isCollapsed} />
         <NavItem href="/library" icon={<Layers size={18} />} label="Library" active={pathname === '/library'} isCollapsed={isCollapsed} />
         <NavItem href="/writer" icon={<FileText size={18} />} label="Writer" active={pathname === '/writer'} isCollapsed={isCollapsed} />
-        <NavItem href="/aitools" icon={<Zap size={18} />} label="AI Tools" active={['/synthesis', '/gaps', '/graph', '/audio'].includes(pathname)} isCollapsed={isCollapsed} />
-        <NavItem href="/citation" icon={<Settings size={18} />} label="Citation Generator" active={pathname === '/citation'} isCollapsed={isCollapsed} />
-        <NavItem href="/credibility" icon={<Bookmark size={18} />} label="Credibility Score" active={pathname === '/credibility'} isCollapsed={isCollapsed} />
+        <NavItem href="/aitools" icon={<RiGeminiLine size={18} />} label="AI Tools" active={pathname === '/aitools'} isCollapsed={isCollapsed} />
+        <NavItem href="/citation" icon={<TfiQuoteLeft size={18} />} label="Citation Generator" active={pathname === '/citation'} isCollapsed={isCollapsed} />
+        <NavItem href="/credibility" icon={<FaCheck size={18} />} label="Credibility Score" active={pathname === '/credibility'} isCollapsed={isCollapsed} />
         <NavItem href="/topic-generator" icon={<Lightbulb size={18} />} label="Topic Generator" active={pathname === '/topic-generator'} isCollapsed={isCollapsed} />
       </nav>
     </aside>

@@ -76,8 +76,9 @@ Return ONLY valid JSON, no markdown, no backticks:
     }>(prompt, 1000);
 
     return NextResponse.json(result);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Synthesis route error:", error);
-    return NextResponse.json({ error: "Failed to synthesize articles" }, { status: 500 });
+    const message = error instanceof Error ? error.message : "Failed to synthesize articles";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

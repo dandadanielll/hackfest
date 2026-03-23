@@ -1,4 +1,4 @@
-import { Bookmark, ShieldCheck, Flag, Unlock, Link2 } from "lucide-react";
+import { Bookmark, ShieldCheck, Flag, Unlock, Link2, Trash2 } from "lucide-react";
 
 export interface Author {
   firstName: string;
@@ -19,7 +19,8 @@ export default function ArticleCard({
   localSource,
   openAccess,
   url,
-  hideActions = false
+  hideActions = false,
+  onDelete
 }: {
   articleId?: string;
   title: string;
@@ -34,6 +35,7 @@ export default function ArticleCard({
   openAccess?: boolean;
   url?: string;
   hideActions?: boolean;
+  onDelete?: () => void;
 }) {
   const authorDisplay = Array.isArray(authors)
     ? authors.map(a => `${a.firstName ? `${a.firstName.charAt(0)}. ` : ""}${a.lastName}`).join(", ")
@@ -42,7 +44,7 @@ export default function ArticleCard({
   const dateDisplay = [year, month, day].filter(Boolean).join(" ");
 
   return (
-    <div className="relative h-full w-full group/article">
+    <div className="relative h-full w-full group/article [&:hover]:h-full hover:z-50">
       <div className="bg-white/80 backdrop-blur-sm border border-[#2b090d]/10 p-5 rounded-2xl shadow-sm transition-all cursor-pointer flex flex-col gap-3 h-full 
         group-hover/article:absolute group-hover/article:top-0 group-hover/article:left-0 group-hover/article:w-full group-hover/article:h-auto group-hover/article:z-50 
         group-hover/article:shadow-[0_20px_50px_rgba(43,9,13,0.3)] group-hover/article:scale-[1.01] group-hover/article:bg-white/95 group-hover/article:border-[#521118]/20">
@@ -57,7 +59,7 @@ export default function ArticleCard({
               </span>
             )}
             {openAccess && (
-              <span className="bg-emerald-50 text-emerald-800 px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-widest border border-emerald-200/50 flex items-center gap-1">
+              <span className="bg-[#2e1065]/5 text-[#2e1065] px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-widest border border-[#2e1065]/10 flex items-center gap-1">
                 <Unlock size={10} strokeWidth={3} /> Open Access
               </span>
             )}
@@ -67,6 +69,16 @@ export default function ArticleCard({
             <ShieldCheck size={12} strokeWidth={3} /> {credibility}
           </div>
         </div>
+
+        {onDelete && (
+          <button
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(); }}
+            className="absolute top-3 right-3 z-[60] opacity-0 group-hover/article:opacity-100 transition text-stone-300 hover:text-rose-600 bg-white rounded-lg p-1.5 border border-stone-200 shadow-sm"
+            title="Delete article"
+          >
+            <Trash2 size={12} />
+          </button>
+        )}
 
         <a href={url || "#"} target="_blank" rel="noreferrer" className="block transition">
           <h3 className="font-bold text-[#2b090d] leading-tight font-serif text-lg transition flex items-start justify-between gap-4 group-hover/article:text-[#521118]">

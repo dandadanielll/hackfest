@@ -3,12 +3,13 @@
 import {
   FileText, Link as LinkIcon, Copy, Check, Upload,
   BookOpen, AlertCircle, X, Loader2, FolderOpen,
-  ChevronDown, ChevronUp
+  ChevronDown, ChevronUp, Search, Library
 } from 'lucide-react';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLibrary } from '@/lib/libraryContext';
 import type { SavedArticle } from '@/lib/libraryStore';
+import { TfiQuoteLeft } from 'react-icons/tfi';
 
 type InputMode = 'link' | 'file' | 'library';
 
@@ -48,14 +49,11 @@ export default function CitationPage() {
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [showLibraryPicker, setShowLibraryPicker] = useState(false);
 
+  const [isAnimating, setIsAnimating] = useState(true);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Auto-expand all folders when picker opens
-  useEffect(() => {
-    if (showLibraryPicker) {
-      setExpandedFolders(new Set(folders.map((f) => f.id)));
-    }
-  }, [showLibraryPicker, folders]);
+
 
   const toggleFolder = (id: string) =>
     setExpandedFolders((prev) => {
@@ -63,8 +61,6 @@ export default function CitationPage() {
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
-
-
 
   const handleGenerate = async () => {
     if (mode === 'link' && !input.trim()) {
@@ -95,10 +91,9 @@ export default function CitationPage() {
 
       if (mode === 'library' && selectedArticle) {
         setStatusMsg('Building citation from library metadata…');
-        // Build a rich text string from the article metadata
         payload.text = [
           `Title: ${selectedArticle.title}`,
-          `Authors: ${Array.isArray(selectedArticle.authors) ? selectedArticle.authors.map(a => `${a.firstName} ${a.lastName}`).join(", ") : (selectedArticle.authors as any)}`,
+          `Authors: ${Array.isArray(selectedArticle.authors) ? selectedArticle.authors.map(a => `${a.firstName ? `${a.firstName.charAt(0)}. ` : ""}${a.lastName}`).join(", ") : (selectedArticle.authors || "Unknown")}`,
           `Year: ${selectedArticle.year}`,
           `Journal: ${selectedArticle.journal}`,
           selectedArticle.url ? `URL: ${selectedArticle.url}` : '',
@@ -111,7 +106,6 @@ export default function CitationPage() {
         if (isPDF) {
           extracted = await extractPdfText(selectedFile);
         } else {
-          // Fallback for .txt or other readable
           extracted = (await selectedFile.text().catch(() => "")).slice(0, 5000);
         }
 
@@ -179,276 +173,291 @@ export default function CitationPage() {
   const totalArticles = folders.reduce((a, f) => a + f.articles.length, 0);
 
   return (
-    <main className="max-w-4xl w-full mx-auto px-8 pt-16 pb-24">
+    <motion.main
+      className={`min-h-screen w-full pb-24 relative font-sans bg-[#e8e4df]/30 overflow-x-hidden ${isAnimating ? "overflow-hidden" : "overflow-y-auto"}`}
+    >
+      <motion.div
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+        onAnimationComplete={() => setIsAnimating(false)}
+        className="w-full flex flex-col items-center"
+      >
+        <div className="max-w-4xl w-full mx-auto px-8 pt-16 relative flex flex-col items-center">
 
-      {/* Header */}
-      <div className="flex items-center gap-5 mb-12">
-        <div className="bg-[#FFF0F0] text-[#8B1A1A] border border-[#F0EBE3] p-4 rounded-3xl shadow-sm shrink-0">
-          <BookOpen size={32} />
-        </div>
-        <div>
-          <h1 className="text-4xl font-bold text-[#1A0A00] tracking-tight font-serif">
-            Citation Generator
-          </h1>
-          <p className="text-stone-500 text-lg mt-1">
-            Generate APA, MLA, and Chicago citations from links, DOIs, files, or your library.
-          </p>
-        </div>
-      </div>
-
-      {/* Mode tabs */}
-      <div className="flex gap-2 mb-6">
-        {([
-          { id: 'link', label: 'URL or DOI', icon: <LinkIcon size={14} /> },
-          { id: 'file', label: 'Upload File', icon: <Upload size={14} /> },
-          { id: 'library', label: 'From Library', icon: <FolderOpen size={14} /> },
-        ] as { id: InputMode; label: string; icon: React.ReactNode }[]).map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => {
-              setMode(tab.id);
-              setError(null);
-              setCitation(null);
-              setSelectedArticle(null);
-              setSelectedFile(null);
-              setInput('');
-              setShowLibraryPicker(false);
-            }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold border transition ${mode === tab.id
-              ? 'bg-[#1A0A00] text-white border-[#1A0A00]'
-              : 'bg-white text-stone-500 border-stone-200 hover:border-[#8B1A1A] hover:text-[#8B1A1A]'
-              }`}
-          >
-            {tab.icon} {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Generator Box */}
-      <div className="bg-white border border-[#E8DFD0] rounded-[2rem] p-8 shadow-md mb-10">
-
-        {/* Link / DOI mode */}
-        {mode === 'link' && (
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1 flex items-center bg-[#F9FBFD] border-2 border-[#E8DFD0] rounded-2xl focus-within:border-[#8B1A1A] focus-within:ring-4 focus-within:ring-[#8B1A1A]/10 transition-all overflow-hidden">
-              <LinkIcon className="absolute left-4 text-stone-400 shrink-0" size={20} />
-              <input
-                className="w-full bg-transparent pl-12 pr-4 py-4 outline-none text-[#1A0A00] font-serif placeholder:font-sans placeholder:text-stone-400 text-lg"
-                placeholder="https://doi.org/10.xxxx/... or any link"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
-              />
+          {/* Header */}
+          <div className="flex flex-col items-center text-center mb-12">
+            <div className="bg-[#521118]/10 text-[#521118] border border-[#521118]/10 p-4 rounded-3xl shadow-sm mb-6">
+              <TfiQuoteLeft size={32} />
             </div>
-            <button
-              onClick={handleGenerate}
-              disabled={isGenerating || !input.trim()}
-              className="bg-[#1A0A00] text-white px-8 py-4 rounded-2xl font-bold hover:bg-[#8B1A1A] transition disabled:opacity-40 whitespace-nowrap shadow-md flex items-center gap-2"
-            >
-              {isGenerating ? <Loader2 size={18} className="animate-spin" /> : null}
-              {isGenerating ? 'Generating...' : 'Cite Source'}
-            </button>
-          </div>
-        )}
-
-        {/* File upload mode */}
-        {mode === 'file' && (
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1 bg-[#F9FBFD] border-2 border-[#E8DFD0] rounded-2xl overflow-hidden">
-              {selectedFile ? (
-                <div className="flex items-center justify-between px-5 py-4 bg-[#FFF0F0]/50">
-                  <div className="flex items-center gap-3 overflow-hidden">
-                    <FileText className="text-[#8B1A1A] shrink-0" size={20} />
-                    <span className="font-medium text-[#8B1A1A] truncate">{selectedFile.name}</span>
-                  </div>
-                  <button
-                    onClick={() => setSelectedFile(null)}
-                    className="p-1 hover:bg-[#F0EBE3] rounded-full text-stone-500 transition-colors"
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-full flex flex-col items-center gap-2 py-8 hover:bg-rose-50/30 transition"
-                >
-                  <Upload size={22} className="text-stone-300" />
-                  <span className="text-sm font-semibold text-stone-400">Click to upload PDF, DOC, or TXT</span>
-                </button>
-              )}
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileSelect}
-                className="hidden"
-                accept=".txt,.doc,.docx,.pdf"
-              />
+            <div>
+              <h1 className="text-4xl md:text-5xl font-black text-[#2b090d] tracking-tight font-serif">
+                Citation Generator
+              </h1>
+              <p className="text-[#521118]/60 text-lg mt-2 font-medium max-w-2xl">
+                Generate APA, MLA, and Chicago citations from links, DOIs, files, or your library.
+              </p>
             </div>
-            <button
-              onClick={handleGenerate}
-              disabled={isGenerating || !selectedFile}
-              className="bg-[#1A0A00] text-white px-8 py-4 rounded-2xl font-bold hover:bg-[#8B1A1A] transition disabled:opacity-40 whitespace-nowrap shadow-md flex items-center gap-2"
-            >
-              {isGenerating ? <Loader2 size={18} className="animate-spin" /> : null}
-              {isGenerating ? 'Generating...' : 'Cite Source'}
-            </button>
           </div>
-        )}
 
-        {/* Library mode */}
-        {mode === 'library' && (
-          <div className="space-y-4">
-            {/* Selected article display */}
-            {selectedArticle ? (
-              <div className="flex items-start justify-between gap-4 bg-[#FFF0F0]/50 border border-[#F0EBE3] rounded-2xl px-5 py-4">
-                <div className="min-w-0">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1">{selectedFolderName}</p>
-                  <p className="font-bold text-[#1A0A00] text-sm leading-snug">{selectedArticle.title}</p>
-                  <p className="text-xs text-stone-500 mt-0.5">{Array.isArray(selectedArticle.authors) ? selectedArticle.authors.map(a => `${a.firstName} ${a.lastName}`).join(", ") : (selectedArticle.authors as any)} · {selectedArticle.year} · {selectedArticle.journal}</p>
-                </div>
-                <button
-                  onClick={() => { setSelectedArticle(null); setShowLibraryPicker(true); }}
-                  className="p-1.5 hover:bg-[#F0EBE3] rounded-full text-stone-400 transition shrink-0"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-            ) : (
+          {/* Mode tabs */}
+          <div className="flex gap-3 mb-8">
+            {([
+              { id: 'link', label: 'URL or DOI', icon: <LinkIcon size={14} className="transition-transform duration-300 ease-out group-hover:scale-110 group-hover:-rotate-12" /> },
+              { id: 'file', label: 'Upload File', icon: <Upload size={14} className="transition-transform duration-300 ease-out group-hover:scale-110 group-hover:-rotate-12" /> },
+              { id: 'library', label: 'From Library', icon: <FolderOpen size={14} className="transition-transform duration-300 ease-out group-hover:scale-110 group-hover:-rotate-12" /> },
+            ] as { id: InputMode; label: string; icon: React.ReactNode }[]).map((tab) => (
               <button
-                onClick={() => setShowLibraryPicker(!showLibraryPicker)}
-                className="w-full flex items-center gap-3 px-5 py-4 bg-[#F9FBFD] border-2 border-[#E8DFD0] rounded-2xl hover:border-[#8B1A1A] hover:bg-rose-50/20 transition text-left"
+                key={tab.id}
+                onClick={() => {
+                  setMode(tab.id);
+                  setError(null);
+                  setCitation(null);
+                  setSelectedArticle(null);
+                  setSelectedFile(null);
+                  setInput('');
+                  setShowLibraryPicker(false);
+                }}
+                className={`group flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold border transition-all duration-300 ${mode === tab.id
+                  ? 'bg-[#521118] text-[#e8e4df] border-[#521118] shadow-md shadow-[#521118]/20'
+                  : 'bg-white/60 backdrop-blur-md text-[#521118]/60 border-[#521118]/10 hover:border-[#521118]/30 hover:text-[#521118]'
+                  }`}
               >
-                <FolderOpen size={18} className="text-[#8B1A1A] shrink-0" />
-                <span className="text-stone-500 font-medium">
-                  {totalArticles === 0 ? 'No articles in library yet' : 'Select an article from your library…'}
-                </span>
-                <span className="ml-auto text-xs text-stone-400">{totalArticles} articles</span>
+                {tab.icon} {tab.label}
               </button>
-            )}
+            ))}
+          </div>
 
-            {/* Library picker */}
-            <AnimatePresence>
-              {showLibraryPicker && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.25 }}
-                  className="overflow-hidden"
-                >
-                  <div className="border border-stone-200 rounded-2xl overflow-hidden">
-                    {folders.length === 0 ? (
-                      <div className="px-5 py-8 text-center text-stone-400">
-                        <BookOpen size={28} className="mx-auto mb-2 opacity-30" />
-                        <p className="text-sm">No articles saved yet. Search and save articles to your Library first.</p>
+          {/* Generator Box */}
+          <div className="bg-white/90 backdrop-blur-md border border-[#2b090d]/10 rounded-3xl p-6 md:p-8 shadow-xl shadow-[#2b090d]/5 mb-10 w-full max-w-3xl overflow-hidden flex flex-col justify-center">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={mode}
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                transition={{ duration: 0.35, ease: "easeInOut" }}
+                className="w-full"
+              >
+                <div className="flex flex-col sm:flex-row gap-3 items-stretch w-full">
+                  {/* Main Input/Zone Container */}
+                  <div className="relative flex-1 w-full flex items-center bg-[#F9FBFD]/50 border-2 border-[#2b090d]/10 rounded-2xl focus-within:border-[#521118] focus-within:ring-4 focus-within:ring-[#521118]/5 transition-all overflow-hidden shadow-inner h-16">
+                    {/* Link / DOI mode */}
+                    {mode === 'link' && (
+                      <div className="flex-1 flex items-center px-4 h-full">
+                        <LinkIcon className="text-[#521118]/40 shrink-0 mr-3" size={20} />
+                        <input
+                          className="w-full bg-transparent py-4 outline-none text-[#2b090d] font-serif placeholder:font-sans placeholder:text-stone-400 text-base h-full"
+                          placeholder="https://doi.org/10.xxxx/... or any link"
+                          value={input}
+                          onChange={(e) => setInput(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
+                        />
                       </div>
-                    ) : (
-                      folders.map((folder) => (
-                        <div key={folder.id}>
-                          <button
-                            onClick={() => toggleFolder(folder.id)}
-                            className="w-full flex items-center gap-3 px-5 py-3 bg-stone-50 hover:bg-stone-100 transition border-b border-stone-200 text-left"
-                          >
-                            <span className="text-stone-400">
-                              {expandedFolders.has(folder.id) ? <ChevronDown size={13} /> : <ChevronUp size={13} />}
-                            </span>
-                            <span className="text-sm font-semibold text-stone-700">{folder.name}</span>
-                            <span className="text-xs text-stone-400 ml-auto">{folder.articles.length} articles</span>
-                          </button>
+                    )}
 
-                          {expandedFolders.has(folder.id) && (
-                            <div className="divide-y divide-stone-50">
-                              {folder.articles.length === 0 ? (
-                                <p className="px-8 py-3 text-xs text-stone-400 italic">No articles in this folder.</p>
-                              ) : (
-                                folder.articles.map((article) => (
-                                  <button
-                                    key={article.id}
-                                    onClick={() => handleSelectArticle(article, folder.name)}
-                                    className="w-full flex items-start gap-3 px-8 py-3 hover:bg-rose-50 transition text-left group"
-                                  >
-                                    <FileText size={14} className="text-stone-300 group-hover:text-[#8B1A1A] mt-0.5 shrink-0 transition" />
-                                    <div className="min-w-0">
-                                      <p className="text-sm font-semibold text-stone-800 leading-snug group-hover:text-[#8B1A1A] transition">{article.title}</p>
-                                      <p className="text-xs text-stone-400 mt-0.5">{Array.isArray(article.authors) ? article.authors.map(a => `${a.firstName} ${a.lastName}`).join(", ") : (article.authors as any)} · {article.year} · {article.journal}</p>
-                                    </div>
-                                  </button>
-                                ))
-                              )}
+                    {/* File upload mode */}
+                    {mode === 'file' && (
+                      <div className="flex-1 h-full">
+                        {selectedFile ? (
+                          <div className="flex items-center justify-between px-5 h-full bg-[#521118]/5">
+                            <div className="flex items-center gap-3 overflow-hidden">
+                              <FileText className="text-[#521118]" size={20} />
+                              <span className="font-bold text-[#521118] truncate text-sm">{selectedFile.name}</span>
                             </div>
-                          )}
-                        </div>
-                      ))
+                            <button
+                              onClick={() => setSelectedFile(null)}
+                              className="p-1 hover:bg-[#521118]/10 rounded-full text-stone-500 transition-colors"
+                            >
+                              <X size={18} />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => fileInputRef.current?.click()}
+                            className="w-full h-full flex items-center justify-center gap-3 hover:bg-[#521118]/5 transition-colors duration-300 px-6"
+                          >
+                            <Upload size={18} className="text-[#521118]/30" />
+                            <span className="text-[11px] font-black text-[#521118]/60 uppercase tracking-[0.15em]">Upload Research File</span>
+                          </button>
+                        )}
+                        <input
+                          type="file"
+                          ref={fileInputRef}
+                          onChange={handleFileSelect}
+                          className="hidden"
+                          accept=".txt,.doc,.docx,.pdf"
+                        />
+                      </div>
+                    )}
+
+                    {/* Library mode */}
+                    {mode === 'library' && (
+                      <div className="flex-1 h-full">
+                        {selectedArticle ? (
+                          <div className="flex items-center justify-between gap-4 bg-[#521118]/5 px-6 h-full shadow-inner">
+                            <div className="min-w-0">
+                              <p className="font-bold text-[#2b090d] text-sm leading-snug font-serif line-clamp-1">{selectedArticle.title}</p>
+                              <p className="text-[10px] text-[#521118]/60 mt-0.5 font-black uppercase tracking-widest">
+                                {selectedFolderName} · {selectedArticle.year}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => { setSelectedArticle(null); setShowLibraryPicker(true); }}
+                              className="p-1 hover:bg-[#521118]/10 rounded-full text-stone-400 hover:text-[#521118] transition-all shrink-0"
+                            >
+                              <X size={16} />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setShowLibraryPicker(!showLibraryPicker)}
+                            className="w-full h-full flex items-center justify-between px-6 hover:bg-[#521118]/5 transition-all duration-300 text-left group shadow-inner"
+                          >
+                            <div className="flex items-center gap-3">
+                              <FolderOpen size={18} className="text-[#521118]/40 group-hover:text-[#521118] shrink-0 transition-colors" />
+                              <span className="text-[#521118]/60 font-bold uppercase tracking-wide text-xs group-hover:text-[#521118] transition-colors">
+                                {totalArticles === 0 ? 'No articles yet' : 'Select From Library'}
+                              </span>
+                            </div>
+                            <span className="text-[10px] font-black text-[#521118]/30 bg-[#521118]/5 px-2 py-1 rounded-md">{totalArticles}</span>
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
-                </motion.div>
-              )}
+
+                  {/* Universal Action Button */}
+                  <button
+                    onClick={handleGenerate}
+                    disabled={isGenerating || (mode === 'link' && !input.trim()) || (mode === 'file' && !selectedFile) || (mode === 'library' && !selectedArticle)}
+                    className="bg-[#521118] text-[#e8e4df] px-8 rounded-2xl font-bold hover:bg-[#2b090d] transition-all duration-300 disabled:opacity-40 whitespace-nowrap shadow-md shadow-[#521118]/10 flex items-center justify-center gap-2 h-16 min-w-[160px]"
+                  >
+                    {isGenerating ? <Loader2 size={18} className="animate-spin" /> : null}
+                    {isGenerating ? 'Generating...' : 'Cite Source'}
+                  </button>
+                </div>
+              </motion.div>
             </AnimatePresence>
 
-            <button
-              onClick={handleGenerate}
-              disabled={isGenerating || !selectedArticle}
-              className="w-full bg-[#1A0A00] text-white py-4 rounded-2xl font-bold hover:bg-[#8B1A1A] transition disabled:opacity-40 shadow-md flex items-center justify-center gap-2"
-            >
-              {isGenerating ? <Loader2 size={18} className="animate-spin" /> : null}
-              {isGenerating ? 'Generating...' : 'Generate Citations'}
-            </button>
-          </div>
-        )}
+            {/* Library picker */}
+            {mode === 'library' && (
+              <AnimatePresence>
+                {showLibraryPicker && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0, marginTop: 0 }}
+                    animate={{ height: 'auto', opacity: 1, marginTop: 16 }}
+                    exit={{ height: 0, opacity: 0, marginTop: 0 }}
+                    transition={{ duration: 0.3, ease: "easeInOut" }}
+                    className="overflow-hidden"
+                  >
+                    <div className="border border-[#2b090d]/10 rounded-2xl bg-white/40 backdrop-blur-sm shadow-inner max-h-60 overflow-y-auto">
+                      {folders.length === 0 ? (
+                        <div className="px-6 py-10 text-center text-[#521118]/40">
+                          <TfiQuoteLeft size={32} className="mx-auto mb-3 opacity-20" />
+                          <p className="text-sm font-medium italic">No articles saved yet. Save articles to your Library first.</p>
+                        </div>
+                      ) : (
+                        folders.map((folder) => (
+                          <div key={folder.id} className="border-b last:border-0 border-[#2b090d]/5">
+                            <button
+                              onClick={() => toggleFolder(folder.id)}
+                              className="w-full flex items-center gap-3 px-6 py-4 bg-[#521118]/5 hover:bg-[#521118]/10 transition-colors text-left"
+                            >
+                              <span className="text-[#521118]/40">
+                                {expandedFolders.has(folder.id) ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                              </span>
+                              <span className="text-sm font-black uppercase tracking-widest text-[#521118]/70">{folder.name}</span>
+                              <span className="text-[10px] font-black text-[#521118]/30 ml-auto">{folder.articles.length}</span>
+                            </button>
 
-        {/* Status message */}
-        {isGenerating && statusMsg && (
-          <p className="mt-3 text-sm text-stone-400 font-medium italic animate-pulse">{statusMsg}</p>
-        )}
-
-        {/* Error */}
-        {error && (
-          <div className="mt-4 flex items-center gap-2 text-rose-600 bg-rose-50 px-4 py-3 rounded-xl text-sm font-medium border border-rose-100">
-            <AlertCircle size={16} /> {error}
-          </div>
-        )}
-      </div>
-
-      {/* Example hints — only for link mode */}
-      {mode === 'link' && !citation && !isGenerating && (
-        <div className="mb-10 flex flex-wrap gap-2">
-          {[
-            "https://doi.org/10.1016/j.ibmb.2013.01.009",
-            "https://journals.openedition.org/asiateque/1234",
-            "10.1126/science.1230444",
-          ].map((example) => (
-            <button
-              key={example}
-              onClick={() => setInput(example)}
-              className="text-xs px-3 py-1.5 bg-stone-100 text-stone-500 rounded-xl hover:bg-rose-50 hover:text-[#8B1A1A] transition font-mono"
-            >
-              {example.length > 45 ? example.slice(0, 45) + '…' : example}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Results */}
-      <AnimatePresence>
-        {citation && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="space-y-6"
-          >
-            {selectedArticle && (
-              <div className="text-xs text-stone-400 font-medium mb-2">
-                Citations for: <span className="font-bold text-stone-600">{selectedArticle.title}</span>
-              </div>
+                            {expandedFolders.has(folder.id) && (
+                              <div className="divide-y divide-[#2b090d]/5">
+                                {folder.articles.length === 0 ? (
+                                  <p className="px-10 py-4 text-xs text-[#521118]/40 italic">No articles in this folder.</p>
+                                ) : (
+                                  folder.articles.map((article) => (
+                                    <button
+                                      key={article.id}
+                                      onClick={() => handleSelectArticle(article, folder.name)}
+                                      className="w-full flex items-start gap-4 px-10 py-4 hover:bg-[#521118]/5 transition-all text-left group"
+                                    >
+                                      <FileText size={16} className="text-[#521118]/20 group-hover:text-[#521118] mt-0.5 shrink-0 transition-colors" />
+                                      <div className="min-w-0">
+                                        <p className="text-sm font-bold text-[#2b090d] leading-snug group-hover:text-[#521118] transition-colors font-serif">{article.title}</p>
+                                        <p className="text-[11px] text-[#521118]/50 mt-1 font-medium italic">
+                                          {Array.isArray(article.authors) ? article.authors.map(a => `${a.firstName ? `${a.firstName.charAt(0)}. ` : ""}${a.lastName}`).join(", ") : (article.authors || "Unknown")} · {article.year}
+                                        </p>
+                                      </div>
+                                    </button>
+                                  ))
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             )}
-            <CitationBox format="APA 7th Edition" content={citation.apa || ''} />
-            <CitationBox format="MLA 9th Edition" content={citation.mla || ''} />
-            <CitationBox format="Chicago 17th Edition" content={citation.chicago || ''} />
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </main>
+          </div>
+
+          {/* Status message */}
+          {isGenerating && statusMsg && (
+            <p className="mt-4 text-sm text-[#521118]/60 font-medium italic animate-pulse">{statusMsg}</p>
+          )}
+
+          {/* Error */}
+          {error && (
+            <div className="mt-6 flex items-center gap-3 text-red-700 bg-red-50 px-5 py-4 rounded-2xl text-sm font-bold border border-red-100 shadow-sm animate-in shake-1">
+              <AlertCircle size={18} /> {error}
+            </div>
+          )}
+
+          {/* Example hints — only for link mode */}
+          {mode === 'link' && !citation && !isGenerating && (
+            <div className="mb-12 flex flex-wrap justify-center gap-2 max-w-2xl">
+              {[
+                "https://doi.org/10.1016/j.ibmb.2013.01.009",
+                "https://journals.openedition.org/asiateque/1234",
+                "10.1126/science.1230444",
+              ].map((example) => (
+                <button
+                  key={example}
+                  onClick={() => setInput(example)}
+                  className="text-[10px] font-black uppercase tracking-widest px-4 py-2 bg-white/60 text-[#521118]/60 rounded-xl hover:bg-[#521118] hover:text-[#e8e4df] transition-all duration-300 border border-[#521118]/10"
+                >
+                  {example.length > 45 ? example.slice(0, 45) + '…' : example}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Results */}
+          <AnimatePresence>
+            {citation && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.98, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.98, y: 10 }}
+                className="space-y-6 w-full max-w-3xl"
+              >
+                {selectedArticle && (
+                  <div className="text-xs text-[#521118]/40 font-black uppercase tracking-widest mb-4 text-center">
+                    Citations for: <span className="text-[#521118]">{selectedArticle.title}</span>
+                  </div>
+                )}
+                <CitationBox format="APA 7th Edition" content={citation.apa || ''} />
+                <CitationBox format="MLA 9th Edition" content={citation.mla || ''} />
+                <CitationBox format="Chicago 17th Edition" content={citation.chicago || ''} />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </motion.div>
+    </motion.main>
   );
 }
 
@@ -465,18 +474,18 @@ function CitationBox({ format, content }: { format: string; content: string }) {
   if (!content || content === 'Citation unavailable.') return null;
 
   return (
-    <div className="bg-white border border-[#E8DFD0] rounded-2xl group transition-all hover:border-[#D0C4B8] p-6 shadow-sm">
-      <div className="flex justify-between items-center mb-4 pb-4 border-b border-[#F0EBE3]">
-        <h3 className="font-bold text-xs text-stone-500 uppercase tracking-widest">{format}</h3>
+    <div className="bg-white/80 backdrop-blur-md border border-[#2b090d]/10 rounded-3xl group transition-all duration-300 hover:border-[#521118]/30 p-6 shadow-sm hover:shadow-md">
+      <div className="flex justify-between items-center mb-4 pb-3 border-b border-[#2b090d]/5">
+        <h3 className="font-black text-[10px] text-[#521118]/70 uppercase tracking-[0.2em]">{format}</h3>
         <button
           onClick={handleCopy}
-          className="text-stone-600 hover:text-[#8B1A1A] transition flex items-center gap-2 text-sm font-bold bg-[#F9FBFD] border border-transparent group-hover:border-[#E8DFD0] hover:bg-[#FFF0F0] px-3 py-1.5 rounded-lg"
+          className="text-[#521118]/60 hover:text-[#521118] transition-all flex items-center gap-2 text-xs font-bold bg-[#521118]/5 border border-transparent group-hover:border-[#521118]/10 hover:bg-[#521118]/10 px-4 py-2 rounded-xl"
         >
-          {copied ? <Check size={16} className="text-[#8B1A1A]" /> : <Copy size={16} />}
+          {copied ? <Check size={16} className="text-[#521118]" /> : <Copy size={16} />}
           {copied ? 'Copied!' : 'Copy'}
         </button>
       </div>
-      <p className="text-[#1A0A00] leading-relaxed font-serif text-[16px] selection:bg-rose-100">{content}</p>
+      <p className="text-[#2b090d] leading-relaxed font-serif text-lg selection:bg-[#521118]/10">{content}</p>
     </div>
   );
 }

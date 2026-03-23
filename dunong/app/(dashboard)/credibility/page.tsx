@@ -3,9 +3,11 @@
 import {
   ShieldCheck, Search, Upload, X, FileText,
   CheckCircle2, XCircle, HelpCircle, AlertTriangle,
-  ChevronDown, ChevronUp, Loader2, Library,
+  ChevronDown, ChevronUp, Loader2, Library, FolderOpen, Link as LinkIcon
 } from "lucide-react";
-import { useState, useRef, useCallback } from "react";
+import { FaCheck } from 'react-icons/fa6';
+import { useState, useRef, useCallback, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useLibrary } from "@/lib/libraryContext";
 import { SavedArticle } from "@/lib/libraryStore";
 import FolderPickerPopup from "@/components/FolderPickerPopup";
@@ -13,6 +15,7 @@ import FolderPickerPopup from "@/components/FolderPickerPopup";
 // ─── Types ─────────────────────────────────────────────────────────────────
 
 type Grade = "A" | "B" | "C" | "D" | "F";
+type InputMode = 'link' | 'file' | 'library';
 
 interface Dimension {
   label: string;
@@ -118,18 +121,6 @@ const GRADE_STROKE: Record<Grade, string> = {
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-function parseAuthors(authorString: string | null): { firstName: string, lastName: string }[] {
-  if (!authorString) return [];
-  return authorString.split(/[,;]+/).map(a => {
-    const parts = a.trim().split(/\s+/);
-    if (parts.length === 0) return { firstName: "", lastName: "Unknown" };
-    if (parts.length === 1) return { firstName: "", lastName: parts[0] };
-    const lastName = parts.pop() || "";
-    const firstName = parts.join(" ");
-    return { firstName, lastName };
-  }).filter(a => a.lastName);
-}
-
 function scoreToColor(score: number) {
   if (score >= 75) return "text-emerald-600";
   if (score >= 50) return "text-amber-600";
@@ -179,67 +170,6 @@ async function extractDocxText(file: File): Promise<string> {
 
 // ─── Sub-components ─────────────────────────────────────────────────────────
 
-function LibrarySelector({
-  onSelect,
-  onClose,
-}: {
-  onSelect: (article: SavedArticle) => void;
-  onClose: () => void;
-}) {
-  const { folders } = useLibrary();
-  const allArticles = folders.flatMap((f) => f.articles);
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/40 backdrop-blur-sm">
-      <div className="bg-white rounded-[2.5rem] w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col shadow-2xl border border-stone-200 animate-in zoom-in-95 duration-200">
-        <div className="p-6 border-b border-stone-100 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-rose-100 rounded-xl flex items-center justify-center">
-              <Library size={20} className="text-rose-800" />
-            </div>
-            <div>
-              <h3 className="text-lg font-bold text-stone-900">Select from Library</h3>
-              <p className="text-xs text-stone-400">Choose an article to analyze</p>
-            </div>
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-stone-100 rounded-xl transition-colors">
-            <X size={20} className="text-stone-400" />
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto p-6 space-y-3">
-          {allArticles.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-stone-400 text-sm">Your library is empty.</p>
-            </div>
-          ) : (
-            allArticles.map((article) => (
-              <button
-                key={article.id}
-                onClick={() => onSelect(article)}
-                className="w-full text-left p-4 rounded-2xl border border-stone-100 hover:border-rose-200 hover:bg-rose-50/30 transition-all group"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-bold text-stone-800 group-hover:text-rose-900 transition-colors truncate">
-                      {article.title}
-                    </h4>
-                    <p className="text-xs text-stone-500 mt-1 truncate">
-                      {Array.isArray(article.authors) ? article.authors.map(a => `${a.firstName} ${a.lastName}`).join(", ") : (article.authors as any)} {article.year ? `(${article.year})` : ""}
-                    </p>
-                  </div>
-                  <div className="shrink-0 text-[10px] font-black uppercase tracking-widest text-stone-400 bg-stone-100 px-2 py-1 rounded">
-                    {article.journal || "Article"}
-                  </div>
-                </div>
-              </button>
-            ))
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function DimensionRow({ dim, index }: { dim: Dimension; index: number }) {
   const [open, setOpen] = useState(false);
   return (
@@ -288,18 +218,30 @@ function DimensionRow({ dim, index }: { dim: Dimension; index: number }) {
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 export default function CredibilityPage() {
-  const { folders, activeFolderId, saveArticle, addFolder } = useLibrary();
+  const { folders, saveArticle } = useLibrary();
+  const [mode, setMode] = useState<InputMode>('link');
   const [urlOrDoi, setUrlOrDoi] = useState("");
   const [file, setFile] = useState<File | null>(null);
-  const [fileText, setFileText] = useState("");
-  const [dragOver, setDragOver] = useState(false);
+  const [selectedArticle, setSelectedArticle] = useState<SavedArticle | null>(null);
+  const [selectedFolderName, setSelectedFolderName] = useState('');
   const [analyzing, setAnalyzing] = useState(false);
   const [result, setResult] = useState<CredibilityResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [showLibrary, setShowLibrary] = useState(false);
+  const [showLibraryPicker, setShowLibraryPicker] = useState(false);
   const [showFolderPicker, setShowFolderPicker] = useState(false);
   const [addedToLibrary, setAddedToLibrary] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+  const [isAnimating, setIsAnimating] = useState(true);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+
+
+  const toggleFolder = (id: string) =>
+    setExpandedFolders((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
 
   const performAnalysis = async (payload: { text?: string; url?: string; doi?: string }) => {
     setAnalyzing(true);
@@ -315,11 +257,7 @@ export default function CredibilityPage() {
       });
 
       const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Analysis failed. Please try again.");
-      }
-
+      if (!res.ok) throw new Error(data.error || "Analysis failed. Please try again.");
       setResult(data as CredibilityResult);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
@@ -328,44 +266,38 @@ export default function CredibilityPage() {
     }
   };
 
-  const handleFile = useCallback(async (f: File) => {
-    if (!f.name.match(/\.(pdf|docx)$/i)) {
-      setError("Only PDF or DOCX files are supported.");
+  const handleAnalyze = async () => {
+    if (mode === 'link' && !urlOrDoi.trim()) {
+      setError("Please enter a URL or DOI.");
       return;
     }
-    setFile(f);
-    setUrlOrDoi(""); // One source at a time
-    setError(null);
-    
-    let text = "";
-    if (f.name.toLowerCase().endsWith(".docx")) {
-      text = await extractDocxText(f);
-    } else if (f.name.toLowerCase().endsWith(".pdf") || f.type === "application/pdf") {
-      text = await extractPdfText(f);
-      if (!text || text.length < 50) {
-        text = `[PDF Extraction Failed: ${f.name} — please evaluate based on filename]`;
-      }
-    } else {
-      text = (await f.text().catch(() => "")).slice(0, 5000);
+    if (mode === 'file' && !file) {
+      setError("Please upload a file.");
+      return;
     }
-    setFileText(text);
-    
-    // Analyze immediately
-    performAnalysis({ text });
-  }, []);
-
-  const handleAnalyze = async () => {
-    const hasUrl = urlOrDoi.trim().length > 0;
-    const hasFile = file !== null;
-    if (!hasUrl && !hasFile) {
-      setError("Please enter a URL, DOI, or upload a document.");
+    if (mode === 'library' && !selectedArticle) {
+      setError("Please select an article from your library.");
       return;
     }
 
     const payload: { text?: string; url?: string; doi?: string } = {};
 
-    if (hasFile) {
-      payload.text = fileText;
+    if (mode === 'library' && selectedArticle) {
+      payload.text = [
+        `Title: ${selectedArticle.title}`,
+        `Authors: ${Array.isArray(selectedArticle.authors) ? selectedArticle.authors.map(a => `${a.firstName} ${a.lastName}`).join(", ") : selectedArticle.authors}`,
+        `Year: ${selectedArticle.year}`,
+        `Journal: ${selectedArticle.journal}`,
+        selectedArticle.url ? `URL: ${selectedArticle.url}` : '',
+      ].filter(Boolean).join('\n');
+    } else if (mode === 'file' && file) {
+      let text = "";
+      if (file.name.toLowerCase().endsWith(".docx")) {
+        text = await extractDocxText(file);
+      } else if (file.name.toLowerCase().endsWith(".pdf") || file.type === "application/pdf") {
+        text = await extractPdfText(file);
+      }
+      payload.text = text || `FILE: ${file.name}`;
     } else {
       const val = urlOrDoi.trim();
       const isDoi = val.startsWith("10.") || val.includes("doi.org");
@@ -379,45 +311,29 @@ export default function CredibilityPage() {
     await performAnalysis(payload);
   };
 
-  const handleAddToLibrary = () => {
-    if (!result) return;
-    setShowFolderPicker(true);
+  const handleSelectArticle = (article: SavedArticle, folderName: string) => {
+    setSelectedArticle(article);
+    setSelectedFolderName(folderName);
+    setShowLibraryPicker(false);
+    setError(null);
+    setResult(null);
   };
 
   const handleConfirmSave = (folderId: string) => {
     if (!result) return;
-
     const meta = result.metadata;
-    const credibilityScore = result.grade === 'A' ? 95 : result.grade === 'B' ? 80 : result.grade === 'C' ? 60 : result.grade === 'D' ? 40 : 20;
-
-    // Helper function to parse authors from various formats
-    const parseAuthors = (authorsData: any): { firstName: string; lastName: string; }[] => {
-      if (!authorsData) return [];
-      if (Array.isArray(authorsData)) {
-        return authorsData.map(a => ({ firstName: a.firstName || '', lastName: a.lastName || '' }));
-      }
-      if (typeof authorsData === 'string' && authorsData.trim() !== '') {
-        // Simple parsing for string, e.g., "John Doe, Jane Smith"
-        return authorsData.split(',').map(name => {
-          const parts = name.trim().split(' ');
-          const lastName = parts.pop() || '';
-          const firstName = parts.join(' ');
-          return { firstName, lastName };
-        });
-      }
-      return [];
-    };
+    const score = result.grade === 'A' ? 95 : result.grade === 'B' ? 80 : result.grade === 'C' ? 60 : result.grade === 'D' ? 40 : 20;
 
     const article = {
       id: crypto.randomUUID(),
       title: meta?.title || "Untitled Article",
-      authors: parseAuthors(meta?.authors),
+      authors: Array.isArray(meta?.authors) ? meta?.authors : [],
       year: meta?.year || new Date().getFullYear().toString(),
       journal: meta?.journal || meta?.publisher || "Unknown Source",
-      credibility: credibilityScore,
+      credibility: score,
       abstract: result.verdict,
       keywords: [],
-      localSource: file !== null,
+      localSource: mode === 'file',
       url: meta?.doi ? `https://doi.org/${meta.doi}` : urlOrDoi,
     };
 
@@ -426,313 +342,284 @@ export default function CredibilityPage() {
     setShowFolderPicker(false);
   };
 
-  const handleReset = () => {
-    setResult(null);
-    setError(null);
-    setUrlOrDoi("");
-    setFile(null);
-    setFileText("");
-    setAddedToLibrary(false);
-  };
-
+  const totalArticles = folders.reduce((a, f) => a + f.articles.length, 0);
   const cfg = result ? GRADE_CONFIG[result.grade] : null;
 
   return (
-    <main className="max-w-3xl w-full mx-auto px-6 md:px-8 pt-16 pb-24 animate-in fade-in slide-in-from-bottom-4">
+    <motion.main 
+      className={`min-h-screen w-full pb-24 relative font-sans bg-[#e8e4df]/30 overflow-x-hidden ${isAnimating ? "overflow-hidden" : "overflow-y-auto"}`}
+    >
+      <motion.div
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+        onAnimationComplete={() => setIsAnimating(false)}
+        className="w-full flex flex-col items-center"
+      >
+        <div className="max-w-4xl w-full mx-auto px-8 pt-16 relative flex flex-col items-center">
 
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div className="text-center mb-14">
-        <div className="inline-flex h-20 w-20 bg-amber-100/50 border border-amber-200/50 text-rose-800 rounded-3xl items-center justify-center mb-8 shadow-sm">
-          <ShieldCheck size={40} />
+        {/* ── Header ─────────────────────────────────────────────────────────── */}
+        <div className="flex flex-col items-center text-center mb-12">
+          <div className="bg-[#521118]/10 text-[#521118] border border-[#521118]/10 p-4 rounded-3xl shadow-sm mb-6">
+            <FaCheck size={32} />
+          </div>
+          <div>
+            <h1 className="text-4xl md:text-5xl font-black text-[#2b090d] tracking-tight font-serif">
+              Credibility Score
+            </h1>
+            <p className="text-[#521118]/60 text-lg mt-2 font-medium max-w-2xl">
+              AI-driven evaluation against CHED, PHILJOL, and Scopus databases.
+            </p>
+          </div>
         </div>
-        <h1 className="text-5xl font-black text-stone-900 tracking-tight mb-4 font-serif">
-          Article Credibility Checker
-        </h1>
-        <p className="text-stone-500 text-xl font-medium">
-          Cross-referencing against CHED, PHILJOL, and Scopus databases.
-        </p>
-      </div>
 
-      {/* ── Input Area ─────────────────────────────────────────────────────── */}
-      {!result && (
-        <div className="space-y-4">
-          {/* URL / DOI */}
-          <div className="relative">
-            <input
-              className="w-full p-6 pl-8 pr-40 bg-white/80 backdrop-blur-md border-2 border-stone-200 rounded-[2.5rem] shadow-[0_10px_40px_-15px_rgba(123,24,24,0.08)] outline-none focus:ring-4 focus:ring-amber-500/20 focus:border-amber-400 text-lg transition-all font-serif placeholder:font-sans placeholder:text-stone-400"
-              placeholder="Paste article URL or DOI..."
-              value={urlOrDoi}
-              onChange={(e) => {
-                setUrlOrDoi(e.target.value);
-                if (e.target.value.trim()) setFile(null); // One source at a time
-              }}
-              onKeyDown={(e) => e.key === "Enter" && handleAnalyze()}
-            />
+        {/* Mode tabs */}
+        <div className="flex gap-3 mb-8">
+          {([
+            { id: 'link', label: 'URL or DOI', icon: <LinkIcon size={14} className="transition-transform duration-300 ease-out group-hover:scale-110 group-hover:-rotate-12" /> },
+            { id: 'file', label: 'Upload File', icon: <Upload size={14} className="transition-transform duration-300 ease-out group-hover:scale-110 group-hover:-rotate-12" /> },
+            { id: 'library', label: 'From Library', icon: <FolderOpen size={14} className="transition-transform duration-300 ease-out group-hover:scale-110 group-hover:-rotate-12" /> },
+          ] as { id: InputMode; label: string; icon: React.ReactNode }[]).map((tab) => (
             <button
-              onClick={handleAnalyze}
-              disabled={analyzing}
-              className="absolute right-3 top-1/2 -translate-y-1/2 bg-rose-900 text-amber-50 px-7 py-3.5 rounded-full font-bold hover:bg-rose-800 transition flex items-center gap-2 disabled:opacity-50 shadow-lg text-sm"
-            >
-              {analyzing ? (
-                <Loader2 size={16} className="animate-spin" />
-              ) : (
-                <Search size={16} />
-              )}
-              {analyzing ? "Analyzing..." : "Analyze"}
-            </button>
-          </div>
-
-          {/* Divider */}
-          <div className="flex items-center gap-4">
-            <div className="flex-1 h-px bg-stone-200" />
-            <span className="text-xs font-semibold text-stone-400 uppercase tracking-widest">
-              or select resource
-            </span>
-            <div className="flex-1 h-px bg-stone-200" />
-          </div>
-
-          {/* Source Selection Options */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* File drop zone */}
-            {!file ? (
-              <div
-                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setDragOver(false);
-                  const f = e.dataTransfer.files[0];
-                  if (f) handleFile(f);
-                }}
-                onClick={() => fileRef.current?.click()}
-                className={`flex flex-col items-center justify-center gap-3 py-10 rounded-[2.5rem] border-2 border-dashed cursor-pointer transition-all ${
-                  dragOver
-                    ? "border-rose-400 bg-rose-50/60"
-                    : "border-stone-200 hover:border-stone-300 bg-white/60"
+              key={tab.id}
+              onClick={() => {
+                setMode(tab.id);
+                setError(null);
+                setResult(null);
+                setSelectedArticle(null);
+                setFile(null);
+                setUrlOrDoi('');
+                setShowLibraryPicker(false);
+              }}
+              className={`group flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold border transition-all duration-300 ${mode === tab.id
+                ? 'bg-[#521118] text-[#e8e4df] border-[#521118] shadow-md shadow-[#521118]/20'
+                : 'bg-white/60 backdrop-blur-md text-[#521118]/60 border-[#521118]/10 hover:border-[#521118]/30 hover:text-[#521118]'
                 }`}
-              >
-                <div className="w-12 h-12 bg-stone-100 rounded-2xl flex items-center justify-center">
-                  <Upload size={22} className="text-stone-400" />
-                </div>
-                <div className="text-center px-4">
-                  <p className="text-sm font-semibold text-stone-600">
-                    Upload Document
-                  </p>
-                  <p className="text-[10px] text-stone-400 mt-1">
-                    AI evaluates credibility from PDF/DOCX
-                  </p>
-                </div>
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept=".pdf,.docx"
-                  className="hidden"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) handleFile(f);
-                  }}
-                />
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center gap-3 py-10 rounded-[2.5rem] border-2 border-rose-200 bg-rose-50/30">
-                <div className="w-12 h-12 bg-rose-100 rounded-2xl flex items-center justify-center shrink-0">
-                  <FileText size={22} className="text-rose-800" />
-                </div>
-                <div className="text-center px-4 overflow-hidden w-full">
-                  <p className="text-sm font-bold text-stone-800 truncate">{file.name}</p>
-                  <button
-                    onClick={() => { setFile(null); setFileText(""); }}
-                    className="text-xs text-rose-600 font-bold hover:underline mt-1"
-                  >
-                    Remove File
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Library button */}
-            <div
-              onClick={() => setShowLibrary(true)}
-              className="flex flex-col items-center justify-center gap-3 py-10 rounded-[2.5rem] border-2 border-stone-200 hover:border-amber-400 hover:bg-amber-50/30 cursor-pointer transition-all bg-white/60"
             >
-              <div className="w-12 h-12 bg-amber-100 rounded-2xl flex items-center justify-center">
-                <Library size={22} className="text-amber-800" />
-              </div>
-              <div className="text-center px-4">
-                <p className="text-sm font-semibold text-stone-600">
-                  Select from Library
-                </p>
-                <p className="text-[10px] text-stone-400 mt-1">
-                  Choose from your saved articles
-                </p>
-              </div>
-            </div>
-          </div>
+              {tab.icon} {tab.label}
+            </button>
+          ))}
+        </div>
 
-          {/* Error */}
-          {error && (
-            <div className="flex items-center gap-3 px-5 py-4 bg-red-50 border border-red-200 rounded-2xl">
-              <AlertTriangle size={16} className="text-red-500 shrink-0" />
-              <p className="text-sm text-red-700">{error}</p>
-            </div>
+        {/* Generator Box */}
+        <div className="bg-white/90 backdrop-blur-md border border-[#2b090d]/10 rounded-3xl p-6 md:p-8 shadow-xl shadow-[#2b090d]/5 mb-10 w-full max-w-3xl overflow-hidden flex flex-col justify-center">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={mode}
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              transition={{ duration: 0.35, ease: "easeInOut" }}
+              className="w-full"
+            >
+              <div className="flex flex-col sm:flex-row gap-3 items-stretch w-full">
+                <div className="relative flex-1 w-full flex items-center bg-[#F9FBFD]/50 border-2 border-[#2b090d]/10 rounded-2xl focus-within:border-[#521118] focus-within:ring-4 focus-within:ring-[#521118]/5 transition-all overflow-hidden shadow-inner h-16">
+                  {/* Link / DOI mode */}
+                  {mode === 'link' && (
+                    <div className="flex-1 flex items-center px-4 h-full">
+                      <LinkIcon className="text-[#521118]/40 shrink-0 mr-3" size={20} />
+                      <input
+                        className="w-full bg-transparent py-4 outline-none text-[#2b090d] font-serif placeholder:font-sans placeholder:text-stone-400 text-base h-full"
+                        placeholder="Paste article URL or DOI..."
+                        value={urlOrDoi}
+                        onChange={(e) => setUrlOrDoi(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleAnalyze()}
+                      />
+                    </div>
+                  )}
+
+                  {/* File upload mode */}
+                  {mode === 'file' && (
+                    <div className="flex-1 h-full">
+                      {file ? (
+                        <div className="flex items-center justify-between px-5 h-full bg-[#521118]/5">
+                          <div className="flex items-center gap-3 overflow-hidden">
+                            <FileText className="text-[#521118]" size={20} />
+                            <span className="font-bold text-[#521118] truncate text-sm">{file.name}</span>
+                          </div>
+                          <button onClick={() => setFile(null)} className="p-1 hover:bg-[#521118]/10 rounded-full text-stone-500">
+                            <X size={18} />
+                          </button>
+                        </div>
+                      ) : (
+                        <button onClick={() => fileInputRef.current?.click()} className="w-full h-full flex items-center justify-center gap-3 hover:bg-[#521118]/5 transition-colors px-6">
+                          <Upload size={18} className="text-[#521118]/30" />
+                          <span className="text-[11px] font-black text-[#521118]/60 uppercase tracking-[0.15em]">Upload Research File</span>
+                        </button>
+                      )}
+                      <input type="file" ref={fileInputRef} onChange={(e) => setFile(e.target.files?.[0] || null)} className="hidden" accept=".pdf,.docx" />
+                    </div>
+                  )}
+
+                  {/* Library mode */}
+                  {mode === 'library' && (
+                    <div className="flex-1 h-full">
+                      {selectedArticle ? (
+                        <div className="flex items-center justify-between gap-4 bg-[#521118]/5 px-6 h-full shadow-inner">
+                          <div className="min-w-0">
+                            <p className="font-bold text-[#2b090d] text-sm leading-snug font-serif line-clamp-1">{selectedArticle.title}</p>
+                            <p className="text-[10px] text-[#521118]/60 mt-0.5 font-black uppercase tracking-widest">{selectedFolderName} · {selectedArticle.year}</p>
+                          </div>
+                          <button onClick={() => { setSelectedArticle(null); setShowLibraryPicker(true); }} className="p-1 hover:bg-[#521118]/10 rounded-full text-stone-400">
+                            <X size={16} />
+                          </button>
+                        </div>
+                      ) : (
+                        <button onClick={() => setShowLibraryPicker(!showLibraryPicker)} className="w-full h-full flex items-center justify-between px-6 hover:bg-[#521118]/5 transition-all text-left group">
+                          <div className="flex items-center gap-3">
+                            <FolderOpen size={18} className="text-[#521118]/40 group-hover:text-[#521118] transition-colors" />
+                            <span className="text-[#521118]/60 font-bold uppercase tracking-wide text-xs group-hover:text-[#521118]">
+                              {totalArticles === 0 ? 'No articles yet' : 'Select From Library'}
+                            </span>
+                          </div>
+                          <span className="text-[10px] font-black text-[#521118]/30 bg-[#521118]/5 px-2 py-1 rounded-md">{totalArticles}</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  onClick={handleAnalyze}
+                  disabled={analyzing || (mode === 'link' && !urlOrDoi.trim()) || (mode === 'file' && !file) || (mode === 'library' && !selectedArticle)}
+                  className="bg-[#521118] text-[#e8e4df] px-8 rounded-2xl font-bold hover:bg-[#2b090d] transition-all disabled:opacity-40 shadow-md shadow-[#521118]/10 flex items-center justify-center gap-2 h-16 min-w-[160px]"
+                >
+                  {analyzing ? <Loader2 size={18} className="animate-spin" /> : <ShieldCheck size={18} />}
+                  {analyzing ? 'Analyzing...' : 'Analyze'}
+                </button>
+              </div>
+            </motion.div>
+          </AnimatePresence>
+
+          {/* Library picker */}
+          {mode === 'library' && (
+            <AnimatePresence>
+              {showLibraryPicker && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0, marginTop: 0 }}
+                  animate={{ height: 'auto', opacity: 1, marginTop: 16 }}
+                  exit={{ height: 0, opacity: 0, marginTop: 0 }}
+                  transition={{ duration: 0.3, ease: "easeInOut" }}
+                  className="overflow-hidden"
+                >
+                  <div className="border border-[#2b090d]/10 rounded-2xl bg-white/40 backdrop-blur-sm shadow-inner max-h-60 overflow-y-auto">
+                    {folders.length === 0 ? (
+                      <div className="px-6 py-10 text-center text-[#521118]/40">
+                        <FolderOpen size={32} className="mx-auto mb-3 opacity-20" />
+                        <p className="text-sm font-medium italic">No articles saved yet.</p>
+                      </div>
+                    ) : (
+                      folders.map((folder) => (
+                        <div key={folder.id} className="border-b last:border-0 border-[#2b090d]/5">
+                          <button onClick={() => toggleFolder(folder.id)} className="w-full flex items-center gap-3 px-6 py-4 bg-[#521118]/5 hover:bg-[#521118]/10 transition-colors text-left">
+                            <span className="text-[#521118]/40">{expandedFolders.has(folder.id) ? <ChevronDown size={14} /> : <ChevronUp size={14} />}</span>
+                            <span className="text-sm font-black uppercase tracking-widest text-[#521118]/70">{folder.name}</span>
+                            <span className="text-[10px] font-black text-[#521118]/30 ml-auto">{folder.articles.length}</span>
+                          </button>
+                          {expandedFolders.has(folder.id) && (
+                            <div className="divide-y divide-[#2b090d]/5">
+                              {folder.articles.map((art) => (
+                                <button key={art.id} onClick={() => handleSelectArticle(art, folder.name)} className="w-full flex items-start gap-4 px-10 py-4 hover:bg-[#521118]/5 transition-all text-left group">
+                                  <FileText size={16} className="text-[#521118]/20 group-hover:text-[#521118] mt-0.5" />
+                                  <div className="min-w-0">
+                                    <p className="text-sm font-bold text-[#2b090d] leading-snug group-hover:text-[#521118] font-serif truncate">{art.title}</p>
+                                    <p className="text-[11px] text-[#521118]/50 mt-1 font-medium">{art.year}</p>
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           )}
         </div>
-      )}
 
-      {/* ── Library Modal ─────────────────────────────────────────────────── */}
-      {showLibrary && (
-        <LibrarySelector
-          onClose={() => setShowLibrary(false)}
-          onSelect={(article) => {
-            const val = article.url || article.id;
-            setUrlOrDoi(val);
-            setFile(null); // One source at a time
-            setShowLibrary(false);
+        {/* Status indicator */}
+        {analyzing && (
+           <div className="mb-12 text-center animate-pulse">
+             <p className="text-sm text-[#521118]/60 font-medium italic">Cross-referencing databases...</p>
+           </div>
+        )}
 
-            const isDoi = val.startsWith("10.") || val.includes("doi.org");
-            performAnalysis(isDoi ? { doi: val } : { url: val });
-          }}
-        />
-      )}
-
-      {showFolderPicker && result && (
-        <FolderPickerPopup
-          articleTitle={result.metadata?.title || "Untitled Article"}
-          savedFolderIds={folders
-            .filter((f) => f.articles.some((a) => a.id === (result.metadata?.doi || result.metadata?.title || "")))
-            .map((f) => f.id)}
-          onPick={handleConfirmSave}
-          onClose={() => setShowFolderPicker(false)}
-        />
-      )}
-      {/* ── Loading ─────────────────────────────────────────────────────────── */}
-      {analyzing && (
-        <div className="mt-12 text-center">
-          <div className="inline-flex flex-col items-center gap-4">
-            <div className="relative w-14 h-14">
-              <div className="w-full h-full rounded-full border-2 border-stone-200" />
-              <div className="absolute inset-0 rounded-full border-2 border-rose-800 border-t-transparent animate-spin" />
-            </div>
-            <div>
-              <p className="text-base font-bold text-stone-700 font-serif">Evaluating credibility…</p>
-              <p className="text-sm text-stone-400 mt-1">Cross-referencing CHED, PHILJOL, and Scopus</p>
-            </div>
+        {/* Error */}
+        {error && (
+          <div className="mb-10 flex items-center gap-3 text-red-700 bg-red-50 px-5 py-4 rounded-2xl text-sm font-bold border border-red-100 shadow-sm animate-in shake-1">
+            <AlertTriangle size={18} /> {error}
           </div>
-        </div>
-      )}
+        )}
 
-      {/* ── Results ─────────────────────────────────────────────────────────── */}
-      {result && cfg && (
-        <div className="animate-in fade-in zoom-in-95 duration-500 space-y-5">
-
-          {/* Grade hero */}
-          <div className={`rounded-[2.5rem] border-2 ${cfg.border} ${cfg.bg} p-8 md:p-10`}>
-            <div className="flex flex-col md:flex-row gap-8 items-center mb-8 pb-8 border-b border-black/5">
-              {/* Arc gauge */}
-              <div className="relative w-28 h-28 shrink-0">
-                <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-                  <circle cx="50" cy="50" r="40" stroke="#e7e5e4" strokeWidth="8" fill="none" />
-                  <circle
-                    cx="50" cy="50" r="40"
-                    stroke={GRADE_STROKE[result.grade]}
-                    strokeWidth="8"
-                    fill="none"
-                    strokeLinecap="round"
-                    strokeDasharray="251"
-                    strokeDashoffset={cfg.arc}
-                    className="transition-all duration-1000"
-                  />
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-4xl font-black text-stone-900 font-serif leading-none">
-                    {result.grade}
-                  </span>
-                  <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest mt-1">
-                    Grade
-                  </span>
+        {/* Results */}
+        {result && cfg && (
+          <div className="animate-in fade-in zoom-in-95 duration-500 space-y-5 w-full max-w-3xl">
+            <div className={`rounded-[2.5rem] border-2 ${cfg.border} ${cfg.bg} p-8 md:p-10 shadow-xl shadow-[#2b090d]/5`}>
+              <div className="flex flex-col md:flex-row gap-8 items-center mb-8 pb-8 border-b border-black/5">
+                <div className="relative w-28 h-28 shrink-0">
+                  <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="40" stroke="#e7e5e4" strokeWidth="8" fill="none" />
+                    <circle cx="50" cy="50" r="40" stroke={GRADE_STROKE[result.grade]} strokeWidth="8" fill="none" strokeLinecap="round" strokeDasharray="251" strokeDashoffset={cfg.arc} className="transition-all duration-1000" />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-4xl font-black text-stone-900 font-serif leading-none">{result.grade}</span>
+                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest mt-1">Grade</span>
+                  </div>
+                </div>
+                <div className="text-center md:text-left">
+                  <div className={`inline-block text-xs font-black uppercase tracking-widest px-3 py-1 rounded-full mb-3 ${cfg.badgeBg} ${cfg.badgeText}`}>
+                    {cfg.label}
+                  </div>
+                  <h2 className="text-2xl md:text-3xl font-black text-stone-900 mb-2 font-serif leading-tight">{GRADE_DESCRIPTIONS[result.grade]}</h2>
+                  <p className="text-stone-600 leading-relaxed text-sm">{result.verdict}</p>
                 </div>
               </div>
-
-              {/* Verdict */}
-              <div className="text-center md:text-left">
-                <div className={`inline-block text-xs font-black uppercase tracking-widest px-3 py-1 rounded-full mb-3 ${cfg.badgeBg} ${cfg.badgeText}`}>
-                  {cfg.label}
-                </div>
-                <h2 className="text-2xl md:text-3xl font-black text-stone-900 mb-2 font-serif leading-tight">
-                  {GRADE_DESCRIPTIONS[result.grade]}
-                </h2>
-                <p className="text-stone-600 leading-relaxed">{result.verdict}</p>
+              <div className="space-y-3">
+                <p className="text-[10px] uppercase tracking-widest font-black text-stone-400 mb-4">Evaluation Breakdown</p>
+                {result.dimensions.map((dim, i) => (
+                  <DimensionRow key={i} dim={dim} index={i} />
+                ))}
               </div>
             </div>
 
-            {/* Dimensions */}
-            <div className="space-y-3">
-              <p className="text-[10px] uppercase tracking-widest font-black text-stone-400 mb-4">
-                Evaluation Breakdown
-              </p>
-              {result.dimensions.map((dim, i) => (
-                <DimensionRow key={i} dim={dim} index={i} />
-              ))}
+            <div className="flex items-start gap-4 px-7 py-5 bg-white border-2 border-stone-200 rounded-[2rem] shadow-sm">
+              <ShieldCheck size={20} className="text-rose-800 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-[10px] uppercase tracking-widest font-black text-stone-400 mb-1">Dunong Recommendation</p>
+                <p className="text-base font-bold text-stone-800">{result.recommendation}</p>
+              </div>
             </div>
-          </div>
 
-          {/* Recommendation banner */}
-          <div className="flex items-start gap-4 px-7 py-5 bg-white border-2 border-stone-200 rounded-[2rem]">
-            <ShieldCheck size={20} className="text-rose-800 shrink-0 mt-0.5" />
-            <div>
-              <p className="text-[10px] uppercase tracking-widest font-black text-stone-400 mb-1">
-                Dunong Recommendation
-              </p>
-              <p className="text-base font-bold text-stone-800">{result.recommendation}</p>
-            </div>
+            {mode !== 'library' && (
+              <div className="flex justify-center pt-4">
+                <button 
+                  onClick={() => setShowFolderPicker(true)} 
+                  disabled={addedToLibrary} 
+                  className={`w-full max-w-sm py-3.5 text-sm font-bold rounded-full transition-all flex items-center justify-center gap-2 shadow-sm ${addedToLibrary ? "bg-emerald-50 text-emerald-700 border-2 border-emerald-200" : "bg-amber-100 text-amber-900 border-2 border-amber-200 hover:bg-amber-200"}`}
+                >
+                  {addedToLibrary ? <><CheckCircle2 size={16} /> Added to Library</> : <><Library size={16} /> Add to Library</>}
+                </button>
+              </div>
+            )}
+            
+            <p className="text-xs text-stone-400 text-center pt-4 italic">
+              AI analysis is based on verifiable metadata. Always verify with official databases.
+            </p>
           </div>
+        )}
 
-          {/* Disclaimer */}
-          <p className="text-xs text-stone-400 text-center px-4">
-            Results are based on AI analysis of verifiable metadata. Always cross-check with official CHED, PHILJOL, and Scopus sources.
-          </p>
-
-          {/* Actions */}
-          <div className="flex flex-col sm:flex-row gap-3 pt-1">
-            <button
-              onClick={handleReset}
-              className="flex-1 py-3.5 text-sm font-bold text-stone-600 bg-white border-2 border-stone-200 rounded-full hover:bg-stone-50 transition-colors"
-            >
-              Check Another Article
-            </button>
-            <button
-              onClick={handleAddToLibrary}
-              disabled={addedToLibrary}
-              className={`flex-1 py-3.5 text-sm font-bold rounded-full transition-all flex items-center justify-center gap-2 ${
-                addedToLibrary 
-                ? "bg-emerald-50 text-emerald-700 border-2 border-emerald-200" 
-                : "bg-amber-100 text-amber-900 border-2 border-amber-200 hover:bg-amber-200"
-              }`}
-            >
-              {addedToLibrary ? (
-                <>
-                  <CheckCircle2 size={16} />
-                  Added to Library
-                </>
-              ) : (
-                <>
-                  <Library size={16} />
-                  Add to Library
-                </>
-              )}
-            </button>
-            <button
-              onClick={() => {
-                const text = `Grade: ${result.grade} — ${cfg.label}\n${result.verdict}\n\nRecommendation: ${result.recommendation}`;
-                navigator.clipboard?.writeText(text);
-              }}
-              className="px-8 py-3.5 text-sm font-bold text-amber-50 bg-rose-900 hover:bg-rose-800 rounded-full transition-colors"
-            >
-              Copy Result
-            </button>
-          </div>
+        {showFolderPicker && result && (
+          <FolderPickerPopup
+            articleTitle={result.metadata?.title || "Untitled Article"}
+            savedFolderIds={[]}
+            onPick={handleConfirmSave}
+            onClose={() => setShowFolderPicker(false)}
+          />
+        )}
         </div>
-      )}
-    </main>
+      </motion.div>
+    </motion.main>
   );
 }
