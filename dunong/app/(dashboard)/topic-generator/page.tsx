@@ -1,13 +1,16 @@
 "use client";
 
+
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import {
   Sparkles, Lightbulb, ArrowRight, TrendingUp, FlaskConical, X, ChevronRight, Zap, Loader2, AlertTriangle
 } from "lucide-react";
 
+
 const GenerateResearchModal = dynamic(() => import("@/components/GenerateResearchModal"), { ssr: false });
 import type { GeneratedData } from "@/components/GenerateResearchModal";
+
 
 /* ─── Types ─────────────────────────────────────────────────── */
 interface Topic {
@@ -20,6 +23,7 @@ interface Topic {
   nextSteps: string[];
 }
 
+
 interface Frontier {
   title: string;
   desc: string;
@@ -30,6 +34,7 @@ interface Frontier {
   opportunity: string;
   nextSteps: string[];
 }
+
 
 /* ─── Data ───────────────────────────────────────────────────── */
 const phTopics: Topic[] = [
@@ -235,6 +240,7 @@ const phTopics: Topic[] = [
   },
 ];
 
+
 const researchFrontiers: Frontier[] = [
   {
     title: "Project NOAH: AI Disaster Resilience", desc: "Award-winning high-resolution flood hazard mapping & forecasting systems.", match: 98, author: "UP RESILIENCE INST.", dark: true,
@@ -328,10 +334,12 @@ const researchFrontiers: Frontier[] = [
   },
 ];
 
+
 /* ─── Helper: is item a Frontier? ────────────────────────────── */
 function isFrontier(item: Topic | Frontier): item is Frontier {
   return "author" in item;
 }
+
 
 /* ─── Popup component ────────────────────────────────────────── */
 function ResearchPopup({
@@ -347,6 +355,7 @@ function ResearchPopup({
 }) {
   const tag = isFrontier(item) ? item.author : item.tag;
   const isResearchFrontier = isFrontier(item);
+
 
   return (
     <div
@@ -371,13 +380,16 @@ function ResearchPopup({
           </button>
         </div>
 
+
         {/* Scrollable body */}
         <div className="overflow-y-auto flex-1 pr-1">
           <h2 className="text-2xl md:text-3xl font-serif font-bold text-stone-900 mb-3 leading-tight">{item.title}</h2>
 
+
           <div className="flex items-center gap-3 mb-7 text-xs font-bold text-stone-400 uppercase tracking-widest">
             <span className="text-[#8B1538]">{item.match}% Research Match</span>
           </div>
+
 
           <div className="space-y-6 text-stone-600 text-sm leading-relaxed">
             <div>
@@ -398,6 +410,7 @@ function ResearchPopup({
             </div>
           </div>
         </div>
+
 
         {/* Footer */}
         <div className="mt-6 flex-shrink-0 flex flex-col gap-3">
@@ -432,6 +445,7 @@ function ResearchPopup({
   );
 }
 
+
 /* ─── Frontier card ──────────────────────────────────────────── */
 function FrontierCard({ trend, height, onClick }: { trend: Frontier; height: string; onClick?: () => void }) {
   const isDark = trend.dark;
@@ -439,7 +453,7 @@ function FrontierCard({ trend, height, onClick }: { trend: Frontier; height: str
     <div
       onClick={onClick}
       className={`p-6 md:p-8 rounded-[32px] border transition-transform duration-300 hover:-translate-y-2 flex flex-col justify-between group w-full cursor-pointer min-h-[200px]
-        ${isDark
+       ${isDark
           ? "bg-[#8B1538] text-white border-[#8B1538] shadow-lg"
           : "bg-white text-stone-800 border-stone-100 shadow-sm hover:border-[#8B1538]"
         }`}
@@ -450,7 +464,7 @@ function FrontierCard({ trend, height, onClick }: { trend: Frontier; height: str
           <FlaskConical size={20} className={isDark ? "text-white" : "text-[#8B1538]"} />
         </div>
         <h4 className={`font-serif font-bold text-xl md:text-2xl mb-3 leading-tight tracking-tight transition-colors
-          ${isDark ? "text-white" : "text-stone-900 group-hover:text-[#8B1538]"}`}>
+         ${isDark ? "text-white" : "text-stone-900 group-hover:text-[#8B1538]"}`}>
           {trend.title}
         </h4>
         <p className={`text-sm leading-relaxed ${isDark ? "text-white/80" : "text-stone-500"}`}>
@@ -469,6 +483,7 @@ function FrontierCard({ trend, height, onClick }: { trend: Frontier; height: str
   );
 }
 
+
 /* ─── Generated Results View ───────────────────────────────────── */
 function GeneratedResultsView({
   data,
@@ -483,6 +498,7 @@ function GeneratedResultsView({
     Graduate: "bg-amber-100 text-amber-700",
     Doctoral: "bg-purple-100 text-purple-700"
   };
+
 
   return (
     <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -501,6 +517,7 @@ function GeneratedResultsView({
         </button>
       </div>
 
+
       <div className="flex flex-col gap-6">
         {data.topics.map((t, i) => (
           <div
@@ -518,7 +535,7 @@ function GeneratedResultsView({
                 <div className="md:hidden flex-1" />
                 <ChevronRight size={20} className={`flex-shrink-0 text-stone-400 transition-transform hidden md:block mt-2 ${expanded === i ? "rotate-90" : ""}`} />
               </div>
-              
+
               <div className="flex-1 min-w-0 w-full">
                 <div className="flex flex-wrap gap-2 mb-3">
                   <span className="text-[10px] font-black uppercase tracking-widest text-white bg-[#8B1538] px-2.5 py-1 rounded-full">{t.field}</span>
@@ -531,6 +548,7 @@ function GeneratedResultsView({
               </div>
               <ChevronRight size={20} className={`flex-shrink-0 text-stone-400 transition-transform md:hidden self-center ${expanded === i ? "rotate-90" : ""}`} />
             </button>
+
 
             {expanded === i && (
               <div className="px-6 pb-8 md:pl-[88px] space-y-6 border-t border-stone-100 pt-6">
@@ -548,13 +566,14 @@ function GeneratedResultsView({
                     <p className="text-sm text-stone-700 leading-relaxed bg-stone-50 p-4 rounded-2xl border border-stone-100 h-full">{t.novelty}</p>
                   </div>
                 </div>
-                
+
                 <div className="bg-[#8B1538]/5 border border-rose-100 rounded-2xl p-5">
                   <h4 className="text-[10px] font-black uppercase tracking-widest text-[#8B1538] mb-3 flex items-center gap-2">
                     <FlaskConical size={12} /> Local Resource Integrated
                   </h4>
                   <p className="text-sm text-stone-700 font-semibold">{t.resourceLink}</p>
                 </div>
+
 
                 <div className="rounded-2xl bg-stone-900 text-white p-6 shadow-xl">
                   <h4 className="text-[10px] font-black uppercase tracking-widest text-stone-400 mb-4">Recommended Next Steps</h4>
@@ -575,6 +594,7 @@ function GeneratedResultsView({
     </div>
   );
 }
+
 
 /* ─── Gap Results View ───────────────────────────────────────── */
 function GapResultsView({
@@ -601,6 +621,7 @@ function GapResultsView({
     Policy: "bg-rose-100 text-rose-700",
   };
 
+
   return (
     <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 pb-4 border-b border-stone-200 gap-4">
@@ -621,22 +642,21 @@ function GapResultsView({
         </button>
       </div>
 
+
       <div className="flex flex-col gap-6">
         {topics.map((t, i) => (
           <div
             key={i}
-            className={`rounded-3xl border transition-all duration-300 overflow-hidden bg-white ${
-              expanded === i ? "border-amber-400 shadow-xl shadow-amber-900/10" : "border-stone-200 hover:border-amber-200"
-            }`}
+            className={`rounded-3xl border transition-all duration-300 overflow-hidden bg-white ${expanded === i ? "border-amber-400 shadow-xl shadow-amber-900/10" : "border-stone-200 hover:border-amber-200"
+              }`}
           >
             <button
               onClick={() => setExpanded(expanded === i ? null : i)}
               className="w-full flex flex-col md:flex-row items-start gap-4 p-6 text-left hover:bg-amber-50/30 transition-colors"
             >
               <div className="flex items-center gap-3 w-full md:w-auto md:flex-col">
-                <span className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-black flex-shrink-0 ${
-                  expanded === i ? "bg-amber-500 text-white" : "bg-stone-100 text-stone-500"
-                }`}>
+                <span className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-black flex-shrink-0 ${expanded === i ? "bg-amber-500 text-white" : "bg-stone-100 text-stone-500"
+                  }`}>
                   {i + 1}
                 </span>
                 <ChevronRight size={20} className={`flex-shrink-0 text-stone-400 transition-transform hidden md:block mt-2 ${expanded === i ? "rotate-90" : ""}`} />
@@ -658,6 +678,7 @@ function GapResultsView({
               </div>
               <ChevronRight size={20} className={`flex-shrink-0 text-stone-400 transition-transform md:hidden self-center ${expanded === i ? "rotate-90" : ""}`} />
             </button>
+
 
             {expanded === i && (
               <div className="px-6 pb-8 md:pl-[88px] space-y-6 border-t border-stone-100 pt-6">
@@ -701,6 +722,7 @@ function GapResultsView({
   );
 }
 
+
 /* ─── Main page ──────────────────────────────────────────────── */
 export default function TopicGenerator() {
   const [selectedItem, setSelectedItem] = useState<Topic | Frontier | null>(null);
@@ -709,9 +731,9 @@ export default function TopicGenerator() {
   const [gapData, setGapData] = useState<{ basedOn: Frontier; topics: GeneratedData["topics"] } | null>(null);
   const [generatingGaps, setGeneratingGaps] = useState(false);
   const [gapError, setGapError] = useState("");
-  
   const [generatingProblem, setGeneratingProblem] = useState(false);
   const [problemError, setProblemError] = useState("");
+
 
   const handleGenerateProblemTopics = async (topic: Topic) => {
     setGeneratingProblem(true);
@@ -739,6 +761,7 @@ export default function TopicGenerator() {
       setGeneratingProblem(false);
     }
   };
+
 
   const handleGenerateGaps = async (frontier: Frontier) => {
     setGeneratingGaps(true);
@@ -768,9 +791,11 @@ export default function TopicGenerator() {
     }
   };
 
+
   return (
     <div className="flex-1 min-w-0 overflow-x-hidden bg-[#F9F8F6] min-h-screen p-6 md:p-10 text-stone-800 w-full">
       <div className="w-full flex flex-col gap-16">
+
 
         {/* ── Header ─────────────────────────────────────────── */}
         <div className="w-full flex flex-col xl:flex-row justify-between items-start xl:items-end gap-6 pt-4">
@@ -782,6 +807,7 @@ export default function TopicGenerator() {
             <p className="text-stone-500 max-w-lg text-sm md:text-base leading-relaxed">Synthesize Philippine-specific issues with global, award-winning innovations.</p>
           </div>
 
+
           <button
             onClick={() => setShowGenerator(true)}
             className="group relative self-start xl:self-auto bg-[#8B1538] hover:bg-[#6D102C] text-white px-6 py-3 md:py-4 rounded-2xl font-bold shadow-xl shadow-rose-900/20 transition-all flex items-center gap-3 overflow-hidden">
@@ -791,6 +817,7 @@ export default function TopicGenerator() {
             <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
           </button>
         </div>
+
 
         {/* Loading overlay for problem/gap generation */}
         {(generatingGaps || generatingProblem) && (
@@ -805,11 +832,13 @@ export default function TopicGenerator() {
           </div>
         )}
 
+
         {(gapError || problemError) && (
           <div className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-6">
             <p className="text-red-600 text-sm font-semibold">{gapError || problemError}</p>
           </div>
         )}
+
 
         {gapData ? (
           <GapResultsView basedOn={gapData.basedOn} topics={gapData.topics} onClear={() => setGapData(null)} />
@@ -819,71 +848,76 @@ export default function TopicGenerator() {
           <>
             {/* ── Local Priority Watch — looping marquee row ─────── */}
             <section className="w-full min-w-0">
-          <div className="flex items-center justify-between border-b border-stone-200 pb-4 mb-6">
-            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#8B1538] flex items-center gap-2">
-              <TrendingUp size={14} /> Local Priority Watch (Top 20)
-            </h3>
-          </div>
+              <div className="flex items-center justify-between border-b border-stone-200 pb-4 mb-6">
+                <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#8B1538] flex items-center gap-2">
+                  <TrendingUp size={14} /> Local Priority Watch (Top 20)
+                </h3>
+              </div>
 
-          {/* Marquee container — overflow hidden, no scroll bar */}
-          <div className="relative overflow-hidden">
-            {/* Fade edges */}
-            <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-12 z-10 bg-gradient-to-r from-[#F9F8F6] to-transparent" />
-            <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-12 z-10 bg-gradient-to-l from-[#F9F8F6] to-transparent" />
 
-            <div
-              className="flex gap-5 marquee-track"
-              style={{ width: "max-content" }}
-            >
-              {/* Render twice for seamless loop */}
-              {[...phTopics, ...phTopics].map((topic, idx) => (
+              {/* Marquee container — overflow hidden, no scroll bar */}
+              <div className="relative overflow-hidden">
+                {/* Fade edges */}
+                <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-12 z-10 bg-gradient-to-r from-[#F9F8F6] to-transparent" />
+                <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-12 z-10 bg-gradient-to-l from-[#F9F8F6] to-transparent" />
+
+
                 <div
-                  key={idx}
-                  onClick={() => setSelectedItem(topic)}
-                  className="bg-white border border-stone-200 p-5 rounded-[28px] transition-transform duration-300 hover:-translate-y-2 hover:border-[#8B1538] hover:shadow-2xl group flex flex-col justify-between cursor-pointer flex-shrink-0"
-                  style={{ width: "220px", minHeight: "190px" }}
+                  className="flex gap-5 marquee-track"
+                  style={{ width: "max-content" }}
                 >
-                  <div>
-                    <div className="flex justify-between items-start mb-3">
-                      <span className="w-7 h-7 rounded-full bg-stone-100 flex items-center justify-center text-xs font-black text-stone-400 group-hover:bg-rose-100 group-hover:text-[#8B1538] transition-colors shrink-0">
-                        {topic.rank}
-                      </span>
-                      <span className="text-[9px] font-black uppercase text-stone-400 tracking-widest text-right ml-2 leading-tight">{topic.tag}</span>
+                  {/* Render twice for seamless loop */}
+                  {[...phTopics, ...phTopics].map((topic, idx) => (
+                    <div
+                      key={idx}
+                      onClick={() => setSelectedItem(topic)}
+                      className="bg-white border border-stone-200 p-5 rounded-[28px] transition-transform duration-300 hover:-translate-y-2 hover:border-[#8B1538] hover:shadow-2xl group flex flex-col justify-between cursor-pointer flex-shrink-0"
+                      style={{ width: "220px", minHeight: "190px" }}
+                    >
+                      <div>
+                        <div className="flex justify-between items-start mb-3">
+                          <span className="w-7 h-7 rounded-full bg-stone-100 flex items-center justify-center text-xs font-black text-stone-400 group-hover:bg-rose-100 group-hover:text-[#8B1538] transition-colors shrink-0">
+                            {topic.rank}
+                          </span>
+                          <span className="text-[9px] font-black uppercase text-stone-400 tracking-widest text-right ml-2 leading-tight">{topic.tag}</span>
+                        </div>
+                        <h4 className="font-bold text-sm text-stone-900 mb-3 leading-snug group-hover:text-[#8B1538] line-clamp-3">
+                          {topic.title}
+                        </h4>
+                      </div>
+                      <div className="flex items-center justify-between pt-3 border-t border-stone-100">
+                        <span className="text-[9px] font-bold text-stone-400">PRIORITY</span>
+                        <span className="text-[9px] font-black text-[#8B1538]">{topic.match}%</span>
+                      </div>
                     </div>
-                    <h4 className="font-bold text-sm text-stone-900 mb-3 leading-snug group-hover:text-[#8B1538] line-clamp-3">
-                      {topic.title}
-                    </h4>
-                  </div>
-                  <div className="flex items-center justify-between pt-3 border-t border-stone-100">
-                    <span className="text-[9px] font-bold text-stone-400">PRIORITY</span>
-                    <span className="text-[9px] font-black text-[#8B1538]">{topic.match}%</span>
-                  </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </div>
-        </section>
+              </div>
+            </section>
 
-        {/* ── Global & Local Frontiers ────────────────────────── */}
-        <section className="space-y-8 pb-20 w-full">
-          <div className="flex items-center gap-4 border-b border-stone-200 pb-4">
-            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-stone-400">Global &amp; Local Frontiers (Award-Winning)</h3>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-            {researchFrontiers.map((frontier, idx) => (
-              <FrontierCard
-                key={idx}
-                onClick={() => setSelectedItem(frontier)}
-                trend={frontier}
-                height="auto"
-              />
-            ))}
-          </div>
-        </section>
-      </>
+            {/* ── Global & Local Frontiers ────────────────────────── */}
+            <section className="space-y-8 pb-20 w-full">
+              <div className="flex items-center gap-4 border-b border-stone-200 pb-4">
+                <h3 className="text-xs font-black uppercase tracking-[0.2em] text-stone-400">Global &amp; Local Frontiers (Award-Winning)</h3>
+              </div>
+
+
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                {researchFrontiers.map((frontier, idx) => (
+                  <FrontierCard
+                    key={idx}
+                    onClick={() => setSelectedItem(frontier)}
+                    trend={frontier}
+                    height="auto"
+                  />
+                ))}
+              </div>
+            </section>
+          </>
         )}
       </div>
+
 
       {/* ── Popup ──────────────────────────────────────────────── */}
       {selectedItem && (
@@ -905,10 +939,11 @@ export default function TopicGenerator() {
         />
       )}
 
+
       {/* ── Generate Research Modal ──────────────────────────────── */}
       {showGenerator && (
-        <GenerateResearchModal 
-          onClose={() => setShowGenerator(false)} 
+        <GenerateResearchModal
+          onClose={() => setShowGenerator(false)}
           onComplete={(data) => {
             setGeneratedData(data);
             setShowGenerator(false);
@@ -916,19 +951,21 @@ export default function TopicGenerator() {
         />
       )}
 
+
       {/* ── Marquee keyframe ────────────────────────────────────── */}
       <style>{`
-        @keyframes marquee {
-          0%   { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
-        .marquee-track {
-          animation: marquee 40s linear infinite;
-        }
-        .marquee-track:hover {
-          animation-play-state: paused;
-        }
-      `}</style>
+       @keyframes marquee {
+         0%   { transform: translateX(0); }
+         100% { transform: translateX(-50%); }
+       }
+       .marquee-track {
+         animation: marquee 40s linear infinite;
+       }
+       .marquee-track:hover {
+         animation-play-state: paused;
+       }
+     `}</style>
     </div>
   );
 }
+

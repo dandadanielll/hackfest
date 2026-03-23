@@ -390,21 +390,26 @@ export default function ResearcherPage() {
               transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
               className="max-w-3xl text-center mb-10 w-full"
             >
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#e8e4df]/60 border border-[#e8e4df] shadow-sm backdrop-blur-md mb-6 text-sm font-bold text-[#2b090d]/70 tracking-wide uppercase">
-                <Sparkles size={16} className="text-amber-500" />
-                <span>Philippine Academic Context</span>
+              <div className="flex justify-center w-full">
+                <img
+                  src="/logo.png"
+                  alt="SaLiksi Logo"
+                  className="w-48 h-48 md:w-56 md:h-56 object-contain mb-2 select-none pointer-events-none drop-shadow-sm"
+                  draggable="false"
+                />
               </div>
-              <h1 className="text-5xl md:text-6xl font-black text-[#2b090d] tracking-tight leading-[1.1] font-serif">
-                Research for the
-                <span className="relative inline-block ml-4 text-[#521118]">
-                  Iskolar.
-                  <svg className="absolute -bottom-2 inset-x-0 w-full text-amber-500/30" viewBox="0 0 100 20" preserveAspectRatio="none">
-                    <path d="M0 10 Q 50 20 100 10" fill="none" stroke="currentColor" strokeWidth="8" strokeLinecap="round" />
-                  </svg>
+
+              <h1 className="text-5xl md:text-6xl font-black text-[#2b090d] tracking-tight leading-[1.05] font-serif">
+                SaLiksi
+                <span className="text-[#521118]">,</span>
+                <br />
+                <span className="text-3xl md:text-4xl font-semibold italic text-[#521118]/80">
+                  ang maliksing pananaliksik
                 </span>
               </h1>
               <p className="mt-5 text-lg text-stone-500 max-w-2xl mx-auto font-medium leading-relaxed">
-                Find credible local studies, check for contradictions, and synthesize verified insights.
+                40 tabs. Zero answers. There&apos;s a better way.{" "}
+                <span className="font-bold text-[#521118] not-italic">I-SaLiksi mo.</span>
               </p>
             </motion.div>
           )}

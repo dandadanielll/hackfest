@@ -8,6 +8,7 @@ interface Props {
   folderName: string;
   citationFormat: CitationFormat;
   selectedText: string;
+  getDocumentText?: () => string;
   onApplyEdit: (text: string) => void;
   onInsertCitation: (citation: string) => void;
 }
@@ -26,6 +27,7 @@ export default function VaultCopilot({
   folderName,
   citationFormat,
   selectedText,
+  getDocumentText,
   onApplyEdit,
   onInsertCitation,
 }: Props) {
@@ -62,6 +64,7 @@ export default function VaultCopilot({
             vaultSources: useVault ? vaultSources : [],
             folderName,
             citationFormat,
+            documentContent: getDocumentText ? getDocumentText() : "",
           },
           action: 'chat',
         }),
@@ -109,21 +112,21 @@ export default function VaultCopilot({
     new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   return (
-    <div className="w-[300px] min-w-[300px] flex flex-col h-full bg-[#1A0A00] border-l border-[#2D1500] overflow-hidden">
+    <div className="w-[320px] min-w-[320px] flex flex-col h-full bg-white/80 backdrop-blur-3xl border-l border-[#2b090d]/10 shadow-[-10px_0_30px_rgba(43,9,13,0.03)] overflow-hidden z-20">
 
       {/* Header */}
-      <div className="px-4 py-3.5 border-b border-[#2D1500] shrink-0">
-        <div className="flex items-center justify-between gap-2 mb-2">
+      <div className="px-5 py-5 border-b border-[#2b090d]/10 shrink-0 bg-white/50">
+        <div className="flex items-center justify-between gap-2 mb-3">
           <div className="flex items-center gap-2">
-            <span className="text-[#E8B86D] text-base">✦</span>
-            <span className="text-white font-bold text-[15px]" style={{ fontFamily: 'Georgia, serif' }}>
+            <span className="text-[#521118] text-lg">✦</span>
+            <span className="text-[#2b090d] font-bold text-[16px]" style={{ fontFamily: 'Georgia, serif' }}>
               Vault Co-pilot
             </span>
           </div>
           
           <label className="flex items-center gap-2 cursor-pointer group" title="Toggle Vault Context" aria-label="Toggle Vault Context">
-            <div className={`relative w-7 h-4 rounded-full transition-colors ${useVault ? 'bg-[#D4A96A]' : 'bg-[#4A3525]'}`}>
-              <div className={`absolute top-[2px] left-[2px] w-3 h-3 bg-white rounded-full transition-transform ${useVault ? 'translate-x-[12px]' : 'translate-x-0'}`} />
+            <div className={`relative w-[34px] h-[18px] rounded-full transition-colors ${useVault ? 'bg-[#521118]' : 'bg-[#e8e4df]'}`}>
+              <div className={`absolute top-[2px] left-[2px] w-[14px] h-[14px] bg-white rounded-full transition-transform ${useVault ? 'translate-x-[16px]' : 'translate-x-0'} shadow-sm`} />
             </div>
             <input
               type="checkbox"
@@ -134,39 +137,50 @@ export default function VaultCopilot({
           </label>
         </div>
         
-        <div className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 transition-colors ${useVault ? 'bg-[#2D1500]' : 'bg-[#1A1A1A] border border-[#333]'}`}>
-          <span className="text-[11px]">{useVault ? '🔒' : '🌐'}</span>
-          <span className={`text-[11px] font-medium leading-tight ${useVault ? 'text-[#D4A96A]' : 'text-gray-400'}`}>
+        <div className={`flex items-center gap-2 rounded-xl px-3 py-2 transition-colors ${useVault ? 'bg-[#521118]/5 border border-[#521118]/10' : 'bg-gray-50 border border-gray-200'}`}>
+          <span className="text-[12px] opacity-70">{useVault ? '🔒' : '🌐'}</span>
+          <span className={`text-[12px] font-semibold leading-tight ${useVault ? 'text-[#521118]' : 'text-gray-500'}`}>
             {useVault 
               ? (folderName ? `Locked to "${folderName}"` : 'No folder selected')
               : 'General AI Assistant'}
           </span>
         </div>
         {useVault && vaultSources.length === 0 && (
-          <div className="mt-2 bg-[#2D1F00] rounded-md px-2.5 py-1.5 text-[10px] text-[#E8B86D]">
+          <div className="mt-2 bg-[#521118]/5 border border-[#521118]/10 rounded-xl px-3 py-2 text-[11px] text-[#521118] font-medium">
             ⚠ No vault sources. Save articles to this folder first.
           </div>
         )}
         {selectedText && (
-          <div className="mt-2 bg-[#2D1500] rounded-md px-2.5 py-1.5 text-[10px] text-[#D4A96A] truncate">
+          <div className="mt-2 bg-[#2b090d]/5 border border-[#2b090d]/10 rounded-xl px-3 py-2 text-[11px] text-[#2b090d]/70 truncate font-medium">
             Selected: &ldquo;{selectedText.slice(0, 55)}{selectedText.length > 55 ? '…' : ''}&rdquo;
           </div>
         )}
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2.5">
+      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
         {messages.length === 0 && (
-          <div className="py-2 px-1">
-            <p className="text-white font-bold text-sm mb-1.5" style={{ fontFamily: 'Georgia, serif' }}>
-              Welcome to your writing workspace.
+          <div className="py-2 px-1 text-center mt-4">
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 ${useVault ? 'bg-[#521118]/5' : 'bg-[#e8e4df]/50'}`}>
+               <span className={`text-xl ${useVault ? 'text-[#521118]' : 'text-gray-500'}`}>{useVault ? '✦' : '🌐'}</span>
+            </div>
+            <p className="text-[#2b090d] font-black text-sm mb-2" style={{ fontFamily: 'Georgia, serif' }}>
+              Your intelligent writing partner.
             </p>
-            <p className="text-[#B8A090] text-xs leading-relaxed">
-              I am strictly locked to your Vault. I can only reference sources in{' '}
-              <strong className="text-[#D4A96A]">&ldquo;{folderName || 'this folder'}&rdquo;</strong>.
+            <p className="text-[#2b090d]/60 text-xs leading-relaxed max-w-[240px] mx-auto">
+              {useVault ? (
+                <>
+                  I am strictly locked to your Vault. I will only reference and cite sources from{' '}
+                  <strong className="text-[#521118] font-bold">&ldquo;{folderName || 'this folder'}&rdquo;</strong>.
+                </>
+              ) : (
+                <>
+                  I am acting as a <strong className="text-gray-600 font-bold">General AI Assistant</strong>. I will use my broad knowledge to help you brainstorm, edit, and write.
+                </>
+              )}
             </p>
-            {vaultSources.length > 0 && (
-              <p className="text-[#E8B86D] text-[11px] mt-2 font-medium">
+            {useVault && vaultSources.length > 0 && (
+              <p className="text-[#521118]/70 text-[11px] mt-3 font-bold bg-[#521118]/5 inline-block px-3 py-1 rounded-full">
                 {vaultSources.length} source{vaultSources.length !== 1 ? 's' : ''} available
               </p>
             )}
@@ -176,50 +190,49 @@ export default function VaultCopilot({
         {messages.map((m, i) => (
           <div
             key={i}
-            className={`rounded-xl p-3 ${m.role === 'user' ? 'bg-[#2D1500] ml-4' : 'bg-[#231000] border border-[#3D2000]'
-              }`}
+            className={`rounded-2xl p-4 shadow-sm ${m.role === 'user' ? 'bg-[#521118] text-white ml-6 rounded-tr-sm' : 'bg-white border border-[#2b090d]/10 mr-6 rounded-tl-sm'}`}
           >
             {m.role === 'assistant' && (
-              <div className="flex items-center gap-1 mb-1.5">
-                <span className="text-[#E8B86D] text-[10px]">✦</span>
-                <span className="text-[#E8B86D] text-[10px] font-semibold uppercase tracking-wide">
-                  Vault Co-pilot
+              <div className="flex items-center gap-1.5 mb-2">
+                <span className="text-[#521118] text-[10px]">✦</span>
+                <span className="text-[#521118] text-[10px] font-bold uppercase tracking-widest">
+                  Co-pilot
                 </span>
               </div>
             )}
-            <p className="text-[#E8DFD0] text-xs leading-relaxed whitespace-pre-wrap">{m.content}</p>
+            <p className={`text-[13px] leading-relaxed whitespace-pre-wrap ${m.role === 'user' ? 'text-white/95' : 'text-[#2b090d]/80'}`}>{m.content}</p>
 
             {m.documentEdit && (
               <button
                 onClick={() => onApplyEdit(m.documentEdit!)}
-                className="w-full mt-2 py-1.5 bg-[#8B1A1A] text-white text-[11px] font-semibold rounded-lg hover:bg-[#6B1212] transition-colors"
+                className="w-full mt-3 py-2 bg-[#521118]/5 text-[#521118] border border-[#521118]/10 text-[12px] font-bold rounded-xl hover:bg-[#521118] hover:text-white transition-all shadow-sm group"
               >
-                ✎ Apply Edit to Document
+                <span className="group-hover:-translate-y-0.5 inline-block transition-transform">✎</span> Apply Edit to Document
               </button>
             )}
             {m.inlineCitation && (
               <button
                 onClick={() => onInsertCitation(m.inlineCitation!)}
-                className="w-full mt-1.5 py-1.5 border border-[#E8B86D] text-[#E8B86D] text-[11px] font-semibold rounded-lg hover:bg-[#E8B86D]/10 transition-colors"
+                className="w-full mt-2 py-2 border border-[#2b090d]/20 text-[#2b090d]/70 text-[12px] font-bold rounded-xl hover:bg-[#2b090d]/5 hover:text-[#2b090d] transition-all"
               >
                 ↳ Insert Citation
               </button>
             )}
-            <p className="text-[#6B5040] text-[10px] mt-1.5 text-right">{timeStr(m.timestamp)}</p>
+            <p className={`text-[10px] mt-2 text-right ${m.role === 'user' ? 'text-white/50' : 'text-[#2b090d]/40'}`}>{timeStr(m.timestamp)}</p>
           </div>
         ))}
 
         {loading && (
-          <div className="bg-[#231000] border border-[#3D2000] rounded-xl p-3">
-            <div className="flex items-center gap-1 mb-2">
-              <span className="text-[#E8B86D] text-[10px]">✦</span>
-              <span className="text-[#E8B86D] text-[10px] font-semibold uppercase tracking-wide">Vault Co-pilot</span>
+          <div className="bg-white border border-[#2b090d]/10 mr-6 rounded-2xl rounded-tl-sm p-4 shadow-sm">
+            <div className="flex items-center gap-1.5 mb-2.5">
+              <span className="text-[#521118] text-[10px]">✦</span>
+              <span className="text-[#521118] text-[10px] font-bold uppercase tracking-widest">Co-pilot</span>
             </div>
-            <div className="flex gap-1.5 items-center">
+            <div className="flex gap-1.5 items-center pl-1">
               {[0, 200, 400].map((delay) => (
                 <span
                   key={delay}
-                  className="w-1.5 h-1.5 rounded-full bg-[#E8B86D] animate-bounce"
+                  className="w-1.5 h-1.5 rounded-full bg-[#521118]/60 animate-bounce"
                   style={{ animationDelay: `${delay}ms` }}
                 />
               ))}
@@ -232,14 +245,14 @@ export default function VaultCopilot({
 
       {/* Quick Actions */}
       {messages.length === 0 && (
-        <div className="px-3 pb-1 shrink-0">
-          <p className="text-[10px] text-[#6B5040] font-semibold uppercase tracking-wider mb-1.5">Quick actions</p>
-          <div className="flex flex-col gap-1">
+        <div className="px-4 pb-2 shrink-0">
+          <p className="text-[10px] text-[#2b090d]/40 font-bold uppercase tracking-widest mb-2 px-1">Quick actions</p>
+          <div className="flex flex-col gap-1.5">
             {QUICK_ACTIONS.map((a) => (
               <button
                 key={a.label}
                 onClick={() => send(a.prompt)}
-                className="text-left px-2.5 py-1.5 bg-[#231000] border border-[#3D2000] rounded-lg text-[#D4A96A] text-[11px] font-medium hover:bg-[#2D1500] transition-colors"
+                className="text-left px-3 py-2 bg-white border border-[#2b090d]/10 rounded-xl text-[#2b090d]/70 text-[12px] font-semibold hover:border-[#521118]/30 hover:text-[#521118] hover:shadow-sm transition-all"
               >
                 {a.label}
               </button>
@@ -249,28 +262,28 @@ export default function VaultCopilot({
       )}
 
       {/* Input */}
-      <div className="px-3 py-2.5 border-t border-[#2D1500] shrink-0">
-        <div className="flex gap-2 items-end">
+      <div className="p-4 bg-white/50 border-t border-[#2b090d]/10 shrink-0">
+        <div className="flex gap-2 items-end bg-white border border-[#2b090d]/15 rounded-2xl p-1.5 shadow-sm focus-within:border-[#521118]/40 focus-within:shadow-md transition-all">
           <textarea
             ref={textareaRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKey}
-            placeholder="Ask Co-pilot…"
+            placeholder="Ask Co-pilot..."
             rows={1}
             disabled={loading}
-            className="flex-1 bg-[#2D1500] border border-[#3D2500] rounded-lg text-[#E8DFD0] text-[13px] px-3 py-2 resize-none outline-none placeholder:text-[#6B5040] disabled:opacity-50 min-h-[36px] max-h-[100px]"
+            className="flex-1 bg-transparent text-[#2b090d] text-[13px] px-2 py-1.5 resize-none outline-none placeholder:text-[#2b090d]/30 min-h-[36px] max-h-[120px]"
             style={{ fontFamily: 'inherit' }}
           />
           <button
             onClick={() => send()}
             disabled={loading || !input.trim()}
-            className="w-8 h-8 shrink-0 rounded-lg flex items-center justify-center font-bold text-base transition-colors disabled:opacity-30 disabled:cursor-not-allowed bg-[#8B1A1A] text-white hover:bg-[#6B1212]"
+            className="w-8 h-8 mb-0.5 mr-0.5 shrink-0 rounded-xl flex items-center justify-center font-bold text-base transition-all disabled:opacity-30 disabled:cursor-not-allowed bg-[#521118] text-white hover:bg-[#8B1A1A] shadow-sm"
           >
             ↑
           </button>
         </div>
-        <p className="text-[10px] text-[#4A3020] text-center mt-1.5">
+        <p className="text-[10px] font-semibold text-[#2b090d]/30 text-center mt-2.5">
           Locked to vault · Shift+Enter for newline
         </p>
       </div>

@@ -16,28 +16,31 @@ export default function Sidebar() {
     <aside className={`${isCollapsed ? 'w-20' : 'w-64'} bg-[#e8e4df] backdrop-blur-md border-r border-[#2b090d]/10 shadow-[4px_0_24px_rgba(43,9,13,0.14)] flex flex-col h-screen sticky top-0 shrink-0 z-50 transition-all duration-300 relative`}>
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
-        className="absolute -right-3 top-20 z-50 bg-[#e8e4df] border border-[#2b090d]/15 rounded-full p-1 shadow-md shadow-[#2b090d]/15 text-[#521118]/60 hover:text-[#2b090d] transition-colors"
+        className="absolute -right-3 top-[88px] -translate-y-1/2 z-50 bg-[#e8e4df] border border-[#2b090d]/15 rounded-full p-1 shadow-sm shadow-[#2b090d]/15 text-[#521118]/60 hover:text-[#2b090d] transition-colors"
       >
         {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
       </button>
 
-      <Link href="/researcher" className={`p-6 border-b border-[#2b090d]/10 flex items-center gap-3 hover:bg-[#2b090d]/5 transition cursor-pointer`}>
-        <div className="bg-[#521118] p-1.5 rounded-lg text-[#e8e4df] shadow-inner shrink-0 w-9 h-9 flex items-center justify-center">
-          <BookOpen size={22} />
-        </div>
-        <div className={`overflow-hidden transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0' : 'w-32 opacity-100'}`}>
-          <span className="font-bold text-xl tracking-tight text-[#2b090d] font-serif whitespace-nowrap">DUNONG</span>
+      <Link href="/researcher" className="px-5 py-6 border-b border-[#2b090d]/10 flex items-center hover:bg-[#2b090d]/5 transition cursor-pointer overflow-hidden">
+        <img
+          src="/logo.png"
+          alt="SaLiksi"
+          className="w-10 h-10 object-contain shrink-0 drop-shadow-sm"
+          draggable="false"
+        />
+        <div className={`ml-3 overflow-hidden transition-all duration-500 flex items-center ${isCollapsed ? 'w-0 opacity-0 pointer-events-none' : 'w-32 opacity-100'}`}>
+          <span className="font-black text-xl tracking-tight text-[#521118] font-serif whitespace-nowrap">SaLiksi</span>
         </div>
       </Link>
 
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
         <NavItem href="/researcher" icon={<Search size={18} />} label="Search Engine" active={pathname === '/researcher'} isCollapsed={isCollapsed} />
+        <NavItem href="/topic-generator" icon={<Lightbulb size={18} />} label="Topic Generator" active={pathname === '/topic-generator'} isCollapsed={isCollapsed} />
         <NavItem href="/library" icon={<Layers size={18} />} label="Library" active={pathname === '/library'} isCollapsed={isCollapsed} />
         <NavItem href="/writer" icon={<FileText size={18} />} label="Writer" active={pathname === '/writer'} isCollapsed={isCollapsed} />
+        <NavItem href="/credibility" icon={<FaCheck size={18} />} label="Credibility Score" active={pathname === '/credibility'} isCollapsed={isCollapsed} />
         <NavItem href="/aitools" icon={<RiGeminiLine size={18} />} label="AI Tools" active={pathname === '/aitools'} isCollapsed={isCollapsed} />
         <NavItem href="/citation" icon={<TfiQuoteLeft size={18} />} label="Citation Generator" active={pathname === '/citation'} isCollapsed={isCollapsed} />
-        <NavItem href="/credibility" icon={<FaCheck size={18} />} label="Credibility Score" active={pathname === '/credibility'} isCollapsed={isCollapsed} />
-        <NavItem href="/topic-generator" icon={<Lightbulb size={18} />} label="Topic Generator" active={pathname === '/topic-generator'} isCollapsed={isCollapsed} />
       </nav>
     </aside>
   );

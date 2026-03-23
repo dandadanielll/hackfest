@@ -23,13 +23,19 @@ export type SavedArticle = {
   openAccess?: boolean;
 };
 
+export type NotebookPage = {
+  id: string;
+  title: string;
+  content: string;
+};
+
 export type Notebook = {
   id: string;
   name: string;
+  pages?: NotebookPage[];
   content: string;
   updatedAt: number;
   createdAt: number;
-  // Writer-extended fields
   wordCount?: number;
   citationFormat?: 'APA' | 'MLA' | 'Chicago';
   citedSourceIds?: string[];

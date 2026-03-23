@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No message provided" }, { status: 400 });
   }
 
-  const { vaultSources = [], folderName = "Unnamed Folder", citationFormat = "APA" } = context || {};
+  const { vaultSources = [], folderName = "Unnamed Folder", citationFormat = "APA", documentContent = "" } = context || {};
 
   const sourcesList =
     vaultSources.length === 0
@@ -38,31 +38,60 @@ export async function POST(req: NextRequest) {
         })
         .join("\n\n");
 
+  const docContext = documentContent 
+    ? `\nCURRENT DOCUMENT STATE (For Context):\n"""\n${documentContent}\n"""\n`
+    : "";
+
+  const citationRulesMap: Record<string, string> = {
+    APA: "Format: (Author, Year). Example: (Smith, 2023).",
+    MLA: "Format: (Author Page). Example: (Smith 42).",
+    Chicago: "Format: (Author, Year, Page). Example: (Smith, 2023, 42).",
+  };
+  const citationRules = citationRulesMap[citationFormat] || "Format: (Author, Year).";
+
   const systemPrompt = vaultSources.length === 0
-    ? `You are DUNONG, an AI research assistant. You are currently in GENERAL ASSISTANT MODE because the user has disabled the Vault Context or the vault is empty.
-
-You may use your general knowledge to answer questions, brainstorm, write, or summarize.
-
+    ? `You are DUNONG, a world-class AI research assistant. You are currently in GENERAL RESEARCH MODE.
+    
+Even without specific Vault context, your responses must remain academic and objective. You should reference established theories, major studies, and credible academic concepts.
+${docContext}
 OUTPUT RULES:
-- When asked to EDIT the document, wrap edited text in <DOCUMENT_EDIT> and </DOCUMENT_EDIT> tags
-- Be direct, helpful, and concise.`
+- When asked to EDIT, ADD to, or REPHRASE the document, do NOT rewrite the whole project.
+- CITATION STYLE: Strictly use ${citationFormat} for all inline references. ${citationRules}
+- INLINE CITATIONS: Use ONLY the last names of authors (e.g., (Smith, 2023)). If there are multiple authors, use "et al." for 3 or more (in APA/MLA).
+- Output your edit in this exact format:
+  <DOCUMENT_EDIT>
+  <INSERT_AFTER>the exact existing sentence from the document to insert after (use "START" if empty)</INSERT_AFTER>
+  <REPLACE_TEXT>the exact existing sentence/paragraph to replace (omit if purely adding new content)</REPLACE_TEXT>
+  <NEW_TEXT>the new text or paragraph you generated containing the correct inline citations</NEW_TEXT>
+  </DOCUMENT_EDIT>
+- Be direct, helpful, and highly academic.`
     : `You are the Vault Co-pilot for DUNONG, an AI research workspace for Filipino students.
 
-STRICT VAULT LOCK: You are ONLY permitted to reference the sources listed below from the "${folderName}" vault. You CANNOT use any outside knowledge. If you cannot support a claim from these sources, say: "I cannot find support for this in the current vault sources."
+STRICT VAULT LOCK: You are ONLY permitted to reference the sources listed below confirmed in the "${folderName}" vault. 
 
 CITATION FORMAT: ${citationFormat}
+INLINE CITATION RULE: ${citationRules}
+- Use ONLY the last names of authors (e.g., "Smith"). 
+- For multiple authors, follow ${citationFormat} standards (e.g., "Smith & Jones" for APA, "Smith and Jones" for MLA).
+- Use "et al." where appropriate for 3+ authors.
 
 VAULT CONTENTS (${vaultSources.length} source${vaultSources.length !== 1 ? "s" : ""}):
 ${sourcesList}
-
+${docContext}
 ACTION MODE: ${action || "chat"}
 
 OUTPUT RULES:
-- Every factual claim MUST include an inline citation [Author, Year]
-- Only cite sources from the vault — never fabricate citations
-- When asked to EDIT the document, wrap edited text in <DOCUMENT_EDIT> and </DOCUMENT_EDIT> tags
-- When inserting a citation only, wrap it in <INLINE_CITATION> and </INLINE_CITATION> tags
-- Be direct and concise`;
+- Every factual claim MUST include an inline citation in strictly ${citationFormat} format.
+- Only cite sources from the vault — never fabricate citations.
+- When asked to EDIT, ADD to, or REPHRASE the document, do NOT rewrite the whole document.
+- Instead, output your edit in this exact format:
+  <DOCUMENT_EDIT>
+  <INSERT_AFTER>the exact existing sentence from the document to insert after (use "START" if document is empty)</INSERT_AFTER>
+  <REPLACE_TEXT>the exact existing sentence/paragraph to replace (omit if purely adding new content)</REPLACE_TEXT>
+  <NEW_TEXT>the new text or paragraph you generated with correct inline citations</NEW_TEXT>
+  </DOCUMENT_EDIT>
+- When inserting a citation only, wrap it in <INLINE_CITATION> and </INLINE_CITATION> tags.
+- Be direct and concise.`;
 
   const conversationHistory = (history || [])
     .slice(-6)

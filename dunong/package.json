@@ -33,6 +33,7 @@
     "groq-sdk": "^1.1.1",
     "html-docx-js": "^0.1.0",
     "html-to-docx": "^1.8.0",
+    "html2pdf.js": "^0.14.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.577.0",
     "next": "16.2.1",
