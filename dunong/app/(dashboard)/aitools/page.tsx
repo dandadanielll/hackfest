@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { RiGeminiLine } from "react-icons/ri";
 import {
     Zap, AlertTriangle, GitGraph, Upload, X,
     ChevronDown, ChevronUp, Loader2, RefreshCw,
     BookOpen, FolderOpen, CheckSquare, Square,
     ExternalLink, Quote, Sparkles, ShieldCheck,
-    FileText, Bookmark, BookmarkCheck
+    FileText, Bookmark, BookmarkCheck,
+    ChevronRight,
 } from "lucide-react";
 import { useLibrary } from "@/lib/libraryContext";
 import { getStoredFolders, type Folder } from "@/lib/libraryStore";
@@ -85,10 +87,10 @@ async function extractPdfText(file: File): Promise<string> {
 // ── Credibility color helper ───────────────────────────────────────────────
 
 function credColor(score?: number) {
-    if (!score) return "text-stone-500 bg-stone-50 border-stone-200";
+    if (!score) return "text-[#521118]/40 bg-[#521118]/5 border-[#521118]/10";
     if (score >= 80) return "text-emerald-700 bg-emerald-50 border-emerald-200";
     if (score >= 60) return "text-amber-700 bg-amber-50 border-amber-200";
-    return "text-red-700 bg-red-50 border-red-200";
+    return "text-rose-700 bg-rose-50 border-rose-200";
 }
 
 // ── Source Card (matches search engine style) ──────────────────────────────
@@ -106,10 +108,8 @@ function SourceCard({
     onToggle?: () => void;
     showCheckbox?: boolean;
 }) {
-    const [open, setOpen] = useState(false);
-
     return (
-        <div className="bg-white border border-stone-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+        <div className="bg-white/80 backdrop-blur-sm border border-[#2b090d]/10 rounded-2xl overflow-hidden shadow-sm hover:shadow-md hover:border-[#521118]/20 transition-all">
             <div className="p-5">
                 <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
@@ -136,13 +136,10 @@ function SourceCard({
                                 <span className="text-xs text-stone-400 font-medium">{source.fromFolder}</span>
                             )}
                         </div>
-                        <button
-                            onClick={() => setOpen(!open)}
-                            className="text-left font-bold text-stone-900 text-base leading-snug hover:text-rose-900 transition-colors"
-                        >
+                        <div className="text-left font-bold text-[#2b090d] text-base leading-tight font-serif">
                             {source.title}
-                        </button>
-                        <p className="text-sm text-stone-500 mt-1">
+                        </div>
+                        <p className="text-[10px] text-[#521118]/40 font-bold uppercase tracking-wider mt-1.5 leading-none">
                             {source.authors} · {source.journal} · {source.year}
                         </p>
                     </div>
@@ -159,48 +156,9 @@ function SourceCard({
                                 {selected ? <BookmarkCheck size={16} /> : <Bookmark size={16} />}
                             </button>
                         )}
-                        <button
-                            onClick={() => setOpen(!open)}
-                            className="p-2 rounded-xl border border-stone-200 bg-stone-50 text-stone-400 hover:text-stone-700 transition"
-                        >
-                            {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                        </button>
                     </div>
                 </div>
             </div>
-
-            <AnimatePresence>
-                {open && (
-                    <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: "auto", opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.25 }}
-                        className="overflow-hidden"
-                    >
-                        <div className="px-5 pb-5 border-t border-stone-100 pt-4 space-y-3">
-                            {source.abstract && (
-                                <div>
-                                    <h4 className="text-xs font-bold uppercase tracking-wider text-stone-400 mb-2 flex items-center gap-1">
-                                        <BookOpen size={12} /> Abstract
-                                    </h4>
-                                    <p className="text-sm text-stone-600 leading-relaxed">{source.abstract}</p>
-                                </div>
-                            )}
-                            {source.url && (
-                                <a
-                                    href={source.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-2 text-sm font-bold text-rose-900 hover:text-rose-700 transition"
-                                >
-                                    <ExternalLink size={14} /> View Full Paper
-                                </a>
-                            )}
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
         </div>
     );
 }
@@ -210,13 +168,11 @@ function SourceCard({
 function ToolBanner({
     tool,
     sources,
-    onContradictionFound,
 }: {
     tool: Tool;
     sources: Source[];
-    onContradictionFound: (text: string) => void;
 }) {
-    if (tool === "synthesis") return <SynthesisBanner sources={sources} onContradictionFound={onContradictionFound} />;
+    if (tool === "synthesis") return <SynthesisBanner sources={sources} />;
     if (tool === "gaps") return <GapsBanner sources={sources} />;
     if (tool === "graph") return <GraphBanner sources={sources} />;
     if (tool === "contradiction") return <ContradictionBanner sources={sources} />;
@@ -225,9 +181,8 @@ function ToolBanner({
 
 // ── Synthesis Banner ───────────────────────────────────────────────────────
 
-function SynthesisBanner({ sources, onContradictionFound }: {
+function SynthesisBanner({ sources }: {
     sources: Source[];
-    onContradictionFound: (text: string) => void;
 }) {
     const [result, setResult] = useState<SynthesisResult | null>(null);
     const [loading, setLoading] = useState(false);
@@ -244,36 +199,41 @@ function SynthesisBanner({ sources, onContradictionFound }: {
             const data = await res.json();
             if (data.error) throw new Error(data.error);
             setResult(data);
-            if (data.contradictions) onContradictionFound(data.contradictions);
+
         } catch (e: unknown) {
             setError(e instanceof Error ? e.message : "Failed to synthesize.");
         } finally {
             setLoading(false);
         }
-    }, [sources, onContradictionFound]);
+    }, [sources]);
 
     useEffect(() => { run(); }, [run]);
 
-    if (loading) return <BannerLoading label="Synthesizing literature…" />;
+    if (loading) return <BannerLoading label="Synthesizing research..." color="border-emerald-500" />;
     if (error) return <BannerError message={error} onRetry={run} />;
     if (!result) return null;
 
     return (
-        <div className="bg-emerald-800 text-white rounded-2xl p-6 space-y-4">
+        <div className="bg-white text-stone-900 rounded-[2.5rem] p-10 space-y-8 shadow-2xl shadow-emerald-900/10 border-2 border-emerald-500">
             <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                    <Zap size={16} className="text-emerald-300" />
-                    <span className="text-xs font-black uppercase tracking-widest text-emerald-300">Dunong Synthesis</span>
+                <div className="flex items-center gap-3">
+                    <div className="bg-emerald-500/10 p-2 rounded-xl shadow-inner border border-emerald-100">
+                        <Zap size={18} className="text-emerald-600" />
+                    </div>
+                    <div>
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600/50 block">AI SYNTHESIS</span>
+                        <h4 className="font-bold text-lg font-serif">Comprehensive Overview</h4>
+                    </div>
                 </div>
-                <button onClick={run} className="text-emerald-400 hover:text-white transition">
-                    <RefreshCw size={14} />
+                <button onClick={run} className="p-2 hover:bg-emerald-50 rounded-xl transition text-emerald-600/40 hover:text-emerald-600">
+                    <RefreshCw size={16} />
                 </button>
             </div>
-            <p className="text-sm leading-relaxed text-emerald-50">{result.overallSynthesis}</p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-emerald-700">
-                <BannerSection label="Common Findings" content={result.commonFindings} />
-                <BannerSection label="Contradictions" content={result.contradictions} />
-                <BannerSection label="Research Gaps" content={result.gaps} />
+            <p className="text-base leading-relaxed text-stone-700 font-serif italic border-l-2 border-emerald-500/30 pl-5">{result.overallSynthesis}</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-4 border-t border-stone-100">
+                <BannerSection label="Common Findings" content={result.commonFindings} labelColor="text-emerald-600" />
+                <BannerSection label="Contradictions" content={result.contradictions} labelColor="text-emerald-600" />
+                <BannerSection label="Research Gaps" content={result.gaps} labelColor="text-emerald-600" />
             </div>
         </div>
     );
@@ -308,44 +268,54 @@ function GapsBanner({ sources }: { sources: Source[] }) {
 
     useEffect(() => { run(); }, [run]);
 
-    if (loading) return <BannerLoading label="Analyzing literature gaps…" />;
+    if (loading) return <BannerLoading label="Analyzing literature gaps…" color="border-amber-500" />;
     if (error) return <BannerError message={error} onRetry={run} />;
     if (!gaps.length) return null;
 
     return (
-        <div className="space-y-3">
+        <div className="bg-white text-stone-900 rounded-[2.5rem] p-10 space-y-8 shadow-2xl shadow-amber-900/10 border-2 border-amber-500">
+            <div className="flex items-center gap-3">
+                <div className="bg-amber-500/10 p-2 rounded-xl shadow-inner border border-amber-100">
+                    <AlertTriangle size={18} className="text-amber-600" />
+                </div>
+                <div>
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-600/50 block">GAP DETECTION</span>
+                    <h4 className="font-bold text-lg font-serif">Literature Gaps</h4>
+                </div>
+            </div>
             {topSuggestion && (
-                <div className="bg-emerald-800 text-white rounded-2xl p-5">
-                    <div className="flex items-center gap-2 mb-2">
-                        <AlertTriangle size={14} className="text-emerald-300" />
-                        <span className="text-xs font-black uppercase tracking-widest text-emerald-300">Top Research Direction</span>
+                <div className="bg-amber-50 text-stone-900 rounded-2xl p-6 border border-amber-100">
+                    <div className="flex items-center gap-3 mb-3">
+                        <Sparkles size={18} className="text-amber-600" />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-amber-600/40">PRIMARY DIRECTION</span>
                     </div>
-                    <p className="text-sm text-emerald-50 leading-relaxed">{topSuggestion}</p>
+                    <p className="text-base text-stone-800 font-serif italic border-l-2 border-amber-500/30 pl-5">{topSuggestion}</p>
                 </div>
             )}
-            <div className="grid gap-3">
+            <div className="grid gap-4">
                 {gaps.map((gap, i) => (
                     <div
                         key={i}
-                        className={`bg-white border-l-4 ${gap.severity === "CRITICAL" ? "border-l-red-500" : "border-l-amber-500"} border-y border-r border-stone-200 p-5 rounded-r-2xl rounded-l-md flex gap-4`}
+                        className={`${gap.severity === "CRITICAL" ? "bg-rose-50/50 border-rose-100" : "bg-amber-50/50 border-amber-100"} border p-6 rounded-2xl flex gap-6 hover:opacity-80 transition-all relative group`}
                     >
-                        <div className={`h-9 w-9 rounded-xl flex items-center justify-center font-black flex-shrink-0 font-serif text-base ${gap.severity === "CRITICAL" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>
+                        <div className={`absolute left-0 top-6 bottom-6 w-1 ${gap.severity === "CRITICAL" ? "bg-rose-500/20" : "bg-amber-500/20"} rounded-r-full`} />
+                        <div className={`h-12 w-12 rounded-2xl flex items-center justify-center font-black flex-shrink-0 font-serif text-xl ${gap.severity === "CRITICAL" ? "bg-rose-100 text-rose-600 border border-rose-200" : "bg-white text-amber-600 border border-amber-200"} shadow-sm`}>
                             ?
                         </div>
                         <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <div className="flex items-center gap-3 mb-2 flex-wrap">
                                 <h5 className="font-bold text-stone-900 text-sm leading-tight">{gap.title}</h5>
-                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${gap.severity === "CRITICAL" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>
+                                <span className={`text-[10px] font-black px-2.5 py-1 rounded-lg border ${gap.severity === "CRITICAL" ? "bg-rose-100 text-rose-600 border-rose-200" : "bg-white text-amber-600 border-amber-200"}`}>
                                     {gap.severity}
                                 </span>
                             </div>
-                            <p className="text-sm text-stone-600 leading-relaxed">{gap.description}</p>
+                            <p className="text-sm text-stone-600 leading-relaxed font-serif italic">"{gap.description}"</p>
                         </div>
                     </div>
                 ))}
             </div>
-            <button onClick={run} className="flex items-center gap-2 text-xs text-stone-400 hover:text-stone-700 transition mx-auto">
-                <RefreshCw size={11} /> Refresh
+            <button onClick={run} className="flex items-center gap-2 text-xs text-white/40 hover:text-white transition mx-auto">
+                <RefreshCw size={11} /> Refresh Analysis
             </button>
         </div>
     );
@@ -469,57 +439,60 @@ function GraphBanner({ sources }: { sources: Source[] }) {
             .filter(Boolean) as GraphNode[]
         : [];
 
-    if (loading) return <BannerLoading label="Building knowledge graph…" />;
+    if (loading) return <BannerLoading label="Building knowledge graph…" color="border-indigo-500" />;
     if (error) return <BannerError message={error} onRetry={buildGraph} />;
     if (!graphData) return null;
 
     return (
-        <div className="bg-white border border-stone-200 rounded-2xl overflow-hidden">
-            <div className="px-5 py-3 border-b border-stone-100 flex items-center justify-between flex-wrap gap-3">
-                <div>
-                    <h3 className="font-bold text-stone-900 text-sm flex items-center gap-2">
-                        <GitGraph size={14} className="text-rose-800" /> Knowledge Graph
-                    </h3>
-                    <p className="text-[10px] text-stone-400 mt-0.5">Click a node to explore connections</p>
+        <div className="bg-white text-stone-900 rounded-[2.5rem] p-10 space-y-8 shadow-2xl shadow-indigo-900/10 border-2 border-indigo-500">
+            <div className="flex items-center justify-between border-b border-stone-100 pb-6 flex-wrap gap-4">
+                <div className="flex items-center gap-4">
+                    <div className="bg-indigo-500/10 p-2.5 rounded-xl border border-indigo-100">
+                        <GitGraph size={20} className="text-indigo-600" />
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-stone-900 text-lg font-serif">Knowledge Graph</h3>
+                        <p className="text-[10px] text-indigo-600/50 uppercase tracking-widest font-black mt-0.5">Relational Mapping</p>
+                    </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-4 bg-stone-50 px-5 py-2.5 rounded-2xl border border-stone-100">
                     {[
-                        { type: "paper", color: "#8B1A1A", label: "Paper" },
-                        { type: "concept", color: "#16A34A", label: "Concept" },
-                        { type: "author", color: "#7C3AED", label: "Author" },
-                        { type: "region", color: "#0284C7", label: "Region" },
+                        { type: "paper", color: "#F43F5E", label: "Paper" },
+                        { type: "concept", color: "#10B981", label: "Concept" },
+                        { type: "author", color: "#8B5CF6", label: "Author" },
+                        { type: "region", color: "#0EA5E9", label: "Region" },
                     ].map((item) => (
-                        <div key={item.type} className="flex items-center gap-1">
-                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
-                            <span className="text-[10px] text-stone-500">{item.label}</span>
+                        <div key={item.type} className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full shadow-[0_0_8px_rgba(0,0,0,0.5)]" style={{ backgroundColor: item.color }} />
+                            <span className="text-[10px] text-white/60 font-bold uppercase tracking-tighter">{item.label}</span>
                         </div>
                     ))}
                 </div>
             </div>
 
-            <div className="flex">
-                <div className="flex-1 relative" style={{ height: 380 }}>
+            <div className="flex gap-10 flex-col lg:flex-row">
+                <div className="flex-1 relative bg-stone-50 rounded-[2rem] border border-stone-200 overflow-hidden shadow-inner" style={{ height: 420 }}>
                     <canvas ref={canvasRef} className="w-full h-full cursor-pointer" onClick={handleCanvasClick} />
                 </div>
 
                 {selectedNode && (
-                    <div className="w-56 border-l border-stone-100 p-4 space-y-3 overflow-y-auto" style={{ maxHeight: 380 }}>
+                    <div className="w-full lg:w-72 bg-white/5 backdrop-blur-md border border-white/10 rounded-3xl p-6 space-y-5 animate-in fade-in zoom-in-95 duration-200">
                         <div>
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-stone-400">{selectedNode.type}</span>
-                            <h3 className="font-bold text-stone-900 text-sm mt-0.5 leading-snug">{selectedNode.label}</h3>
+                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-400/60">{selectedNode.type}</span>
+                            <h3 className="font-bold text-white text-base mt-2 leading-snug font-serif">{selectedNode.label}</h3>
                         </div>
                         {connectedNodes.length > 0 && (
                             <div>
-                                <p className="text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-1.5">Connected</p>
-                                <div className="space-y-1">
+                                <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-3">Deep Connections</p>
+                                <div className="space-y-2">
                                     {connectedNodes.map((cp) => (
                                         <button
                                             key={cp.id}
                                             onClick={() => setSelectedNode(cp)}
-                                            className="w-full text-left px-2.5 py-1.5 bg-stone-50 hover:bg-rose-50 border border-stone-200 hover:border-rose-200 rounded-xl transition"
+                                            className="w-full text-left px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl transition-all group"
                                         >
-                                            <span className="text-[9px] font-bold uppercase text-stone-400">{cp.type}</span>
-                                            <p className="text-xs font-semibold text-stone-700 leading-snug">{cp.label}</p>
+                                            <span className="text-[9px] font-black uppercase text-indigo-400 group-hover:text-indigo-300">{cp.type}</span>
+                                            <p className="text-xs font-bold text-white/80 group-hover:text-white leading-tight mt-1">{cp.label}</p>
                                         </button>
                                     ))}
                                 </div>
@@ -527,9 +500,9 @@ function GraphBanner({ sources }: { sources: Source[] }) {
                         )}
                         <button
                             onClick={() => setSelectedNode(null)}
-                            className="text-[10px] text-stone-400 hover:text-stone-700 transition"
+                            className="w-full py-2.5 text-[10px] font-black uppercase tracking-widest text-white/20 hover:text-white/60 transition-colors border-t border-white/5 mt-4"
                         >
-                            Clear selection
+                            Clear View
                         </button>
                     </div>
                 )}
@@ -589,21 +562,31 @@ function ContradictionBanner({ sources }: { sources: Source[] }) {
     const canRun = inputMode === "custom" ? thesis.trim().length > 0 : selectedNotebookId.length > 0;
 
     return (
-        <div className="space-y-4">
-            <div className="bg-white border border-stone-200 rounded-2xl p-6 space-y-4">
-                <div>
-                    <h3 className="font-bold text-stone-900 text-sm flex items-center gap-2">
-                        <AlertTriangle size={14} className="text-rose-800" /> Contradiction Catcher
-                    </h3>
-                    <p className="text-xs text-stone-400 mt-0.5">Check a thesis or notebook against your sources.</p>
+        <div className="space-y-6">
+            <div className="bg-white rounded-[2.5rem] p-10 space-y-8 shadow-2xl shadow-rose-900/10 border-2 border-rose-500">
+                <div className="flex items-center justify-between border-b border-stone-100 pb-6">
+                    <div>
+                        <div className="flex items-center gap-3">
+                            <div className="bg-rose-500/10 p-2 rounded-xl shadow-inner border border-rose-100">
+                                <AlertTriangle size={18} className="text-rose-600" />
+                            </div>
+                            <div>
+                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-600/50 block">RESEARCH CHECK</span>
+                                <h3 className="font-bold text-stone-900 text-lg font-serif">Contradiction Catcher</h3>
+                            </div>
+                        </div>
+                        <p className="text-xs text-stone-400 mt-2">Validate your claims or notebooks against existing literature.</p>
+                    </div>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex gap-2.5">
                     {(["custom", "notebook"] as const).map((m) => (
                         <button
                             key={m}
                             onClick={() => setInputMode(m)}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition ${inputMode === m ? "bg-stone-900 text-white border-stone-900" : "bg-white text-stone-500 border-stone-200 hover:border-stone-400"
+                            className={`flex items-center gap-2 px-6 py-2.5 rounded-full text-xs font-bold border-2 transition-all ${inputMode === m
+                                ? "bg-rose-50 text-rose-900 border-rose-500 shadow-sm"
+                                : "bg-white text-stone-400 border-stone-100 hover:border-rose-500/50"
                                 }`}
                         >
                             {m === "custom" ? "Write thesis" : "Use notebook"}
@@ -612,56 +595,76 @@ function ContradictionBanner({ sources }: { sources: Source[] }) {
                 </div>
 
                 {inputMode === "custom" && (
-                    <textarea
-                        value={thesis}
-                        onChange={(e) => setThesis(e.target.value)}
-                        placeholder="Enter your thesis statement or claim to check against the sources…"
-                        rows={3}
-                        className="w-full border border-stone-200 rounded-xl px-4 py-3 text-sm text-stone-700 outline-none focus:border-rose-800 resize-none"
-                    />
+                    <div className="space-y-2">
+                        <textarea
+                            value={thesis}
+                            onChange={(e) => setThesis(e.target.value)}
+                            placeholder="Enter your thesis statement or claim to check against the sources…"
+                            rows={3}
+                            className={`w-full bg-slate-50 border-2 ${thesis.length > 0 ? 'border-rose-500/20' : 'border-stone-100'} rounded-3xl px-6 py-5 text-sm text-stone-700 outline-none focus:border-rose-500/50 transition-all font-serif italic resize-none`}
+                        />
+                    </div>
                 )}
 
                 {inputMode === "notebook" && (
-                    allNotebooks.length === 0 ? (
-                        <div className="bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 text-center">
-                            <p className="text-sm text-stone-400">No notebooks found. Create one in the Writer first.</p>
-                        </div>
-                    ) : (
-                        <select
-                            value={selectedNotebookId}
-                            onChange={(e) => setSelectedNotebookId(e.target.value)}
-                            className="w-full border border-stone-200 rounded-xl px-4 py-2.5 text-sm text-stone-700 outline-none focus:border-rose-800 bg-white"
-                        >
-                            <option value="">Select a notebook…</option>
-                            {allNotebooks.map((nb) => (
-                                <option key={nb.id} value={nb.id}>{nb.folderName} / {nb.name}</option>
-                            ))}
-                        </select>
-                    )
+                    <div className="space-y-2">
+                        {allNotebooks.length === 0 ? (
+                            <div className="bg-stone-50 border-2 border-stone-100 rounded-3xl px-6 py-5 text-center">
+                                <p className="text-sm text-stone-400 italic">No notebooks found. Create one in the Writer first.</p>
+                            </div>
+                        ) : (
+                            <select
+                                value={selectedNotebookId}
+                                onChange={(e) => setSelectedNotebookId(e.target.value)}
+                                className={`w-full bg-slate-50 border-2 ${selectedNotebookId ? 'border-rose-500/20' : 'border-stone-100'} rounded-full px-6 py-3.5 text-sm text-stone-700 outline-none focus:border-rose-500/50 transition-all bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20viewBox%3D%220%200%2020%2020%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M5%207.5L10%2012.5L15%207.5%22%20stroke%3D%22%2371717A%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E')] bg-[length:1.25rem] bg-[right_1.5rem_center] bg-no-repeat appearance-none select-none`}
+                            >
+                                <option value="" disabled>Select a notebook to verify...</option>
+                                {allNotebooks.map((nb: any) => (
+                                    <option key={nb.id} value={nb.id}>{nb.folderName} / {nb.name}</option>
+                                ))}
+                            </select>
+                        )}
+                    </div>
                 )}
 
-                <button
-                    onClick={run}
-                    disabled={!canRun || loading}
-                    className="px-5 py-2.5 bg-stone-900 text-white text-sm font-bold rounded-xl hover:bg-rose-900 transition disabled:opacity-40 flex items-center gap-2"
-                >
-                    {loading ? <><Loader2 size={14} className="animate-spin" /> Analyzing…</> : "Check for Contradictions"}
-                </button>
+                <div className="pt-2">
+                    <button
+                        onClick={run}
+                        disabled={loading || !canRun}
+                        className={`group w-full py-4 rounded-full font-black text-[10px] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3 ${canRun && !loading
+                            ? "bg-rose-500 text-white shadow-lg shadow-rose-900/20 hover:bg-rose-600 hover:scale-[1.01] active:scale-[0.99]"
+                            : "bg-stone-100 text-stone-400 cursor-not-allowed border-2 border-stone-200"
+                            }`}
+                    >
+                        {loading ? (
+                            <Loader2 size={16} className="animate-spin" />
+                        ) : (
+                            <Zap size={16} className="transition-transform duration-300 ease-out group-hover:scale-110 group-hover:rotate-12" />
+                        )}
+                        {loading ? "Analyzing Context..." : "Check for Contradictions"}
+                    </button>
+                </div>
             </div>
 
+            {loading && <BannerLoading label="Detecting contradictions..." color="border-rose-500" />}
             {error && <BannerError message={error} onRetry={run} />}
 
             {result && (
-                <div className="bg-emerald-800 text-white rounded-2xl p-6 space-y-4">
-                    <div className="flex items-center gap-2">
-                        <AlertTriangle size={14} className="text-emerald-300" />
-                        <span className="text-xs font-black uppercase tracking-widest text-emerald-300">Contradiction Analysis</span>
+                <div className="bg-white text-stone-900 rounded-[2.5rem] p-10 space-y-8 shadow-2xl shadow-rose-900/10 border-2 border-rose-500 animate-in fade-in slide-in-from-bottom-5 duration-500">
+                    <div className="flex items-center gap-3">
+                        <div className="bg-rose-500/10 p-2 rounded-xl shadow-inner text-rose-600 border border-rose-100">
+                            <ShieldCheck size={18} />
+                        </div>
+                        <div>
+                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-600/50 block">CONTRADICTION SCAN</span>
+                            <h4 className="font-bold text-lg font-serif">Inconsistency Analysis</h4>
+                        </div>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <BannerSection label="Common Findings" content={result.commonFindings} />
-                        <BannerSection label="Contradictions Found" content={result.contradictions} />
-                        <BannerSection label="Research Gaps" content={result.gaps} />
-                        <BannerSection label="Recommended Position" content={result.overallSynthesis} />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <BannerSection label="Common Findings" content={result.commonFindings} labelColor="text-rose-600" />
+                        <BannerSection label="Contradictions Found" content={result.contradictions} labelColor="text-rose-600" />
+                        <BannerSection label="Research Gaps" content={result.gaps} labelColor="text-rose-600" />
+                        <BannerSection label="Recommended Position" content={result.overallSynthesis} labelColor="text-rose-600" />
                     </div>
                 </div>
             )}
@@ -671,32 +674,39 @@ function ContradictionBanner({ sources }: { sources: Source[] }) {
 
 // ── Shared banner helpers ──────────────────────────────────────────────────
 
-function BannerSection({ label, content }: { label: string; content: string }) {
+function BannerSection({ label, content, labelColor = "text-emerald-400" }: { label: string; content: string; labelColor?: string }) {
     return (
-        <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 mb-1">{label}</p>
-            <p className="text-xs text-emerald-100 leading-relaxed">{content}</p>
+        <div className="space-y-1">
+            <p className={`text-[10px] font-black uppercase tracking-[0.2em] ${labelColor}`}>{label}</p>
+            <p className="text-sm text-stone-700 leading-relaxed font-serif italic">"{content}"</p>
         </div>
     );
 }
 
-function BannerLoading({ label }: { label: string }) {
+function BannerLoading({ label, color = "border-emerald-500" }: { label: string; color?: string }) {
     return (
-        <div className="bg-emerald-800 text-white rounded-2xl p-6 flex items-center gap-4">
-            <Loader2 size={20} className="animate-spin text-emerald-300 shrink-0" />
-            <p className="text-sm font-semibold text-emerald-100">{label}</p>
+        <div className={`bg-white text-stone-900 rounded-[2.5rem] p-10 flex items-center gap-6 shadow-2xl border-2 ${color} animate-pulse`}>
+            <div className={`${color.replace('border-', 'bg-')}/10 p-3 rounded-2xl shadow-inner border border-stone-100`}>
+                <Loader2 size={24} className={`animate-spin ${color.replace('border-', 'text-')}`} />
+            </div>
+            <div>
+                <p className="text-lg font-bold font-serif italic text-stone-900/90">{label}</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-stone-400 mt-1">AI models are synthesizing your sources</p>
+            </div>
         </div>
     );
 }
 
 function BannerError({ message, onRetry }: { message: string; onRetry: () => void }) {
     return (
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-5 flex items-start gap-3">
-            <AlertTriangle size={18} className="text-red-500 shrink-0 mt-0.5" />
+        <div className="bg-rose-50/50 border border-rose-200/50 rounded-2xl p-6 flex items-start gap-4 backdrop-blur-sm">
+            <div className="bg-rose-100 p-2.5 rounded-xl text-rose-700">
+                <AlertTriangle size={20} />
+            </div>
             <div>
-                <p className="text-sm font-semibold text-red-700">{message}</p>
-                <button onClick={onRetry} className="text-xs text-red-600 font-bold mt-1.5 hover:underline flex items-center gap-1">
-                    <RefreshCw size={11} /> Try again
+                <p className="text-sm font-bold text-rose-900">{message}</p>
+                <button onClick={onRetry} className="text-xs text-rose-700 font-black uppercase tracking-widest mt-2 hover:text-rose-900 flex items-center gap-1.5 transition-colors">
+                    <RefreshCw size={12} /> Try again
                 </button>
             </div>
         </div>
@@ -719,7 +729,7 @@ function SourceSelector({
     onRemoveUpload: (id: string) => void;
 }) {
     const { folders } = useLibrary();
-    const [expanded, setExpanded] = useState<Set<string>>(new Set(folders.map((f) => f.id)));
+    const [expanded, setExpanded] = useState<Set<string>>(new Set());
     const [uploading, setUploading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -759,16 +769,16 @@ function SourceSelector({
     return (
         <div className="space-y-4">
             {/* Library */}
-            <div className="bg-white border border-stone-200 rounded-2xl overflow-hidden">
-                <div className="px-5 py-3 border-b border-stone-100 flex items-center gap-3">
-                    <FolderOpen size={15} className="text-rose-800" />
-                    <span className="font-bold text-stone-900 text-sm">From Library</span>
-                    <span className="text-xs text-stone-400 ml-auto">{totalArticles} articles</span>
+            <div className="bg-white/60 backdrop-blur-md border border-[#2b090d]/10 rounded-2xl overflow-hidden shadow-sm">
+                <div className="px-5 py-3 border-b border-[#2b090d]/5 bg-[#521118]/5 flex items-center gap-3">
+                    <FolderOpen size={15} className="text-[#521118]" />
+                    <span className="font-bold text-[#2b090d] text-xs uppercase tracking-widest">From Library</span>
+                    <span className="text-[10px] font-black text-[#521118]/40 ml-auto bg-white px-2 py-0.5 rounded-lg border border-[#2b090d]/5">{totalArticles} ARTICLES</span>
                 </div>
                 {folders.length === 0 ? (
-                    <div className="px-5 py-6 text-center text-stone-400">
-                        <BookOpen size={24} className="mx-auto mb-2 opacity-30" />
-                        <p className="text-sm">No articles saved yet.</p>
+                    <div className="px-5 py-10 text-center">
+                        <BookOpen size={24} className="mx-auto mb-3 text-[#521118]/20" />
+                        <p className="text-xs font-bold text-[#521118]/40 uppercase tracking-widest">No articles saved yet</p>
                     </div>
                 ) : (
                     folders.map((folder) => (
@@ -782,9 +792,9 @@ function SourceSelector({
                                 <span className="text-xs text-stone-400 ml-auto">{folder.articles.length}</span>
                             </button>
                             {expanded.has(folder.id) && (
-                                <div className="divide-y divide-stone-50">
+                                <div className="divide-y divide-[#2b090d]/5">
                                     {folder.articles.length === 0 ? (
-                                        <p className="px-8 py-2 text-xs text-stone-400 italic">No articles.</p>
+                                        <p className="px-10 py-3 text-[10px] font-bold text-[#521118]/30 uppercase tracking-widest bg-white/40">No articles in this folder</p>
                                     ) : (
                                         folder.articles.map((article) => (
                                             <button
@@ -792,7 +802,7 @@ function SourceSelector({
                                                 onClick={() => onToggle({
                                                     id: article.id,
                                                     title: article.title,
-                                                    authors: article.authors,
+                                                    authors: Array.isArray(article.authors) ? article.authors.map(a => `${a.firstName ? `${a.firstName.charAt(0)}. ` : ""}${a.lastName}`).join(", ") : (article.authors || "Unknown"),
                                                     year: article.year,
                                                     journal: article.journal,
                                                     abstract: article.abstract || "",
@@ -801,14 +811,14 @@ function SourceSelector({
                                                     openAccess: article.openAccess,
                                                     url: article.url,
                                                 }, folder.name)}
-                                                className="w-full flex items-start gap-3 px-8 py-2.5 hover:bg-stone-50 transition text-left"
+                                                className="w-full flex items-start gap-4 px-10 py-4 hover:bg-[#521118]/5 transition-all text-left group"
                                             >
-                                                <span className="mt-0.5 shrink-0 text-rose-800">
-                                                    {selected.has(article.id) ? <CheckSquare size={14} /> : <Square size={14} className="text-stone-300" />}
+                                                <span className="mt-1 shrink-0 text-[#2b090d]/30 group-hover:text-[#521118] transition-colors">
+                                                    {selected.has(article.id) ? <CheckSquare size={16} className="text-[#521118]" /> : <Square size={16} />}
                                                 </span>
                                                 <div className="min-w-0">
-                                                    <p className="text-sm font-semibold text-stone-800 leading-snug">{article.title}</p>
-                                                    <p className="text-xs text-stone-400 mt-0.5">{article.authors} · {article.year}</p>
+                                                    <p className="text-sm font-bold text-[#2b090d] leading-tight font-serif group-hover:text-[#521118] transition-colors">{article.title}</p>
+                                                    <p className="text-[10px] font-black uppercase tracking-wider text-[#521118]/40 mt-1.5">{Array.isArray(article.authors) ? article.authors.map(a => `${a.firstName ? `${a.firstName.charAt(0)}. ` : ""}${a.lastName}`).join(", ") : (article.authors || "Unknown")} · {article.year}</p>
                                                 </div>
                                             </button>
                                         ))
@@ -821,13 +831,13 @@ function SourceSelector({
             </div>
 
             {/* Upload */}
-            <div className="bg-white border border-stone-200 rounded-2xl overflow-hidden">
-                <div className="px-5 py-3 border-b border-stone-100 flex items-center gap-3">
-                    <Upload size={15} className="text-rose-800" />
-                    <span className="font-bold text-stone-900 text-sm">Upload Files</span>
-                    <span className="text-xs text-stone-400 ml-auto">PDF or TXT</span>
+            <div className="bg-white/60 backdrop-blur-md border border-[#2b090d]/10 rounded-2xl overflow-hidden shadow-sm">
+                <div className="px-5 py-3 border-b border-[#2b090d]/5 bg-[#521118]/5 flex items-center gap-3">
+                    <Upload size={15} className="text-[#521118]" />
+                    <span className="font-bold text-[#2b090d] text-xs uppercase tracking-widest">Upload Context</span>
+                    <span className="text-[10px] font-black text-[#521118]/40 ml-auto bg-white px-2 py-0.5 rounded-lg border border-[#2b090d]/5">PDF / TXT</span>
                 </div>
-                <div className="p-4">
+                <div className="p-6">
                     <button
                         onClick={() => fileInputRef.current?.click()}
                         disabled={uploading}
@@ -861,23 +871,27 @@ function SourceSelector({
 
 // ── Main Page ──────────────────────────────────────────────────────────────
 
-const TOOL_BUTTONS: { id: Tool; label: string; icon: React.ReactNode }[] = [
-    { id: "synthesis", label: "Synthesis", icon: <Zap size={16} /> },
-    { id: "gaps", label: "Gap Analysis", icon: <AlertTriangle size={16} /> },
-    { id: "graph", label: "Knowledge Graph", icon: <GitGraph size={16} /> },
-    { id: "contradiction", label: "Contradiction Catcher", icon: <ShieldCheck size={16} /> },
+const TOOL_BUTTONS: { id: Tool; label: string; icon: React.ReactNode; color: string }[] = [
+    { id: "synthesis", label: "Synthesis", icon: <Zap size={16} className="transition-transform duration-300 ease-out group-hover:scale-110 group-hover:rotate-12" />, color: "emerald" },
+    { id: "gaps", label: "Gap Analysis", icon: <AlertTriangle size={16} className="transition-transform duration-300 ease-out group-hover:scale-110 group-hover:-rotate-12" />, color: "amber" },
+    { id: "graph", label: "Knowledge Graph", icon: <GitGraph size={16} className="transition-transform duration-300 ease-out group-hover:scale-110 group-hover:rotate-12" />, color: "indigo" },
+    { id: "contradiction", label: "Contradiction Catcher", icon: <ShieldCheck size={16} className="transition-transform duration-300 ease-out group-hover:scale-110 group-hover:-rotate-12" />, color: "rose" },
 ];
 
 export default function AIToolsPage() {
     const [mounted, setMounted] = useState(false);
+    const [isAnimating, setIsAnimating] = useState(true);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [selectedSources, setSelectedSources] = useState<Source[]>([]);
     const [uploadedSources, setUploadedSources] = useState<Source[]>([]);
     const [activeTool, setActiveTool] = useState<Tool | null>(null);
-    const [contradiction, setContradiction] = useState<string | null>(null);
     const [showSelector, setShowSelector] = useState(false);
 
-    useEffect(() => { setMounted(true); }, []);
+    useEffect(() => { 
+        setMounted(true); 
+        const timer = setTimeout(() => setIsAnimating(false), 800);
+        return () => clearTimeout(timer);
+    }, []);
 
     const toggleSource = (source: Source, folderName: string) => {
         const id = source.id;
@@ -919,7 +933,6 @@ export default function AIToolsPage() {
 
     const handleToolClick = (tool: Tool) => {
         setActiveTool(tool);
-        setContradiction(null);
     };
 
     const canUseTool = selectedSources.length >= 2;
@@ -927,60 +940,131 @@ export default function AIToolsPage() {
     if (!mounted) return null;
 
     return (
-        <div className="min-h-screen bg-stone-50 pb-20">
-            <div className="max-w-4xl mx-auto px-8 pt-10">
-
+        <motion.main
+            initial={false}
+            animate={{ opacity: 1 }}
+            className={`min-h-screen w-full pb-20 relative font-sans bg-[#e8e4df]/30 ${isAnimating ? "overflow-hidden" : "overflow-y-auto"}`}
+        >
+            <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, ease: "easeOut" }}
+                className="max-w-5xl mx-auto px-8 pt-16 relative"
+            >
                 {/* Header */}
-                <div className="mb-6 flex items-center justify-between">
-                    <div>
-                        <h1 className="text-2xl font-black text-stone-900 font-serif">AI Tools</h1>
-                        <p className="text-stone-500 text-sm mt-0.5">
-                            {selectedSources.length === 0
-                                ? "Select sources to get started."
-                                : `${selectedSources.length} source${selectedSources.length > 1 ? "s" : ""} selected${!canUseTool ? " — select 1 more to proceed" : ""}`
-                            }
-                        </p>
+                <div className="mb-12 flex items-center justify-between">
+                    <div className="flex items-center gap-5">
+                        <div className="bg-[#521118]/10 text-[#521118] border border-[#521118]/10 p-4 rounded-3xl shadow-sm shrink-0">
+                            <RiGeminiLine size={32} />
+                        </div>
+                        <div>
+                            <h1 className="text-4xl font-bold text-[#2b090d] tracking-tight font-serif">
+                                AI Tools
+                            </h1>
+                            <p className="text-[#521118]/60 text-lg mt-1 font-medium">
+                                {selectedSources.length === 0
+                                    ? "Select research sources to begin advanced analysis."
+                                    : `${selectedSources.length} source${selectedSources.length > 1 ? "s" : ""} selected for synthesis.`
+                                }
+                            </p>
+                        </div>
                     </div>
                     <button
                         onClick={() => setShowSelector(!showSelector)}
-                        className="flex items-center gap-2 text-sm font-semibold border border-stone-200 bg-white px-4 py-2 rounded-xl hover:border-rose-800 transition"
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl font-bold transition-all shadow-sm border ${showSelector 
+                            ? "bg-[#521118] text-white border-[#521118]" 
+                            : "bg-white text-[#521118] border-[#2b090d]/10 hover:bg-[#521118]/5"}`}
                     >
-                        <FolderOpen size={15} className="text-rose-800" />
-                        {showSelector ? "Hide sources" : "Add sources"}
+                        <FolderOpen size={18} />
+                        {showSelector ? "Hide Library" : "Select Articles"}
                     </button>
                 </div>
 
-                {/* Source selector panel */}
-                <AnimatePresence>
-                    {showSelector && (
-                        <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: "auto", opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            transition={{ duration: 0.3 }}
-                            className="overflow-hidden mb-6"
-                        >
-                            <SourceSelector
-                                selected={selectedIds}
-                                onToggle={toggleSource}
-                                uploadedSources={uploadedSources}
-                                onUpload={handleUpload}
-                                onRemoveUpload={removeUpload}
-                            />
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+                {/* Unified Interaction Zone */}
+                <div className="bg-white/40 backdrop-blur-xl border border-[#2b090d]/10 rounded-[3rem] shadow-sm mb-10 overflow-hidden">
+                    <AnimatePresence mode="wait">
+                        {showSelector ? (
+                            <motion.div
+                                key="selector"
+                                initial={{ opacity: 0, scale: 0.98 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.98 }}
+                                transition={{ duration: 0.4 }}
+                                className="p-8"
+                            >
+                                <SourceSelector
+                                    selected={selectedIds}
+                                    onToggle={toggleSource}
+                                    uploadedSources={uploadedSources}
+                                    onUpload={handleUpload}
+                                    onRemoveUpload={removeUpload}
+                                />
+                            </motion.div>
+                        ) : selectedSources.length === 0 ? (
+                            <motion.div
+                                key="empty"
+                                initial={{ opacity: 0, scale: 0.98 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.98 }}
+                                transition={{ duration: 0.4 }}
+                                className="text-center py-24"
+                            >
+                                <div className="bg-[#521118]/5 border border-[#521118]/10 p-10 rounded-[2.5rem] w-fit mx-auto shadow-inner mb-6">
+                                    <Sparkles size={48} className="text-[#521118]/20" />
+                                </div>
+                                <h3 className="font-bold text-2xl text-[#2b090d] font-serif tracking-tight">Ready for Synthesis</h3>
+                                <p className="text-[#521118]/60 text-base mt-2 max-w-sm mx-auto font-medium">Click "Select Sources" to pick from your research folders and let AI find deep connections.</p>
+                                <button
+                                    onClick={() => setShowSelector(true)}
+                                    className="mt-8 bg-[#521118] text-white px-8 py-3.5 rounded-2xl font-bold hover:bg-[#2b090d] transition shadow-lg shadow-[#2b090d]/20 group"
+                                >
+                                    Select Sources
+                                </button>
+                            </motion.div>
+                        ) : (
+                            <motion.div
+                                key="status"
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
+                                className="p-8 flex items-center justify-between"
+                            >
+                                <div className="flex items-center gap-4">
+                                     <div className="bg-[#521118]/10 p-3 rounded-2xl">
+                                         <BookmarkCheck size={24} className="text-[#521118]" />
+                                     </div>
+                                     <div>
+                                         <p className="text-[10px] font-black uppercase tracking-widest text-[#521118]/40">Current Context</p>
+                                         <h3 className="text-base font-bold text-[#2b090d]">{selectedSources.length} Research Articles Selected</h3>
+                                     </div>
+                                </div>
+                                <button 
+                                    onClick={() => setShowSelector(true)}
+                                    className="px-6 py-2.5 bg-white border border-[#2b090d]/10 text-[#521118] text-sm font-bold rounded-xl hover:bg-[#521118]/5 transition shadow-sm"
+                                >
+                                    Modify Sources
+                                </button>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
 
                 {/* Tool buttons */}
                 {canUseTool && (
-                    <div className="flex gap-3 flex-wrap mb-6">
+                    <div className="flex gap-4 flex-wrap mb-10">
                         {TOOL_BUTTONS.map((tool) => (
                             <button
                                 key={tool.id}
                                 onClick={() => handleToolClick(tool.id)}
-                                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold border transition-all ${activeTool === tool.id
-                                    ? "bg-stone-900 text-white border-stone-900 shadow-md"
-                                    : "bg-white text-stone-600 border-stone-200 hover:border-rose-800 hover:text-rose-800"
+                                className={`flex items-center gap-2.5 px-6 py-3 rounded-full text-sm font-bold border-2 transition-all group ${activeTool === tool.id
+                                    ? tool.color === "emerald" ? "bg-emerald-50 text-emerald-900 border-emerald-500 shadow-sm"
+                                      : tool.color === "amber" ? "bg-amber-50 text-amber-900 border-amber-500 shadow-sm"
+                                      : tool.color === "indigo" ? "bg-indigo-50 text-indigo-900 border-indigo-500 shadow-sm"
+                                      : "bg-rose-50 text-rose-900 border-rose-500 shadow-sm"
+                                    : tool.color === "emerald" ? "bg-white text-stone-400 border-stone-200 hover:border-emerald-500/50 hover:bg-emerald-50 hover:text-emerald-700"
+                                      : tool.color === "amber" ? "bg-white text-stone-400 border-stone-200 hover:border-amber-500/50 hover:bg-amber-50 hover:text-amber-700"
+                                      : tool.color === "indigo" ? "bg-white text-stone-400 border-stone-200 hover:border-indigo-500/50 hover:bg-indigo-50 hover:text-indigo-700"
+                                      : "bg-white text-stone-400 border-stone-200 hover:border-rose-500/50 hover:bg-rose-50 hover:text-rose-700"
                                     }`}
                             >
                                 {tool.icon} {tool.label}
@@ -990,59 +1074,52 @@ export default function AIToolsPage() {
                 )}
 
                 {!canUseTool && selectedSources.length > 0 && (
-                    <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-6">
-                        <p className="text-xs font-semibold text-amber-700">Select at least 2 sources to use AI tools.</p>
+                    <div className="bg-[#521118]/5 border border-[#521118]/10 rounded-2xl px-6 py-4 mb-10 flex items-center gap-3">
+                        <AlertTriangle size={18} className="text-[#521118]/40" />
+                        <p className="text-sm font-bold text-[#521118]/60">Pick at least 2 sources from your research to unlock advanced AI tools.</p>
                     </div>
                 )}
 
                 {/* Active tool banner */}
                 {activeTool && canUseTool && (
-                    <div className="mb-6">
+                    <div className="mb-10">
                         <ToolBanner
-                            tool={activeTool}
+                            tool={activeTool as Tool}
                             sources={selectedSources}
-                            onContradictionFound={setContradiction}
                         />
                     </div>
                 )}
 
-                {/* Contradiction found card (from synthesis) */}
-                {contradiction && activeTool !== "contradiction" && (
-                    <div className="mb-6 bg-amber-50 border border-amber-200 rounded-2xl p-5">
-                        <h4 className="text-[10px] font-black text-rose-700 uppercase tracking-widest mb-2">Contradiction Found</h4>
-                        <p className="text-sm text-stone-700 leading-relaxed">{contradiction}</p>
-                    </div>
-                )}
+
 
                 {/* Selected sources as cards */}
                 {selectedSources.length > 0 && (
-                    <div className="space-y-3">
-                        <div className="flex items-center justify-between mb-2">
-                            <h2 className="text-lg font-black font-serif text-stone-900">
-                                {selectedSources.length} Selected Source{selectedSources.length > 1 ? "s" : ""}
+                    <div className="space-y-4">
+                        <div className="flex items-center gap-3 mb-6">
+                            <h2 className="text-xl font-black font-serif text-[#2b090d] tracking-tight">
+                                Analysis Context
                             </h2>
+                            <span className="bg-[#521118]/10 text-[#521118] px-2.5 py-0.5 rounded-lg text-[10px] font-black border border-[#521118]/10">
+                                {selectedSources.length} ITEMS
+                            </span>
                         </div>
-                        {[...new Map(selectedSources.map((s) => [s.id, s])).values()].map((source, i) => (
-                            <SourceCard
-                                key={source.id}
-                                source={source}
-                                index={i}
-                                selected={selectedIds.has(source.id)}
-                                onToggle={() => toggleSource(source, source.fromFolder || "")}
-                                showCheckbox
-                            />
-                        ))}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {[...new Map(selectedSources.map((s) => [s.id, s])).values()].map((source, i) => (
+                                <SourceCard
+                                    key={source.id}
+                                    source={source}
+                                    index={i}
+                                    selected={selectedIds.has(source.id)}
+                                    onToggle={() => toggleSource(source, source.fromFolder || "")}
+                                    showCheckbox
+                                />
+                            ))}
+                        </div>
                     </div>
                 )}
 
-                {selectedSources.length === 0 && !showSelector && (
-                    <div className="text-center py-20 text-stone-400">
-                        <FileText size={36} className="mx-auto mb-4 opacity-30" />
-                        <p className="font-semibold text-base mb-1">No sources selected</p>
-                        <p className="text-sm">Click "Add sources" to pick articles from your library or upload files.</p>
-                    </div>
-                )}
-            </div>
-        </div>
+
+            </motion.div>
+        </motion.main>
     );
 }

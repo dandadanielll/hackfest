@@ -3,10 +3,11 @@
 import {
   Search, Sparkles, Filter, ArrowRight, ArrowLeft, Globe,
   Eye, EyeOff, BookOpen, Quote, ExternalLink,
-  ChevronDown, ChevronUp, Bookmark, BookmarkCheck, X, FolderOpen, Check
+  ChevronDown, ChevronUp, Bookmark, BookmarkCheck, X, FolderOpen, Check, Unlock
 } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { FaCheck } from 'react-icons/fa6';
 import AgentThinking from "@/components/AgentThinking";
 import { useLibrary } from "@/lib/libraryContext";
 import FolderPickerPopup from "@/components/FolderPickerPopup";
@@ -145,7 +146,7 @@ export default function ResearcherPage() {
       const res = await fetch("/api/research", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: searchQuery, international: !local }), // Logic flipped for international
+        body: JSON.stringify({ query: searchQuery, localSourcesOnly: local }), // Match backend name
       });
 
       const updatedLogs = [
@@ -293,7 +294,11 @@ export default function ResearcherPage() {
     saveArticle(folderId, {
       id: article.id,
       title: article.title,
-      authors: article.authors,
+      authors: article.authors.split(",").map(name => {
+        const parts = name.trim().split(/\s+/);
+        if (parts.length <= 1) return { firstName: "", lastName: parts[0] || "Unknown" };
+        return { firstName: parts.slice(0, -1).join(" "), lastName: parts[parts.length - 1] };
+      }),
       year: article.year,
       journal: article.journal,
       credibility: article.credibility,
@@ -333,7 +338,7 @@ export default function ResearcherPage() {
 
   return (
     <main className="min-h-screen w-full pb-24 relative flex font-sans bg-[#e8e4df]/30">
-      <div className="fixed top-0 inset-x-0 h-96 bg-gradient-to-b from-[#521118]/8 to-transparent pointer-events-none -z-10" />
+
 
       {/* Bookmark folder picker popup */}
       {bookmarkPopupArticle && (
@@ -404,7 +409,7 @@ export default function ResearcherPage() {
             y: inputFocused && !resultsMode ? -5 : 0
           }}
           transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-          className={`w-full max-w-4xl relative z-20 mx-auto ${resultsMode ? "mb-6" : ""}`}
+          className={`w-full max-w-4xl relative z-[60] mx-auto ${resultsMode ? "mb-6" : ""}`}
         >
           <form onSubmit={handleSearch} className="relative group">
             <div className={`relative transition-all duration-500 rounded-[2.5rem] p-3 flex ring-4 ${inputFocused
@@ -499,11 +504,11 @@ export default function ResearcherPage() {
                   <button
                     type="button"
                     onClick={() => setShowFilterMenu(!showFilterMenu)}
-                    className="flex items-center gap-2 text-sm font-bold text-[#521118] hover:text-[#2b090d] transition bg-white border border-[#2b090d]/20 px-3 py-1.5 rounded-xl shadow-md shadow-[#2b090d]/5"
+                    className="group flex items-center gap-2 text-sm font-bold text-[#521118] hover:text-[#2b090d] hover:bg-[#521118]/5 transition-all bg-white border border-[#2b090d]/20 px-3 py-1.5 rounded-xl shadow-sm hover:shadow-md shadow-[#2b090d]/5"
                   >
-                    <Filter size={13} />
+                    <Filter size={13} className="transition-transform duration-300 ease-out group-hover:scale-110 group-hover:-rotate-12" />
                     Filter & Sort
-                    <ChevronDown size={13} className={`transition-transform ${showFilterMenu ? "rotate-180" : ""}`} />
+                    <ChevronDown size={13} className={`transition-transform duration-300 ease-out ${showFilterMenu ? "rotate-180" : "group-hover:translate-y-[2px]"}`} />
                   </button>
 
                   <AnimatePresence>
@@ -557,9 +562,9 @@ export default function ResearcherPage() {
 
                 <button
                   onClick={() => setShowAgentPanel(!showAgentPanel)}
-                  className="flex items-center gap-2 text-sm font-bold text-[#521118] hover:text-[#2b090d] transition bg-white border border-[#2b090d]/20 px-3 py-1.5 rounded-xl shadow-md shadow-[#2b090d]/5"
+                  className="group flex items-center gap-2 text-sm font-bold text-[#521118] hover:text-[#2b090d] hover:bg-[#521118]/5 transition-all bg-white border border-[#2b090d]/20 px-3 py-1.5 rounded-xl shadow-sm hover:shadow-md shadow-[#2b090d]/5"
                 >
-                  {showAgentPanel ? <EyeOff size={13} /> : <Eye size={13} />}
+                  {showAgentPanel ? <EyeOff size={13} className="transition-all duration-300 ease-out group-hover:scale-90 opacity-70 group-hover:opacity-100" /> : <Eye size={13} className="transition-transform duration-300 ease-out group-hover:scale-110 group-hover:rotate-12" />}
                   Agent Thinking
                 </button>
               </div>
@@ -609,20 +614,20 @@ export default function ResearcherPage() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap mb-2">
                               {article.localSource && (
-                                <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-[#521118]/10 text-[#521118] border border-[#521118]/20">
-                                  {article.source || "Local"}
+                                <span className="h-6 inline-flex items-center text-[10px] font-black uppercase tracking-widest px-2.5 rounded-full bg-[#521118]/5 text-[#521118]/60 border border-[#2b090d]/10">
+                                  {article.source || "Local Source"}
                                 </span>
                               )}
                               {article.openAccess && (
-                                <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                  Open Access
+                                <span className="h-6 inline-flex items-center text-[10px] font-black uppercase tracking-widest px-2.5 rounded-full bg-[#2e1065]/5 text-[#2e1065] border border-[#2e1065]/10 gap-1.5">
+                                  <Unlock size={10} strokeWidth={3} /> Open Access
                                 </span>
                               )}
-                              <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${credibilityColor(article.credibility)}`}>
-                                {article.credibility}/100
+                              <span className={`h-6 inline-flex items-center text-[10px] font-black uppercase tracking-widest px-2.5 rounded-full border gap-1.5 ${credibilityColor(article.credibility).replace('px-2 py-0.5', '')}`}>
+                                <FaCheck size={10} strokeWidth={3} /> {article.credibility}/100
                               </span>
                               {article.citationCount !== undefined && article.citationCount > 0 && (
-                                <span className="text-xs text-stone-400">{article.citationCount} citations</span>
+                                <span className="h-6 inline-flex items-center text-[10px] font-black uppercase tracking-widest text-[#521118]/30 px-1">{article.citationCount} citations</span>
                               )}
                             </div>
                             <button onClick={() => toggleCard(article)} className="text-left font-bold text-[#2b090d] text-base leading-snug hover:text-[#521118] transition-colors line-clamp-6">
