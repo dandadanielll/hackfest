@@ -126,7 +126,7 @@ export default function DocumentNavigator({
   };
 
   return (
-    <div className="w-72 min-w-[18rem] h-full bg-white/80 backdrop-blur-3xl border-r border-[#2b090d]/10 flex flex-col pt-[88px] z-10 shadow-[10px_0_30px_rgba(43,9,13,0.02)]">
+    <div className="w-72 min-w-[18rem] h-full bg-white/80 backdrop-blur-3xl border-r border-[#2b090d]/10 flex flex-col pt-3 z-10 shadow-[10px_0_30px_rgba(43,9,13,0.02)]">
       {/* Document Setup Header */}
       <div className="px-5 py-4 border-b border-[#2b090d]/5 bg-[#521118]/[0.02]">
         <div className="flex items-center justify-between mb-4">

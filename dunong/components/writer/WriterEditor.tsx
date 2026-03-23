@@ -93,10 +93,6 @@ const PageSheet = ({
         <div className="absolute right-8 top-8 text-[9px] font-bold text-[#5a1a1a]/20 uppercase tracking-[0.2em] opacity-0 group-focus:opacity-100 transition-opacity">HEADER</div>
       </div>
 
-      <div className="absolute -left-12 top-0 text-[10px] font-bold text-[#5a1a1a]/30 vertical-text h-full flex items-start pt-32">
-        PAGE {idx + 1}
-      </div>
-
       {proposals.map((p: any) => (
         <div
           key={p.id}

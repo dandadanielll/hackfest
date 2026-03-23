@@ -3,8 +3,6 @@ import {
   Document, Packer, Paragraph, TextRun,
   AlignmentType, PageBreak,
 } from 'docx';
-// @ts-ignore
-import html2pdf from 'html2pdf.js';
 
 interface ExportPage {
   content: string;
@@ -237,8 +235,11 @@ export function exportToPDF(pages: ExportPage[], documentName: string, globalFon
   };
 
   const element = document.getElementById('pdf-root');
-  html2pdf().set(opt).from(element as HTMLElement).save().then(() => {
-    document.body.removeChild(wrapper);
+  import('html2pdf.js').then((module) => {
+    const html2pdf = module.default || module;
+    html2pdf().set(opt).from(element as HTMLElement).save().then(() => {
+      document.body.removeChild(wrapper);
+    });
   });
 }
 
