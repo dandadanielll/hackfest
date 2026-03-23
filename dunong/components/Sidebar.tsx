@@ -17,6 +17,7 @@ export default function Sidebar() {
   const [showDisablePopup, setShowDisablePopup] = useState(false);
 
   return (
+    <>
     <aside className={`${isCollapsed ? 'w-20' : 'w-64'} bg-[#e8e4df] backdrop-blur-md border-r border-[#2b090d]/10 shadow-[4px_0_24px_rgba(43,9,13,0.14)] flex flex-col h-screen sticky top-0 shrink-0 z-50 transition-all duration-300 relative`}>
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
@@ -69,6 +70,7 @@ export default function Sidebar() {
           </div>
         </button>
       </div>
+    </aside>
 
       {showDevPopup && (
         <div className="fixed inset-0 z-[200] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
@@ -137,7 +139,7 @@ export default function Sidebar() {
           </div>
         </div>
       )}
-    </aside>
+    </>
   );
 }
 
