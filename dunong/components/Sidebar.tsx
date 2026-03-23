@@ -95,9 +95,10 @@ export default function Sidebar() {
                   setPaneExpanded(true);
                   setShowDevPopup(false);
                 }} 
-                className="px-6 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest bg-[#521118] text-[#e8e4df] hover:bg-[#2b090d] transition shadow-md shadow-[#521118]/20 hover:scale-[1.02] active:scale-[0.98]"
+                className="group relative px-6 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest bg-[#521118] text-[#e8e4df] hover:bg-[#2b090d] transition shadow-md shadow-[#521118]/20 overflow-hidden active:scale-95"
               >
-                Turn On
+                <div className="absolute inset-0 w-1/2 h-full bg-white/10 skew-x-[-20deg] group-hover:translate-x-[200%] transition-transform duration-700" />
+                <span className="relative z-10 transition-transform group-hover:scale-105 inline-block">Turn On</span>
               </button>
             </div>
           </div>
@@ -129,9 +130,10 @@ export default function Sidebar() {
                   setPaneExpanded(false);
                   setShowDisablePopup(false);
                 }} 
-                className="px-6 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest bg-[#521118] text-[#e8e4df] hover:bg-[#2b090d] transition shadow-md shadow-[#521118]/20 hover:scale-[1.02] active:scale-[0.98]"
+                className="group relative px-6 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest bg-[#521118] text-[#e8e4df] hover:bg-[#2b090d] transition shadow-md shadow-[#521118]/20 overflow-hidden active:scale-95"
               >
-                Turn Off
+                <div className="absolute inset-0 w-1/2 h-full bg-white/10 skew-x-[-20deg] group-hover:translate-x-[200%] transition-transform duration-700" />
+                <span className="relative z-10 transition-transform group-hover:scale-105 inline-block">Turn Off</span>
               </button>
             </div>
           </div>

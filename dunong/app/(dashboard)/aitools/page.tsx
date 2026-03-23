@@ -682,11 +682,12 @@ function ContradictionBanner({ sources }: { sources: Source[] }) {
                     <button
                         onClick={run}
                         disabled={loading || !canRun}
-                        className={`group w-full py-4 rounded-full font-black text-[10px] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3 ${canRun && !loading
-                            ? "bg-rose-500 text-white shadow-lg shadow-rose-900/20 hover:bg-rose-600 hover:scale-[1.01] active:scale-[0.99]"
+                        className={`group relative w-full py-4 rounded-full font-black text-[10px] uppercase tracking-[0.2em] transition-all duration-300 flex items-center justify-center gap-3 overflow-hidden active:scale-95 ${canRun && !loading
+                            ? "bg-rose-500 text-white shadow-xl shadow-rose-900/20 hover:bg-rose-600"
                             : "bg-stone-100 text-stone-400 cursor-not-allowed border-2 border-stone-200"
                             }`}
                     >
+                        <div className="absolute inset-0 w-1/2 h-full bg-white/10 skew-x-[-20deg] group-hover:translate-x-[200%] transition-transform duration-700" />
                         {loading ? (
                             <Loader2 size={16} className="animate-spin" />
                         ) : (
@@ -1089,8 +1090,10 @@ export default function AIToolsPage() {
                                 <p className="text-[#521118]/60 text-base mt-2 max-w-sm mx-auto font-medium">Click "Select Sources" to pick from your research folders and let AI find deep connections.</p>
                                 <button
                                     onClick={() => setShowSelector(true)}
-                                    className="mt-8 bg-[#521118] text-white px-8 py-3.5 rounded-2xl font-bold hover:bg-[#2b090d] transition shadow-lg shadow-[#2b090d]/20 group"
+                                    className="group relative mt-8 bg-[#521118] text-[#e8e4df] px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-[#2b090d] transition-all duration-300 shadow-xl shadow-[#521118]/20 overflow-hidden active:scale-95 flex items-center justify-center gap-2 mx-auto"
                                 >
+                                    <div className="absolute inset-0 w-1/2 h-full bg-white/10 skew-x-[-20deg] group-hover:translate-x-[200%] transition-transform duration-700" />
+                                    <Sparkles size={16} className="text-amber-300 transition-transform group-hover:scale-110" />
                                     Select Sources
                                 </button>
                             </motion.div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { X, ChevronRight, ChevronLeft, MapPin, Search, Loader2, Sparkles, BookOpen, Zap, CheckCircle2 } from "lucide-react";
+import { X, ChevronRight, ChevronLeft, MapPin, Search, Loader2, Sparkles, BookOpen, Zap, CheckCircle2, AlertTriangle } from "lucide-react";
 
 /* ─── Types ─────────────────────────────────────────────────── */
 interface GeneratedTopic {
@@ -104,21 +104,21 @@ async function fetchAIContext(
 function StepIndicator({ current, total }: { current: number; total: number }) {
   const labels = ["Research Field", "Your Location", "Local Focus"];
   return (
-    <div className="flex items-start gap-2 mb-8 px-1">
+    <div className="flex items-start gap-4 mb-10 px-1">
       {Array.from({ length: total }).map((_, i) => (
-        <div key={i} className="flex-1 flex flex-col items-center gap-2">
+        <div key={i} className="flex-1 flex flex-col items-center gap-3">
           <div className="flex items-center w-full">
             <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black transition-all duration-300 flex-shrink-0
-                ${i < current ? "bg-[#8B1538] text-white" : i === current ? "bg-[#8B1538] text-white ring-4 ring-rose-100" : "bg-stone-100 text-stone-400"}`}
+              className={`w-10 h-10 rounded-full flex items-center justify-center text-xs font-black transition-all duration-500 flex-shrink-0 shadow-sm
+                ${i < current ? "bg-[#521118] text-[#e8e4df]" : i === current ? "bg-[#521118] text-[#e8e4df] ring-4 ring-[#e8e4df]/60" : "bg-white border border-[#2b090d]/5 text-stone-400"}`}
             >
-              {i < current ? <CheckCircle2 size={14} /> : i + 1}
+              {i < current ? <CheckCircle2 size={16} /> : i + 1}
             </div>
             {i < total - 1 && (
-              <div className={`h-0.5 flex-1 transition-all duration-500 ${i < current ? "bg-[#8B1538]" : "bg-stone-200"}`} />
+              <div className={`h-1 flex-1 transition-all duration-700 mx-2 rounded-full ${i < current ? "bg-[#521118]" : "bg-[#2b090d]/5"}`} />
             )}
           </div>
-          <span className={`text-[9px] font-bold uppercase tracking-widest text-center leading-tight ${i === current ? "text-[#8B1538]" : "text-stone-400"}`}>
+          <span className={`text-[10px] font-black uppercase tracking-[0.2em] text-center leading-tight transition-colors duration-300 ${i === current ? "text-[#521118]" : "text-stone-400"}`}>
             {labels[i]}
           </span>
         </div>
@@ -131,27 +131,30 @@ function StepIndicator({ current, total }: { current: number; total: number }) {
 function FieldSelector({ selected, onChange }: { selected: string[]; onChange: (v: string[]) => void }) {
   const toggle = (id: string) => onChange(selected.includes(id) ? selected.filter(f => f !== id) : [...selected, id]);
   return (
-    <div>
-      <h2 className="text-2xl font-serif font-bold text-stone-900 mb-2">Choose Your Research Field(s)</h2>
-      <p className="text-stone-500 text-sm mb-6">Select one or more fields you want to research. Your topics will be tailored to these disciplines.</p>
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 max-h-[400px] overflow-y-auto pr-1">
+    <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
+      <h2 className="text-3xl font-black text-stone-900 mb-2 leading-tight" style={{ fontFamily: "'Neue Montreal', sans-serif" }}>Research Field(s)</h2>
+      <p className="text-stone-500 text-sm mb-8 font-medium">Select disciplines you want to research. Your topics will be tailored to these areas.</p>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[420px] overflow-y-auto pr-2 custom-scrollbar">
         {ALL_FIELDS.map(f => (
           <button
             key={f.id}
             onClick={() => toggle(f.id)}
-            className={`flex items-center gap-2.5 p-3 rounded-2xl border text-left transition-all duration-200 text-sm font-semibold
+            className={`flex items-center gap-3 p-4 rounded-[1.5rem] border text-left transition-all duration-300 text-sm font-bold active:scale-95 group
               ${selected.includes(f.id)
-                ? "bg-[#8B1538] border-[#8B1538] text-white shadow-lg shadow-rose-900/20"
-                : "bg-white border-stone-200 text-stone-700 hover:border-[#8B1538] hover:bg-rose-50"
+                ? "bg-[#521118] border-[#521118] text-[#e8e4df] shadow-xl shadow-[#521118]/20"
+                : "bg-white border-[#2b090d]/5 text-stone-800 hover:border-[#521118]/30 hover:bg-[#521118]/5 shadow-sm"
               }`}
           >
-            <span className="text-lg flex-shrink-0">{f.icon}</span>
-            <span className="leading-tight text-xs">{f.label}</span>
+            <span className="text-xl flex-shrink-0 transition-transform group-hover:scale-110">{f.icon}</span>
+            <span className="leading-tight text-[11px] uppercase tracking-wider">{f.label}</span>
           </button>
         ))}
       </div>
       {selected.length > 0 && (
-        <p className="text-xs text-[#8B1538] font-bold mt-4">{selected.length} field{selected.length > 1 ? "s" : ""} selected</p>
+        <div className="text-[10px] text-[#521118] font-black uppercase tracking-[0.2em] mt-6 flex items-center gap-2">
+           <div className="w-1 h-1 rounded-full bg-[#521118] animate-pulse" />
+           {selected.length} field{selected.length > 1 ? "s" : ""} selected
+        </div>
       )}
     </div>
   );
@@ -245,29 +248,29 @@ function LocationPicker({ location, onChange }: { location: LocationData | null;
   }, [search, onChange]);
 
   return (
-    <div>
-      <h2 className="text-2xl font-serif font-bold text-stone-900 mb-2">Pin Your Location</h2>
-      <p className="text-stone-500 text-sm mb-5">Search for your city/municipality or click on the map to pin your location.</p>
+    <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
+      <h2 className="text-3xl font-black text-stone-900 mb-2 leading-tight" style={{ fontFamily: "'Neue Montreal', sans-serif" }}>Pin Your Location</h2>
+      <p className="text-stone-500 text-sm mb-8 font-medium">Search for your city/municipality or click on the map to pin your research area.</p>
 
       {/* Search bar */}
-      <div className="flex gap-2 mb-4">
+      <div className="flex gap-3 mb-6 bg-white/60 p-2 rounded-2xl border border-[#2b090d]/5 shadow-sm backdrop-blur-sm">
         <div className="flex-1 relative">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
+          <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#521118]/40" />
           <input
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
             onKeyDown={e => e.key === "Enter" && handleSearch()}
-            placeholder="Search city or municipality in Philippines…"
-            className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-stone-200 text-sm bg-white focus:outline-none focus:border-[#8B1538] focus:ring-2 focus:ring-rose-100"
+            placeholder="Search city/municipality in Philippines…"
+            className="w-full pl-11 pr-4 py-3 rounded-xl border-none text-sm bg-transparent focus:outline-none placeholder:text-stone-400 font-medium"
           />
         </div>
         <button
           onClick={handleSearch}
           disabled={searching}
-          className="px-4 py-2.5 bg-[#8B1538] text-white rounded-xl text-sm font-bold hover:bg-[#6D102C] transition-colors disabled:opacity-60 flex items-center gap-2"
+          className="px-6 py-3 bg-[#521118] text-[#e8e4df] rounded-xl text-[11px] font-black uppercase tracking-widest hover:bg-[#2b090d] transition-all disabled:opacity-40 flex items-center gap-2 active:scale-95 shadow-lg shadow-[#521118]/10"
         >
-          {searching ? <Loader2 size={14} className="animate-spin" /> : <MapPin size={14} />}
+          {searching ? <Loader2 size={16} className="animate-spin" /> : <MapPin size={16} />}
           {searching ? "" : "Search"}
         </button>
       </div>
@@ -276,14 +279,14 @@ function LocationPicker({ location, onChange }: { location: LocationData | null;
 
       {/* Map */}
       <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-      <div ref={mapRef} className="w-full rounded-2xl overflow-hidden border border-stone-200" style={{ height: "300px" }} />
+      <div ref={mapRef} className="w-full rounded-[2rem] overflow-hidden border border-[#2b090d]/10 shadow-inner" style={{ height: "320px" }} />
 
       {location && (
-        <div className="mt-4 flex items-start gap-2 p-3 bg-rose-50 rounded-xl border border-rose-100">
-          <MapPin size={14} className="text-[#8B1538] mt-0.5 flex-shrink-0" />
+        <div className="mt-6 flex items-start gap-3 p-4 bg-[#521118]/5 rounded-2xl border border-[#521118]/10 animate-in fade-in slide-in-from-top-2">
+          <MapPin size={18} className="text-[#521118] mt-0.5 flex-shrink-0" />
           <div>
-            <p className="text-xs font-bold text-[#8B1538]">Selected Location</p>
-            <p className="text-xs text-stone-600 mt-0.5 leading-tight">{location.name}</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-[#521118]">Selected Location</p>
+            <p className="text-[13px] text-stone-900 mt-1 font-bold leading-tight">{location.name}</p>
           </div>
         </div>
       )}
@@ -321,35 +324,37 @@ function ContextSelector({
   const clearResources = () => onResourcesChange([]);
 
   return (
-    <div>
-      <h2 className="text-2xl font-serif font-bold text-stone-900 mb-1">Choose Your Focus</h2>
-      <p className="text-stone-500 text-sm mb-5">
-        Select the <span className="font-bold text-stone-700">local problems</span> and <span className="font-bold text-stone-700">raw materials / resources</span> in{" "}
-        <span className="font-bold text-[#8B1538]">{location.name.split(",")[0]}</span> that your research will address. These directly shape the AI-generated topics.
+    <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
+      <h2 className="text-3xl font-black text-stone-900 mb-2 leading-tight" style={{ fontFamily: "'Neue Montreal', sans-serif" }}>Choose Your Focus</h2>
+      <p className="text-stone-500 text-sm mb-6 font-medium">
+        Select <span className="text-[#521118] font-bold">local problems</span> and <span className="text-[#521118] font-bold">resources</span> in{" "}
+        <span className="font-bold text-[#521118]">{location.name.split(",")[0]}</span> to shape your topics.
       </p>
 
       <div className="space-y-5">
         {/* Selected fields reminder */}
-        <div className="flex flex-wrap gap-1.5 p-3 rounded-xl bg-rose-50 border border-rose-100">
-          <BookOpen size={12} className="text-[#8B1538] mt-0.5 flex-shrink-0" />
-          {fieldLabels.map((label, i) => (
-            <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-[#8B1538] text-white font-bold">{label}</span>
-          ))}
+        <div className="flex flex-wrap gap-2 p-4 rounded-3xl bg-[#521118]/5 border border-[#521118]/10">
+          <BookOpen size={16} className="text-[#521118] mt-0.5 flex-shrink-0 opacity-40" />
+          <div className="flex flex-wrap gap-1.5 flex-1">
+            {fieldLabels.map((label, i) => (
+              <span key={i} className="text-[9px] px-3 py-1 rounded-full bg-[#521118] text-[#e8e4df] font-black uppercase tracking-[0.1em]">{label}</span>
+            ))}
+          </div>
         </div>
 
         {/* Problems multi-select */}
-        <div className="rounded-2xl border border-stone-200 overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 bg-stone-50 border-b border-stone-200">
-            <h3 className="text-xs font-black uppercase tracking-widest text-stone-800 flex items-center gap-2">
-              <Zap size={12} className="text-amber-500" /> Local Problems
+        <div className="rounded-[1.5rem] border border-[#2b090d]/10 overflow-hidden bg-white/60 backdrop-blur-sm shadow-sm ring-4 ring-transparent hover:ring-[#e8e4df]/40 transition-all duration-500">
+          <div className="flex items-center justify-between px-5 py-4 bg-[#521118]/5 border-b border-[#2b090d]/5">
+            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-stone-800 flex items-center gap-2">
+              <Zap size={14} className="text-amber-500" /> Local Problems
               {selectedProblems.length > 0 && (
-                <span className="ml-1 px-1.5 py-0.5 rounded-full bg-[#8B1538] text-white text-[9px] font-black">{selectedProblems.length}</span>
+                <span className="ml-1 px-2 py-0.5 rounded-full bg-[#521118] text-[#e8e4df] text-[9px] font-black">{selectedProblems.length}</span>
               )}
             </h3>
-            <div className="flex gap-2">
-              <button onClick={selectAllProblems} className="text-[10px] font-bold text-[#8B1538] hover:underline">All</button>
-              <span className="text-stone-300">|</span>
-              <button onClick={clearProblems} className="text-[10px] font-bold text-stone-400 hover:text-stone-700">Clear</button>
+            <div className="flex gap-3">
+              <button onClick={selectAllProblems} className="text-[10px] font-black uppercase tracking-widest text-[#521118] hover:underline">All</button>
+              <div className="w-px h-3 bg-[#2b090d]/10" />
+              <button onClick={clearProblems} className="text-[10px] font-black uppercase tracking-widest text-stone-400 hover:text-[#521118]">Clear</button>
             </div>
           </div>
           <div className="p-3 flex flex-col gap-2">
@@ -359,15 +364,15 @@ function ContextSelector({
                 <button
                   key={i}
                   onClick={() => toggleProblem(p)}
-                  className={`flex items-center gap-3 w-full text-left px-3 py-2.5 rounded-xl border transition-all duration-200 text-sm
+                  className={`flex items-center gap-4 w-full text-left px-5 py-4 rounded-2xl border transition-all duration-300 text-[13px] font-bold group
                     ${active
-                      ? "bg-[#8B1538] border-[#8B1538] text-white shadow-md shadow-rose-900/15"
-                      : "bg-white border-stone-200 text-stone-700 hover:border-[#8B1538] hover:bg-rose-50"
+                      ? "bg-[#521118] border-[#521118] text-[#e8e4df] shadow-xl shadow-[#521118]/15"
+                      : "bg-white border-[#2b090d]/5 text-stone-700 hover:border-[#521118]/30 hover:bg-[#521118]/5"
                     }`}
                 >
-                  <span className={`w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-colors
-                    ${active ? "border-white bg-white" : "border-stone-300"}`}>
-                    {active && <span className="w-2 h-2 rounded-full bg-[#8B1538]" />}
+                  <span className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all duration-300
+                    ${active ? "border-[#e8e4df] bg-[#e8e4df]" : "border-stone-300 group-hover:border-[#521118]"}`}>
+                    {active && <span className="w-2.5 h-2.5 rounded-full bg-[#521118]" />}
                   </span>
                   <span className="capitalize leading-tight">{p}</span>
                 </button>
@@ -377,18 +382,18 @@ function ContextSelector({
         </div>
 
         {/* Resources multi-select */}
-        <div className="rounded-2xl border border-stone-200 overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 bg-stone-50 border-b border-stone-200">
-            <h3 className="text-xs font-black uppercase tracking-widest text-stone-800 flex items-center gap-2">
-              <Sparkles size={12} className="text-[#8B1538]" /> Raw Materials &amp; Resources
+        <div className="rounded-[1.5rem] border border-[#2b090d]/10 overflow-hidden bg-white/60 backdrop-blur-sm shadow-sm ring-4 ring-transparent hover:ring-[#e8e4df]/40 transition-all duration-500">
+          <div className="flex items-center justify-between px-5 py-4 bg-[#521118]/5 border-b border-[#2b090d]/5">
+            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-stone-800 flex items-center gap-2">
+              <Sparkles size={14} className="text-[#521118]" /> Raw Materials & Resources
               {selectedResources.length > 0 && (
-                <span className="ml-1 px-1.5 py-0.5 rounded-full bg-[#8B1538] text-white text-[9px] font-black">{selectedResources.length}</span>
+                <span className="ml-1 px-2 py-0.5 rounded-full bg-[#521118] text-[#e8e4df] text-[9px] font-black">{selectedResources.length}</span>
               )}
             </h3>
-            <div className="flex gap-2">
-              <button onClick={selectAllResources} className="text-[10px] font-bold text-[#8B1538] hover:underline">All</button>
-              <span className="text-stone-300">|</span>
-              <button onClick={clearResources} className="text-[10px] font-bold text-stone-400 hover:text-stone-700">Clear</button>
+            <div className="flex gap-3">
+              <button onClick={selectAllResources} className="text-[10px] font-black uppercase tracking-widest text-[#521118] hover:underline">All</button>
+              <div className="w-px h-3 bg-[#2b090d]/10" />
+              <button onClick={clearResources} className="text-[10px] font-black uppercase tracking-widest text-stone-400 hover:text-[#521118]">Clear</button>
             </div>
           </div>
           <div className="p-3 flex flex-wrap gap-2">
@@ -398,15 +403,15 @@ function ContextSelector({
                 <button
                   key={i}
                   onClick={() => toggleResource(r)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-semibold transition-all duration-200 capitalize
+                  className={`flex items-center gap-3 px-4 py-2.5 rounded-2xl border text-[11px] font-black uppercase tracking-widest transition-all duration-300 active:scale-95 group
                     ${active
-                      ? "bg-[#8B1538] border-[#8B1538] text-white shadow-md shadow-rose-900/15"
-                      : "bg-white border-stone-200 text-stone-700 hover:border-[#8B1538] hover:bg-rose-50"
+                      ? "bg-[#521118] border-[#521118] text-[#e8e4df] shadow-md shadow-[#521118]/15"
+                      : "bg-white border-[#2b090d]/5 text-stone-700 hover:border-[#521118]/30 hover:bg-[#521118]/5"
                     }`}
                 >
-                  <span className={`w-3.5 h-3.5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-colors
-                    ${active ? "border-white bg-white" : "border-stone-300"}`}>
-                    {active && <span className="w-1.5 h-1.5 rounded-full bg-[#8B1538]" />}
+                  <span className={`w-3.5 h-3.5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all duration-300
+                    ${active ? "border-[#e8e4df] bg-[#e8e4df]" : "border-stone-300 group-hover:border-[#521118]"}`}>
+                    {active && <span className="w-2 h-2 rounded-full bg-[#521118]" />}
                   </span>
                   {r}
                 </button>
@@ -417,9 +422,10 @@ function ContextSelector({
 
         {/* Summary hint */}
         {(selectedProblems.length > 0 || selectedResources.length > 0) && (
-          <p className="text-xs text-stone-400 font-medium leading-relaxed">
-            ✅ {selectedProblems.length} problem{selectedProblems.length !== 1 ? "s" : ""} · {selectedResources.length} resource{selectedResources.length !== 1 ? "s" : ""} selected — click <span className="text-[#8B1538] font-bold">Generate Topics</span> to continue.
-          </p>
+          <div className="text-[10px] text-stone-400 font-black uppercase tracking-widest leading-relaxed flex items-center gap-2">
+             <div className="w-1.5 h-1.5 rounded-full bg-[#521118] animate-pulse" />
+             {selectedProblems.length} problem{selectedProblems.length !== 1 ? "s" : ""} · {selectedResources.length} resource{selectedResources.length !== 1 ? "s" : ""} selected
+          </div>
         )}
       </div>
     </div>
@@ -436,19 +442,22 @@ function ContextLoader({ location, fields }: { location: string; fields: string[
     return () => clearInterval(t);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   return (
-    <div className="flex flex-col items-center justify-center py-16 gap-6">
+    <div className="flex flex-col items-center justify-center py-20 gap-8 animate-in fade-in duration-700">
       <div className="relative">
-        <div className="w-16 h-16 rounded-full border-4 border-rose-100 border-t-[#8B1538] animate-spin" />
-        <Sparkles size={20} className="absolute inset-0 m-auto text-[#8B1538]" />
+        <div className="absolute inset-0 bg-[#521118]/10 blur-2xl rounded-full scale-110 animate-pulse" />
+        <div className="w-20 h-20 rounded-[2rem] border-4 border-[#e8e4df] border-t-[#521118] animate-spin relative" />
+        <Sparkles size={24} className="absolute inset-0 m-auto text-[#521118] animate-pulse" />
       </div>
-      <div className="text-center space-y-2">
-        <p className="font-bold text-stone-900 text-lg">Analyzing your context…</p>
-        <p className="text-sm text-stone-500 max-w-xs leading-relaxed">
+      <div className="text-center space-y-3">
+        <p className="font-black text-stone-900 text-xl" style={{ fontFamily: "'Neue Montreal', sans-serif" }}>Analyzing your context…</p>
+        <p className="text-sm text-stone-500 max-w-xs mx-auto leading-relaxed font-medium">
           AI is generating problems and raw materials specific to{" "}
-          <span className="font-bold text-[#8B1538]">{location.split(",")[0]}</span>{" "}
+          <span className="font-bold text-[#521118]">{location.split(",")[0]}</span>{" "}
           for <span className="font-bold text-stone-700">{fieldLabels}</span>
         </p>
-        <p className="text-[11px] text-stone-400 font-medium animate-pulse">{dots[dotIdx]}…</p>
+        <div className="flex flex-col items-center gap-2 mt-4">
+          <p className="text-[10px] text-[#521118]/60 font-black uppercase tracking-[0.2em] animate-pulse">{dots[dotIdx]}…</p>
+        </div>
       </div>
     </div>
   );
@@ -559,27 +568,27 @@ export default function GenerateResearchModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/50 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md" onClick={onClose}>
       <div
-        className="bg-white rounded-[32px] w-full max-w-2xl shadow-2xl relative flex flex-col max-h-[92vh]"
+        className="bg-white/90 backdrop-blur-xl rounded-[2.5rem] w-full max-w-2xl shadow-2xl relative flex flex-col max-h-[92vh] border border-[#2b090d]/10 ring-8 ring-[#e8e4df]/40"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-8 pt-8 pb-0 flex-shrink-0">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-rose-50 border border-rose-100 text-[10px] font-black uppercase tracking-widest text-[#8B1538]">
+        <div className="flex items-center justify-between px-10 pt-10 pb-2 flex-shrink-0">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#521118]/5 border border-[#521118]/10 text-[10px] font-black uppercase tracking-[0.25em] text-[#521118]">
             <Sparkles size={12} />
             <span>AI Research Generator</span>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full flex items-center justify-center bg-stone-100 hover:bg-stone-200 text-stone-500 hover:text-stone-900 transition-colors"
+            className="w-10 h-10 rounded-full flex items-center justify-center bg-[#521118]/5 hover:bg-[#521118]/10 text-[#521118]/40 hover:text-[#521118] transition-all duration-300"
           >
-            <X size={16} />
+            <X size={20} />
           </button>
         </div>
 
         {/* Step indicator */}
-        <div className="px-8 pt-6 pb-0 flex-shrink-0">
+        <div className="px-10 pt-10 pb-0 flex-shrink-0">
           <StepIndicator current={step} total={3} />
         </div>
 
@@ -606,15 +615,18 @@ export default function GenerateResearchModal({
         </div>
 
         {/* Footer */}
-        <div className="px-8 pb-8 pt-4 flex-shrink-0 border-t border-stone-100">
+        <div className="px-10 pb-10 pt-6 flex-shrink-0 border-t border-[#2b090d]/5">
           {(genError || contextError) && (
-            <p className="text-red-500 text-xs mb-3 font-semibold">{genError || contextError}</p>
+            <div className="bg-red-50 border border-red-100 text-red-600 px-4 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest mb-4 flex items-center gap-2">
+               <AlertTriangle size={14} />
+               {genError || contextError}
+            </div>
           )}
           <div className="flex justify-between items-center">
             {step > 0 && !loadingContext ? (
               <button
                 onClick={() => setStep(s => s - 1)}
-                className="flex items-center gap-2 text-stone-500 hover:text-stone-900 font-bold text-sm transition-colors"
+                className="flex items-center gap-2 text-[#521118]/60 hover:text-[#521118] font-black uppercase tracking-widest text-[11px] transition-all duration-300 hover:-translate-x-1"
               >
                 <ChevronLeft size={16} /> Back
               </button>
@@ -624,14 +636,15 @@ export default function GenerateResearchModal({
               <button
                 onClick={handleNext}
                 disabled={!canNext() || generating}
-                className="flex items-center gap-2 bg-[#8B1538] hover:bg-[#6D102C] disabled:bg-stone-200 disabled:text-stone-400 text-white px-6 py-3 rounded-2xl font-bold text-sm transition-all"
+                className="group relative flex items-center gap-3 bg-[#521118] hover:bg-[#2b090d] disabled:bg-stone-100 disabled:text-stone-400 text-[#e8e4df] px-10 py-4 rounded-2xl font-black uppercase tracking-widest text-[11px] transition-all duration-300 shadow-xl shadow-[#521118]/20 overflow-hidden active:scale-95"
               >
+                <div className="absolute inset-0 w-1/2 h-full bg-white/10 skew-x-[-20deg] group-hover:translate-x-[200%] transition-transform duration-700" />
                 {generating ? (
-                  <><Loader2 size={16} className="animate-spin" /> Generating…</>
+                  <><Loader2 size={16} className="animate-spin relative z-10" /> <span className="relative z-10">Processing…</span></>
                 ) : step === 2 ? (
-                  <><Sparkles size={16} /> Generate Topics</>
+                   <><Sparkles size={16} className="transition-transform group-hover:scale-125 group-hover:rotate-12 relative z-10" /> <span className="relative z-10">Generate Topics</span></>
                 ) : (
-                  <>Next <ChevronRight size={16} /></>
+                  <><span className="relative z-10">Next Step</span> <ChevronRight size={16} className="transition-transform group-hover:translate-x-1 relative z-10" /></>
                 )}
               </button>
             )}

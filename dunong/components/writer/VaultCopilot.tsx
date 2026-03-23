@@ -205,9 +205,10 @@ export default function VaultCopilot({
             {m.documentEdit && (
               <button
                 onClick={() => onApplyEdit(m.documentEdit!)}
-                className="w-full mt-3 py-2 bg-[#521118]/5 text-[#521118] border border-[#521118]/10 text-[12px] font-bold rounded-xl hover:bg-[#521118] hover:text-white transition-all shadow-sm group"
+                className="group relative w-full mt-3 py-3 bg-[#521118]/5 text-[#521118] border border-[#521118]/10 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-[#521118] hover:text-white transition-all duration-300 shadow-sm overflow-hidden active:scale-95"
               >
-                <span className="group-hover:-translate-y-0.5 inline-block transition-transform">✎</span> Apply Edit to Document
+                <div className="absolute inset-0 w-1/2 h-full bg-white/10 skew-x-[-20deg] group-hover:translate-x-[200%] transition-transform duration-700" />
+                <span className="group-hover:-translate-y-0.5 inline-block transition-transform mr-1.5">✎</span> Apply Edit to Document
               </button>
             )}
             {m.inlineCitation && (
@@ -278,9 +279,10 @@ export default function VaultCopilot({
           <button
             onClick={() => send()}
             disabled={loading || !input.trim()}
-            className="w-8 h-8 mb-0.5 mr-0.5 shrink-0 rounded-xl flex items-center justify-center font-bold text-base transition-all disabled:opacity-30 disabled:cursor-not-allowed bg-[#521118] text-white hover:bg-[#8B1A1A] shadow-sm"
+            className="group relative w-10 h-10 mb-0.5 mr-0.5 shrink-0 rounded-xl flex items-center justify-center font-bold text-base transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed bg-[#521118] text-white hover:bg-[#8B1A1A] shadow-lg shadow-[#521118]/20 overflow-hidden active:scale-95"
           >
-            ↑
+            <div className="absolute inset-0 w-1/2 h-full bg-white/10 skew-x-[-20deg] group-hover:translate-x-[200%] transition-transform duration-700" />
+            <span className="relative z-10 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5">↑</span>
           </button>
         </div>
         <p className="text-[10px] font-semibold text-[#2b090d]/30 text-center mt-2.5">

@@ -497,10 +497,11 @@ export default function CredibilityPage() {
                 <button
                   onClick={handleAnalyze}
                   disabled={analyzing || (mode === 'link' && !urlOrDoi.trim()) || (mode === 'file' && !file) || (mode === 'library' && !selectedArticle)}
-                  className="bg-[#521118] text-[#e8e4df] px-8 rounded-2xl font-bold hover:bg-[#2b090d] transition-all disabled:opacity-40 shadow-md shadow-[#521118]/10 flex items-center justify-center gap-2 h-16 min-w-[160px]"
+                  className="group relative bg-[#521118] text-[#e8e4df] px-8 rounded-2xl font-bold hover:bg-[#2b090d] transition-all duration-300 disabled:opacity-40 shadow-xl shadow-[#521118]/20 flex items-center justify-center gap-3 h-16 min-w-[180px] overflow-hidden active:scale-95"
                 >
-                  {analyzing ? <Loader2 size={18} className="animate-spin" /> : <ShieldCheck size={18} />}
-                  {analyzing ? 'Analyzing...' : 'Analyze'}
+                  <div className="absolute inset-0 w-1/2 h-full bg-white/10 skew-x-[-20deg] group-hover:translate-x-[200%] transition-transform duration-700" />
+                  {analyzing ? <Loader2 size={20} className="animate-spin" /> : <ShieldCheck size={20} className="transition-transform group-hover:scale-110" />}
+                  <span className="uppercase tracking-widest text-xs font-black">{analyzing ? 'Analyzing...' : 'Analyze Content'}</span>
                 </button>
               </div>
             </motion.div>

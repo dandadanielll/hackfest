@@ -108,10 +108,11 @@ const PageSheet = ({
           <div className="flex items-center gap-1.5 bg-[#f9f7f4] p-1 rounded-xl border border-[#2b090d]/5">
             <button 
               onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); acceptProposal(p.id); }} 
-              className="flex-1 px-3 h-7 flex items-center justify-center gap-1 bg-[#521118] text-white hover:bg-[#8B1A1A] hover:scale-105 active:scale-95 rounded-lg transition-all font-bold text-[11px] shadow-md shadow-[#521118]/20"
+              className="group relative flex-1 px-4 h-9 flex items-center justify-center gap-1.5 bg-[#521118] text-white hover:bg-[#8B1A1A] rounded-xl transition-all font-black text-[10px] uppercase tracking-widest shadow-lg shadow-[#521118]/20 overflow-hidden active:scale-95"
               title="Accept Edit"
             >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              <div className="absolute inset-0 w-1/2 h-full bg-white/10 skew-x-[-20deg] group-hover:translate-x-[200%] transition-transform duration-700" />
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="transition-transform group-hover:scale-110"><polyline points="20 6 9 17 4 12"></polyline></svg>
               ACCEPT
             </button>
             <button 
@@ -877,8 +878,9 @@ export default function WriterEditor({ notebook, folder, onBack }: Props) {
             <div className="relative">
               <button
                 onClick={() => setShowExportMenu(!showExportMenu)}
-                className="flex items-center gap-1.5 text-xs font-bold text-white bg-[#8B1A1A] px-4 py-2 rounded-xl hover:bg-[#6B1212] shadow-sm shadow-[#8B1A1A]/20 transition-all"
+                className="group relative flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-[#e8e4df] bg-[#8B1A1A] px-5 py-2.5 rounded-xl hover:bg-[#6B1212] shadow-xl shadow-[#8B1A1A]/20 transition-all duration-300 overflow-hidden active:scale-95"
               >
+                <div className="absolute inset-0 w-1/2 h-full bg-white/10 skew-x-[-20deg] group-hover:translate-x-[200%] transition-transform duration-700" />
                 Export
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-200 ${showExportMenu ? 'rotate-180' : ''}`}><polyline points="6 9 12 15 18 9"></polyline></svg>
               </button>

@@ -53,14 +53,50 @@ export default function ResearchDashboard() {
   const { saveArticle, folders } = useLibrary();
   const { addLog, startLogGroup } = useDevMode();
   const [mounted, setMounted] = useState(false);
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(() => {
+    if (typeof window === "undefined") return "";
+    try {
+      const raw = sessionStorage.getItem("dunong_search");
+      return raw ? JSON.parse(raw).query || "" : "";
+    } catch { return ""; }
+  });
   const [isSearching, setIsSearching] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [resultsMode, setResultsMode] = useState(false);
-  const [localOnly, setLocalOnly] = useState(true);
-  const [articles, setArticles] = useState<Article[]>([]);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
+  const [resultsMode, setResultsMode] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      const raw = sessionStorage.getItem("dunong_search");
+      return raw ? !!JSON.parse(raw).resultsMode : false;
+    } catch { return false; }
+  });
+  const [localOnly, setLocalOnly] = useState(() => {
+    if (typeof window === "undefined") return true;
+    try {
+      const raw = sessionStorage.getItem("dunong_search");
+      return raw ? JSON.parse(raw).localOnly !== false : true;
+    } catch { return true; }
+  });
+  const [articles, setArticles] = useState<Article[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const raw = sessionStorage.getItem("dunong_search");
+      return raw ? JSON.parse(raw).articles || [] : [];
+    } catch { return []; }
+  });
+  const [page, setPage] = useState(() => {
+    if (typeof window === "undefined") return 1;
+    try {
+      const raw = sessionStorage.getItem("dunong_search");
+      return raw ? JSON.parse(raw).page || 1 : 1;
+    } catch { return 1; }
+  });
+  const [hasMore, setHasMore] = useState(() => {
+    if (typeof window === "undefined") return true;
+    try {
+      const raw = sessionStorage.getItem("dunong_search");
+      return raw ? JSON.parse(raw).hasMore !== false : true;
+    } catch { return true; }
+  });
   const [expandedCards, setExpandedCards] = useState<ExpandedCardState>({});
   const [bookmarkPopupArticle, setBookmarkPopupArticle] = useState<Article | null>(null);
   const [recentlySaved, setRecentlySaved] = useState<Record<string, boolean>>({});
@@ -76,20 +112,8 @@ export default function ResearchDashboard() {
   const inputRef = useRef<HTMLInputElement>(null);
   const filterMenuRef = useRef<HTMLDivElement>(null);
 
-  // Mount + restore session
+  // Mount management
   useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem("dunong_search");
-      if (raw) {
-        const session = JSON.parse(raw);
-        if (session.query) setQuery(session.query);
-        if (session.articles?.length) setArticles(session.articles);
-        if (session.localOnly !== undefined) setLocalOnly(session.localOnly); 
-        if (session.resultsMode) setResultsMode(session.resultsMode);
-        if (session.page) setPage(session.page);
-        if (session.hasMore !== undefined) setHasMore(session.hasMore);
-      }
-    } catch { /* ignore */ }
     setMounted(true);
   }, []);
 
@@ -369,7 +393,7 @@ export default function ResearchDashboard() {
     return "text-red-700 bg-red-50 border-red-200";
   };
 
-  const isHeroVisible = !resultsMode && !isSearching;
+  const isHeroVisible = !resultsMode;
 
   if (!mounted) return null;
 
@@ -390,24 +414,25 @@ export default function ResearchDashboard() {
       )}
 
       <div className={`flex-1 flex flex-col items-center ${resultsMode ? "px-8 py-8 justify-start" : "justify-center px-4"} relative`}>
-        {/* New Search Button (Top Left) */}
+        {/* New Research Button (Top Left) */}
         <AnimatePresence>
           {resultsMode && (
             <motion.button
+              key="new-research-btn"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               onClick={handleNewSearch}
-              className="absolute top-8 left-8 z-30 flex items-center gap-1.5 text-sm font-bold text-[#521118]/70 hover:text-[#521118] transition bg-white/80 backdrop-blur-md border border-[#2b090d]/10 px-4 py-2 rounded-xl shadow-md shadow-[#2b090d]/5 group"
+              className="group absolute top-8 left-8 z-[80] flex items-center gap-2 text-sm font-bold text-[#521118] hover:text-[#2b090d] hover:bg-[#521118]/5 transition-all bg-white border border-[#2b090d]/20 px-3 py-1.5 rounded-xl shadow-sm hover:shadow-md shadow-[#2b090d]/5 active:scale-95"
             >
               <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
-              New Search
+              <span>New Research</span>
             </motion.button>
           )}
         </AnimatePresence>
 
         {/* Hero */}
-        <AnimatePresence mode="popLayout">
+        <AnimatePresence>
           {isHeroVisible && (
             <motion.div
               key="hero"
@@ -415,29 +440,83 @@ export default function ResearchDashboard() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.4 } }}
               transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-              className="max-w-3xl text-center mb-10 w-full"
+              className="w-full max-w-6xl flex flex-col md:flex-row items-center justify-between mb-16 gap-12"
             >
-              <div className="flex justify-center w-full">
-                <img
-                  src="/logo.png"
-                  alt="SaLiksi Logo"
-                  className="w-48 h-48 md:w-56 md:h-56 object-contain mb-2 select-none pointer-events-none drop-shadow-sm"
-                  draggable="false"
-                />
+              {/* Left Content Side */}
+              <div className="flex-1 text-left flex flex-col items-start">
+                <div className="inline-block px-4 py-1.5 rounded-full bg-[#521118]/5 border border-[#521118]/10 text-[#521118]/70 text-[11px] font-black uppercase tracking-[0.2em] mb-8">
+                  For Filipino Researchers
+                </div>
+                <h1 className="text-6xl md:text-8xl font-black text-[#2b090d] tracking-tight leading-[0.9] mb-10 font-serif">
+                  Research <span className="text-[#521118]/60 italic font-medium">for</span> <br />
+                  the <span className="text-[#D97706] italic">Iskolar.</span>
+                </h1>
+                
+                <div className="space-y-3.5 border-t border-[#2b090d]/10 pt-10 w-full max-w-sm">
+                  {[
+                    "Discover credible local research.",
+                    "Analyze contradictions.",
+                    "Synthesize real insights."
+                  ].map((feature, i) => (
+                    <div key={i} className="flex items-center gap-3">
+                      <div className="w-1.5 h-1.5 rounded-full bg-[#521118]/30" />
+                      <p className="text-stone-600 text-lg font-medium leading-tight">{feature}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
 
-              <h1 className="text-5xl md:text-6xl font-black text-[#2b090d] tracking-tight leading-[1.05] font-serif">
-                SaLiksi
-                <span className="text-[#521118]">,</span>
-                <br />
-                <span className="text-3xl md:text-4xl font-semibold italic text-[#521118]/80">
-                  ang maliksing pananaliksik
-                </span>
-              </h1>
-              <p className="mt-5 text-lg text-stone-500 max-w-2xl mx-auto font-medium leading-relaxed">
-                40 tabs. Zero answers. There&apos;s a better way.{" "}
-                <span className="font-bold text-[#521118] not-italic">I-SaLiksi mo.</span>
-              </p>
+              {/* Right Branding Side */}
+              <div className="flex flex-col items-center text-center relative">
+                <div className="relative mb-0.5">
+                  {/* Sun Rays Background */}
+                  <div className="absolute inset-0 z-0 flex items-center justify-center scale-[1.7]">
+                    <svg 
+                      viewBox="0 0 100 100" 
+                      className="w-full h-full text-[#521118]/[0.07] animate-spin"
+                      style={{ animationDuration: '180s' }}
+                    >
+                      <circle cx="50" cy="50" r="16" fill="currentColor" />
+                      {/* Thick Rays */}
+                      {[...Array(8)].map((_, i) => (
+                         <polygon
+                           key={`thick-${i}`}
+                           points="50,0 54,45 46,45"
+                           fill="currentColor"
+                           transform={`rotate(${i * 45} 50 50)`}
+                         />
+                      ))}
+                      {/* Thin Rays */}
+                      {[...Array(24)].map((_, i) => (
+                        <rect
+                          key={`thin-${i}`}
+                          x="49.7"
+                          y="0"
+                          width="0.6"
+                          height="50"
+                          fill="currentColor"
+                          transform={`rotate(${i * 15} 50 50)`}
+                        />
+                      ))}
+                    </svg>
+                  </div>
+                  
+                  <img
+                    src="/logo.png"
+                    alt="SaLiksi Logo"
+                    className="w-48 h-48 md:w-80 md:h-80 object-contain select-none pointer-events-none drop-shadow-sm transition-transform duration-700 hover:scale-105"
+                    draggable="false"
+                  />
+                </div>
+                <div className="flex flex-col items-center -mt-4 md:-mt-6">
+                  <h2 className="text-6xl md:text-7xl font-black text-[#2b090d] tracking-tight leading-none mb-2">
+                    <span className="font-serif">sa</span><span className="italic" style={{ fontFamily: "'Neue Montreal', sans-serif" }}>Liksi</span>
+                  </h2>
+                  <p className="text-lg font-bold italic text-[#521118]/80 leading-none">
+                    ang mabiisang pananaliksik
+                  </p>
+                </div>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -453,7 +532,7 @@ export default function ResearchDashboard() {
           transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
           className={`w-full max-w-4xl relative z-[60] mx-auto ${resultsMode ? "mb-6" : ""}`}
         >
-          <form onSubmit={handleSearch} className="relative group">
+          <form onSubmit={handleSearch} className="relative">
             <div className={`relative transition-all duration-500 rounded-[2.5rem] p-3 flex ring-4 ${inputFocused
               ? "bg-[#f4f2f0] border-[#521118]/40 shadow-[0_20px_80px_-15px_rgba(82,17,24,0.35)] ring-[#521118]/15"
               : "bg-[#e8e4df]/85 backdrop-blur-md border-[#2b090d]/20 shadow-[0_20px_80px_-15px_rgba(43,9,13,0.30)] ring-[#e8e4df]/60"
@@ -475,10 +554,11 @@ export default function ResearchDashboard() {
                 <button
                   type="submit"
                   disabled={!query.trim() || isSearching}
-                  className="bg-[#521118] text-[#e8e4df] h-full px-7 rounded-2xl text-base font-bold shadow-md hover:bg-[#2b090d] transition-all duration-300 active:scale-95 disabled:opacity-50 flex items-center gap-2 group/btn"
+                  className="group relative bg-[#521118] text-[#e8e4df] h-full px-8 rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl shadow-[#521118]/20 hover:bg-[#2b090d] transition-all duration-300 active:scale-95 disabled:opacity-50 flex items-center gap-3 overflow-hidden"
                 >
+                  <div className="absolute inset-0 w-1/2 h-full bg-white/10 skew-x-[-20deg] group-hover:translate-x-[200%] transition-transform duration-700" />
                   {isSearching && !resultsMode ? <span className="animate-pulse">Searching</span> : <span>Research</span>}
-                  <ArrowRight size={18} />
+                  <ArrowRight size={18} className="transition-transform group-hover:translate-x-1" />
                 </button>
               </div>
             </div>
@@ -769,8 +849,9 @@ export default function ResearchDashboard() {
                       runSearch(query, localOnly, nextPage, articles);
                     }}
                     disabled={loadingMore}
-                    className="flex items-center gap-2 px-8 py-3.5 rounded-2xl font-bold text-sm bg-white border border-[#2b090d]/10 text-[#521118] hover:bg-[#521118]/5 hover:border-[#521118]/30 transition shadow-sm disabled:opacity-60 disabled:cursor-not-allowed group active:scale-[0.98]"
+                    className="group relative flex items-center gap-3 px-10 py-4 rounded-2xl font-black uppercase tracking-widest text-[11px] bg-white border border-[#2b090d]/10 text-[#521118] hover:bg-[#521118]/5 hover:border-[#521118]/30 transition-all duration-500 shadow-xl shadow-[#2b090d]/5 disabled:opacity-60 disabled:cursor-not-allowed overflow-hidden active:scale-95"
                   >
+                    <div className="absolute inset-0 w-1/2 h-full bg-[#521118]/5 skew-x-[-20deg] group-hover:translate-x-[200%] transition-transform duration-700" />
                     {loadingMore ? (
                       <>
                         <div className="w-4 h-4 border-2 border-[#521118]/30 border-t-[#521118] rounded-full animate-spin" />

@@ -37,6 +37,7 @@ interface Frontier {
 
 
 /* ─── Data ───────────────────────────────────────────────────── */
+// Colors synced to brand maroon #521118
 const phTopics: Topic[] = [
   {
     rank: 1, title: "PUV Modernization Socio-Economic Displacement", tag: "Transport", match: 94,
@@ -359,46 +360,45 @@ function ResearchPopup({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/50 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-[32px] p-8 md:p-10 max-w-2xl w-full shadow-2xl relative flex flex-col max-h-[90vh]"
+        className="bg-white/90 backdrop-blur-xl rounded-[2.5rem] p-8 md:p-12 max-w-2xl w-full shadow-2xl relative flex flex-col max-h-[90vh] border border-[#2b090d]/10 ring-8 ring-[#e8e4df]/40"
         onClick={e => e.stopPropagation()}
       >
         {/* Header row */}
         <div className="flex items-center justify-between mb-6 flex-shrink-0">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-rose-50 border border-rose-100 text-[10px] font-black uppercase tracking-widest text-[#8B1538]">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#521118]/5 border border-[#521118]/10 text-[10px] font-black uppercase tracking-widest text-[#521118]">
             <Sparkles size={12} />
             <span>{tag}</span>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full flex items-center justify-center bg-stone-100 hover:bg-stone-200 text-stone-500 hover:text-stone-900 transition-colors"
+            className="w-10 h-10 rounded-full flex items-center justify-center bg-[#521118]/5 hover:bg-[#521118]/10 text-[#521118]/40 hover:text-[#521118] transition-all duration-300"
           >
-            <X size={16} />
+            <X size={20} />
           </button>
         </div>
 
 
         {/* Scrollable body */}
         <div className="overflow-y-auto flex-1 pr-1">
-          <h2 className="text-2xl md:text-3xl font-serif font-bold text-stone-900 mb-3 leading-tight">{item.title}</h2>
+          <h2 className="text-2xl md:text-3xl font-black text-stone-900 mb-2 leading-tight" style={{ fontFamily: "'Neue Montreal', sans-serif" }}>{item.title}</h2>
 
-
-          <div className="flex items-center gap-3 mb-7 text-xs font-bold text-stone-400 uppercase tracking-widest">
-            <span className="text-[#8B1538]">Curated Data</span>
+          <div className="flex items-center gap-3 mb-8 text-[10px] font-black text-[#521118]/40 uppercase tracking-[0.25em]">
+            <span>Curated Research Data</span>
           </div>
 
 
-          <div className="space-y-6 text-stone-600 text-sm leading-relaxed">
+          <div className="space-y-6 text-sm leading-relaxed">
             <div>
-              <strong className="text-stone-900 block mb-2 text-[10px] uppercase tracking-widest">Problem Statement</strong>
-              <p>{item.problem}</p>
+              <strong className="text-stone-900 block mb-2 text-[10px] font-black uppercase tracking-widest text-[#521118]/60">Problem Statement</strong>
+              <p className="bg-[#521118]/5 p-5 rounded-2xl border border-[#521118]/10 text-stone-700">{item.problem}</p>
             </div>
             <div>
-              <strong className="text-stone-900 block mb-2 text-[10px] uppercase tracking-widest">
-                {isResearchFrontier ? "Current Research & Opportunity" : "AI Synthesis & Opportunity"}
+              <strong className="text-stone-900 block mb-2 text-[10px] font-black uppercase tracking-widest text-[#521118]/60">
+                Potential Direction
               </strong>
               <p>{item.opportunity}</p>
             </div>
@@ -413,29 +413,31 @@ function ResearchPopup({
 
 
         {/* Footer */}
-        <div className="mt-6 flex-shrink-0 flex flex-col gap-3">
+        <div className="mt-8 flex-shrink-0 flex flex-col gap-4">
           {isResearchFrontier ? (
             <>
               <button
                 onClick={() => { onGenerateGaps?.(); onClose(); }}
-                className="w-full bg-[#8B1538] hover:bg-[#6D102C] text-white py-4 rounded-2xl font-bold transition-colors flex items-center justify-center gap-2"
+                className="group relative w-full bg-[#521118] hover:bg-[#2b090d] text-[#e8e4df] py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all duration-300 flex items-center justify-center gap-3 shadow-xl shadow-[#521118]/20 overflow-hidden active:scale-95"
               >
-                <AlertTriangle size={16} /> Find Research Gaps & Improvements
+                <div className="absolute inset-0 w-1/2 h-full bg-white/10 skew-x-[-20deg] group-hover:translate-x-[200%] transition-transform duration-700" />
+                <AlertTriangle size={18} className="transition-transform group-hover:scale-110" /> Find Research Gaps & Improvements
               </button>
-              <p className="text-center text-[10px] text-stone-400 font-medium">
-                AI will generate 5 topics highlighting what this study lacks or can be improved
+              <p className="text-center text-[10px] text-stone-400 font-black uppercase tracking-widest">
+                AI will identify key missing elements or areas for improvement
               </p>
             </>
           ) : (
             <>
               <button
                 onClick={() => { onUseAsTopic?.(); onClose(); }}
-                className="w-full bg-[#8B1538] hover:bg-[#6D102C] text-white py-4 rounded-2xl font-bold transition-colors flex items-center justify-center gap-2"
+                className="group relative w-full bg-[#521118] hover:bg-[#2b090d] text-[#e8e4df] py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all duration-300 flex items-center justify-center gap-3 shadow-xl shadow-[#521118]/20 overflow-hidden active:scale-95"
               >
-                <Sparkles size={16} /> Auto-Generate Topics
+                <div className="absolute inset-0 w-1/2 h-full bg-white/10 skew-x-[-20deg] group-hover:translate-x-[200%] transition-transform duration-700" />
+                <Sparkles size={18} className="transition-transform group-hover:scale-110" /> Auto-Generate Topics
               </button>
-              <p className="text-center text-[10px] text-stone-400 font-medium">
-                AI will instantly generate 5 research topics addressing this problem
+              <p className="text-center text-[10px] text-stone-400 font-black uppercase tracking-widest">
+                AI will instantly generate 5 research topics for this problem
               </p>
             </>
           )}
@@ -452,30 +454,30 @@ function FrontierCard({ trend, height, onClick }: { trend: Frontier; height: str
   return (
     <div
       onClick={onClick}
-      className={`p-6 md:p-8 rounded-[32px] border transition-transform duration-300 hover:-translate-y-2 flex flex-col justify-between group w-full cursor-pointer min-h-[200px]
+      className={`p-6 md:p-8 rounded-[2.5rem] border transition-all duration-500 hover:-translate-y-2 flex flex-col justify-between group w-full cursor-pointer min-h-[220px] ring-4 ring-transparent hover:ring-[#e8e4df]/30
        ${isDark
-          ? "bg-[#8B1538] text-white border-[#8B1538] shadow-lg"
-          : "bg-white text-stone-800 border-stone-100 shadow-sm hover:border-[#8B1538]"
+          ? "bg-[#521118] text-[#e8e4df] border-[#521118] shadow-xl shadow-[#521118]/20"
+          : "bg-white/85 backdrop-blur-md text-stone-800 border-[#2b090d]/10 shadow-sm hover:border-[#521118]/30"
         }`}
       style={height !== "auto" ? { minHeight: height } : undefined}
     >
       <div>
-        <div className={`w-10 h-10 rounded-xl mb-6 flex items-center justify-center shrink-0 ${isDark ? "bg-white/20" : "bg-[#8B1538]/10"}`}>
-          <FlaskConical size={20} className={isDark ? "text-white" : "text-[#8B1538]"} />
+        <div className={`w-12 h-12 rounded-2xl mb-6 flex items-center justify-center shrink-0 transition-transform duration-500 group-hover:scale-110 group-hover:-rotate-6 ${isDark ? "bg-white/10" : "bg-[#521118]/5"}`}>
+          <FlaskConical size={24} className={isDark ? "text-white" : "text-[#521118]"} />
         </div>
-        <h4 className={`font-serif font-bold text-xl md:text-2xl mb-3 leading-tight tracking-tight transition-colors
-         ${isDark ? "text-white" : "text-stone-900 group-hover:text-[#8B1538]"}`}>
+        <h4 className={`font-black text-xl md:text-2xl mb-3 leading-tight tracking-tight transition-colors
+         ${isDark ? "text-white" : "text-stone-900 group-hover:text-[#521118]"}`} style={{ fontFamily: "'Neue Montreal', sans-serif" }}>
           {trend.title}
         </h4>
-        <p className={`text-sm leading-relaxed ${isDark ? "text-white/80" : "text-stone-500"}`}>
+        <p className={`text-sm leading-relaxed ${isDark ? "text-white/70" : "text-stone-500"}`}>
           {trend.desc}
         </p>
       </div>
-      <div className={`flex items-center justify-between pt-6 mt-6 border-t font-semibold ${isDark ? "border-white/20" : "border-stone-100"}`}>
-        <p className={`text-[9px] md:text-[10px] font-black tracking-[0.2em] uppercase ${isDark ? "text-white/80" : "text-stone-400"} max-w-[60%] truncate`}>
+      <div className={`flex items-center justify-between pt-6 mt-6 border-t font-semibold ${isDark ? "border-white/10" : "border-[#2b090d]/5"}`}>
+        <p className={`text-[9px] md:text-[10px] font-black tracking-[0.2em] uppercase ${isDark ? "text-white/60" : "text-stone-400"} max-w-[60%] truncate`}>
           {trend.author}
         </p>
-        <div className={`text-[9px] md:text-[10px] font-black italic uppercase ${isDark ? "text-white/90" : "text-[#8B1538]"}`}>
+        <div className={`text-[9px] md:text-[10px] font-black italic uppercase tracking-widest ${isDark ? "text-white/90" : "text-[#521118]"}`}>
           TOP TIER
         </div>
       </div>
@@ -502,11 +504,11 @@ function GeneratedResultsView({
 
   return (
     <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 pb-4 border-b border-stone-200 gap-4">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 pb-4 border-b border-[#2b090d]/5 gap-4">
         <div>
-          <h2 className="text-2xl font-serif font-bold text-stone-900 mb-1">Generated Research Topics</h2>
-          <p className="text-stone-500 text-sm">
-            AI-generated for <span className="font-bold text-[#8B1538]">{data.location.name.split(",")[0]}</span> · {data.fields.length} field{data.fields.length > 1 ? "s" : ""}
+          <h2 className="text-2xl font-black text-stone-900 mb-1" style={{ fontFamily: "'Neue Montreal', sans-serif" }}>Generated Research Topics</h2>
+          <p className="text-stone-500 text-sm font-medium">
+            AI-generated for <span className="font-bold text-[#521118]">{data.location.name.split(",")[0]}</span> · {data.fields.length} field{data.fields.length > 1 ? "s" : ""}
           </p>
         </div>
         <button
@@ -624,19 +626,19 @@ function GapResultsView({
 
   return (
     <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 pb-4 border-b border-stone-200 gap-4">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 pb-4 border-b border-[#2b090d]/5 gap-4">
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-[10px] font-black uppercase tracking-widest text-amber-700 mb-3">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-[10px] font-black uppercase tracking-widest text-amber-700 mb-3 leading-none">
             <AlertTriangle size={12} /> Research Gaps Found
           </div>
-          <h2 className="text-2xl font-serif font-bold text-stone-900 mb-1">Gaps & Improvements</h2>
-          <p className="text-stone-500 text-sm">
-            Based on: <span className="font-bold text-[#8B1538]">{basedOn.title}</span>
+          <h2 className="text-2xl font-black text-stone-900 mb-1" style={{ fontFamily: "'Neue Montreal', sans-serif" }}>Gaps & Improvements</h2>
+          <p className="text-stone-500 text-sm font-medium">
+            Based on: <span className="font-bold text-[#521118]">{basedOn.title}</span>
           </p>
         </div>
         <button
           onClick={onClear}
-          className="text-xs font-bold uppercase tracking-widest text-stone-400 hover:text-stone-700 transition-colors"
+          className="text-[10px] font-black uppercase tracking-[0.2em] text-stone-400 hover:text-[#521118] transition-colors"
         >
           Clear Results
         </button>
@@ -647,7 +649,7 @@ function GapResultsView({
         {topics.map((t, i) => (
           <div
             key={i}
-            className={`rounded-3xl border transition-all duration-300 overflow-hidden bg-white ${expanded === i ? "border-amber-400 shadow-xl shadow-amber-900/10" : "border-stone-200 hover:border-amber-200"
+            className={`rounded-[2rem] border transition-all duration-500 overflow-hidden bg-white/85 backdrop-blur-md ${expanded === i ? "border-amber-400 shadow-xl shadow-amber-900/10 ring-4 ring-amber-400/10" : "border-[#2b090d]/10 hover:border-amber-200"
               }`}
           >
             <button
@@ -690,14 +692,14 @@ function GapResultsView({
                     <p className="text-sm text-stone-700 leading-relaxed bg-amber-50 p-4 rounded-2xl border border-amber-100 h-full">{t.problem}</p>
                   </div>
                   <div>
-                    <h4 className="text-[10px] font-black uppercase tracking-widest text-[#8B1538] mb-2 flex items-center gap-2">
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-[#521118] mb-2 flex items-center gap-2">
                       <Sparkles size={12} /> Proposed Direction
                     </h4>
                     <p className="text-sm text-stone-700 leading-relaxed bg-stone-50 p-4 rounded-2xl border border-stone-100 h-full">{t.opportunity}</p>
                   </div>
                 </div>
                 <div>
-                  <h4 className="text-[10px] font-black uppercase tracking-widest text-[#8B1538] mb-2 flex items-center gap-2">
+                  <h4 className="text-[10px] font-black uppercase tracking-widest text-[#521118] mb-2 flex items-center gap-2">
                     <Zap size={12} /> How It Differs from the Existing Study
                   </h4>
                   <p className="text-sm text-stone-700 leading-relaxed bg-stone-50 p-4 rounded-2xl border border-stone-100">{t.novelty}</p>
@@ -793,41 +795,52 @@ export default function TopicGenerator() {
 
 
   return (
-    <div className="w-full overflow-y-auto bg-[#F9F8F6] text-stone-800">
-      <div className="max-w-[1400px] mx-auto w-full flex flex-col gap-14 p-6 md:p-10 pb-20">
+    <div className="flex-1 w-full text-stone-800 flex flex-col">
+      <div className="w-full flex flex-col gap-14 p-6 md:p-14 md:px-20 pb-32">
 
 
         {/* ── Header ─────────────────────────────────────────── */}
-        <div className="w-full flex flex-col xl:flex-row justify-between items-start xl:items-end gap-6 pt-4">
+        <div className="w-full flex flex-col xl:flex-row justify-between items-start xl:items-end gap-8 pt-4">
           <div className="min-w-0">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-stone-100 text-[10px] font-bold uppercase tracking-widest text-stone-500 mb-6">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#521118]/5 text-[10px] font-black uppercase tracking-[0.2em] text-[#521118] mb-6">
               <Sparkles size={12} /> Research Synthesis
             </div>
-            <h1 className="text-4xl md:text-5xl font-serif font-bold text-stone-900 mb-4 tracking-tight">Topic Generator</h1>
-            <p className="text-stone-500 max-w-lg text-sm md:text-base leading-relaxed">Synthesize Philippine-specific issues with global, award-winning innovations.</p>
+            <div className="w-fit mr-auto text-left">
+              <h1 className="text-5xl md:text-6xl font-black text-[#2b090d] tracking-tight leading-none mb-3" style={{ fontFamily: "'Neue Montreal', sans-serif" }}>Topic Generator</h1>
+              <p className="w-full text-base font-semibold italic text-[#521118]/80 leading-tight" style={{ textAlign: 'justify', textAlignLast: 'justify' }}>
+                synthesize global innovations with local problems
+              </p>
+            </div>
           </div>
 
 
           <button
             onClick={() => setShowGenerator(true)}
-            className="group relative self-start xl:self-auto bg-[#8B1538] hover:bg-[#6D102C] text-white px-6 py-3 md:py-4 rounded-2xl font-bold shadow-xl shadow-rose-900/20 transition-all flex items-center gap-3 overflow-hidden">
+            className="group relative self-start xl:self-auto bg-[#521118] hover:bg-[#2b090d] text-[#e8e4df] px-8 py-4 rounded-2xl font-bold shadow-2xl shadow-[#521118]/20 transition-all duration-300 flex items-center gap-4 overflow-hidden active:scale-95">
             <div className="absolute inset-0 w-1/2 h-full bg-white/10 skew-x-[-20deg] group-hover:translate-x-[200%] transition-transform duration-700" />
-            <Lightbulb size={20} className="text-amber-300" />
-            <span className="whitespace-nowrap">Generate New Research</span>
-            <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+            <Lightbulb size={24} className="text-amber-300 transition-transform group-hover:scale-110" />
+            <span className="whitespace-nowrap uppercase tracking-widest text-xs font-black">Generate New Research</span>
+            <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
           </button>
         </div>
 
 
         {/* Loading overlay for problem/gap generation */}
         {(generatingGaps || generatingProblem) && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/50 backdrop-blur-sm">
-            <div className="bg-white rounded-[32px] p-10 flex flex-col items-center gap-4 shadow-2xl">
-              <Loader2 size={36} className="text-[#8B1538] animate-spin" />
-              <p className="font-bold text-stone-900">{generatingGaps ? "Finding research gaps…" : "Auto-generating topics…"}</p>
-              <p className="text-xs text-stone-400">
-                {generatingGaps ? "AI is analyzing limitations of the existing study" : "AI is creating specific topics for this local problem"}
-              </p>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#2b090d]/60 backdrop-blur-md">
+            <div className="bg-white/90 backdrop-blur-xl rounded-[2.5rem] p-12 flex flex-col items-center gap-6 shadow-2xl border border-[#2b090d]/10 ring-8 ring-[#e8e4df]/40">
+              <div className="relative">
+                <div className="absolute inset-0 bg-[#521118]/20 blur-xl rounded-full scale-150 animate-pulse" />
+                <Loader2 size={48} className="text-[#521118] animate-spin relative" />
+              </div>
+              <div className="text-center">
+                <p className="font-black text-xl text-stone-900 mb-1" style={{ fontFamily: "'Neue Montreal', sans-serif" }}>
+                  {generatingGaps ? "Finding Research Gaps" : "Synthesizing Topics"}
+                </p>
+                <p className="text-xs font-black text-[#521118]/60 uppercase tracking-widest">
+                  {generatingGaps ? "Analyzing domain limitations" : "Creating local solutions"}
+                </p>
+              </div>
             </div>
           </div>
         )}
@@ -848,21 +861,21 @@ export default function TopicGenerator() {
           <>
             {/* ── Local Priority Watch — looping marquee row ─────── */}
             <section className="w-full min-w-0">
-              <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-stone-200 pb-4 mb-6 gap-3">
-                <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#8B1538] flex items-center gap-2">
-                  <TrendingUp size={14} /> Local Priority Watch (Top 20)
+              <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-[#2b090d]/5 pb-4 mb-8 gap-4">
+                <h3 className="text-[11px] font-black uppercase tracking-[0.25em] text-[#521118] flex items-center gap-3">
+                  <TrendingUp size={16} /> Local Priority Watch (Top 20)
                 </h3>
-                <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest bg-stone-100 px-3 py-1.5 rounded-full w-max flex-shrink-0">
-                   Curated from DA, DOST & DENR Priority Lists
+                <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest bg-white/60 border border-[#2b090d]/5 px-4 py-2 rounded-full w-max flex-shrink-0 backdrop-blur-sm shadow-sm leading-none">
+                  Curated from DA, DOST & DENR Priority Lists
                 </span>
               </div>
 
 
-              {/* Marquee container — overflow hidden, no scroll bar */}
-              <div className="relative overflow-hidden">
+              {/* Marquee container — breaking out of padding to feel "full screen" */}
+              <div className="relative -mx-6 md:-mx-14 lg:-mx-20">
                 {/* Fade edges */}
-                <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-12 z-10 bg-gradient-to-r from-[#F9F8F6] to-transparent" />
-                <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-12 z-10 bg-gradient-to-l from-[#F9F8F6] to-transparent" />
+                <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-32 z-10 bg-gradient-to-r from-[#FAF8F5] to-transparent" />
+                <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-32 z-10 bg-gradient-to-l from-[#FAF8F5] to-transparent" />
 
 
                 <div
@@ -874,23 +887,26 @@ export default function TopicGenerator() {
                     <div
                       key={idx}
                       onClick={() => setSelectedItem(topic)}
-                      className="bg-white border border-stone-200 p-5 rounded-[28px] transition-transform duration-300 hover:-translate-y-2 hover:border-[#8B1538] hover:shadow-2xl group flex flex-col justify-between cursor-pointer flex-shrink-0"
-                      style={{ width: "220px", minHeight: "190px" }}
+                      className="bg-white/85 backdrop-blur-md border border-[#2b090d]/10 p-6 rounded-[2.5rem] transition-all duration-500 hover:-translate-y-2 hover:border-[#521118]/30 hover:shadow-2xl hover:shadow-[#521118]/10 group flex flex-col justify-between cursor-pointer flex-shrink-0 ring-4 ring-transparent hover:ring-[#e8e4df]/30"
+                      style={{ width: "240px", minHeight: "200px" }}
                     >
                       <div>
-                        <div className="flex justify-between items-start mb-3">
-                          <span className="w-7 h-7 rounded-full bg-stone-100 flex items-center justify-center text-xs font-black text-stone-400 group-hover:bg-rose-100 group-hover:text-[#8B1538] transition-colors shrink-0">
-                            {topic.rank}
+                        <div className="flex justify-between items-start mb-4">
+                          <span className="w-8 h-8 rounded-full bg-stone-100 border border-[#2b090d]/5 flex items-center justify-center text-[10px] font-black text-stone-400 group-hover:bg-[#521118] group-hover:text-[#e8e4df] group-hover:border-[#521118] transition-all duration-500 shrink-0">
+                            {topic.rank.toString().padStart(2, '0')}
                           </span>
-                          <span className="text-[9px] font-black uppercase text-stone-400 tracking-widest text-right ml-2 leading-tight">{topic.tag}</span>
+                          <span className="text-[9px] font-black uppercase text-[#521118]/60 tracking-widest text-right ml-2 leading-tight drop-shadow-sm">{topic.tag}</span>
                         </div>
-                        <h4 className="font-bold text-sm text-stone-900 mb-3 leading-snug group-hover:text-[#8B1538] line-clamp-3">
+                        <h4 className="font-bold text-[15px] text-stone-900 mb-4 leading-[1.3] group-hover:text-[#521118] line-clamp-3 transition-colors duration-300">
                           {topic.title}
                         </h4>
                       </div>
-                      <div className="flex items-center justify-between pt-3 border-t border-stone-100">
-                        <span className="text-[9px] font-bold text-stone-400">PRIORITY</span>
-                        <span className="text-[9px] font-black text-[#8B1538]">HIGH</span>
+                      <div className="flex items-center justify-between pt-4 border-t border-[#2b090d]/5">
+                        <span className="text-[9px] font-black tracking-widest text-stone-400 uppercase">PRIORITY</span>
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-1.5 h-1.5 rounded-full bg-[#521118] animate-pulse" />
+                          <span className="text-[9px] font-black text-[#521118] tracking-widest uppercase">CRITICAL</span>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -901,10 +917,10 @@ export default function TopicGenerator() {
 
             {/* ── Global & Local Frontiers ────────────────────────── */}
             <section className="space-y-8 pb-20 w-full">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-stone-200 pb-4 mb-6">
-                <h3 className="text-xs font-black uppercase tracking-[0.2em] text-stone-400">Global & Local Frontiers (Award-Winning)</h3>
-                <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest bg-stone-100 px-3 py-1.5 rounded-full w-max flex-shrink-0">
-                   Published Academic Literature Seed Data
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#2b090d]/5 pb-4 mb-8">
+                <h3 className="text-[11px] font-black uppercase tracking-[0.25em] text-[#521118]/40">Global & Local Frontiers (Award-Winning)</h3>
+                <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest bg-white/60 border border-[#2b090d]/5 px-4 py-2 rounded-full w-max flex-shrink-0 backdrop-blur-sm shadow-sm leading-none">
+                  Published Academic Literature Seed Data
                 </span>
               </div>
 

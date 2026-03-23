@@ -348,10 +348,11 @@ export default function CitationPage() {
                   <button
                     onClick={handleGenerate}
                     disabled={isGenerating || (mode === 'link' && !input.trim()) || (mode === 'file' && !selectedFile) || (mode === 'library' && !selectedArticle)}
-                    className="bg-[#521118] text-[#e8e4df] px-8 rounded-2xl font-bold hover:bg-[#2b090d] transition-all duration-300 disabled:opacity-40 whitespace-nowrap shadow-md shadow-[#521118]/10 flex items-center justify-center gap-2 h-16 min-w-[160px]"
+                    className="group relative bg-[#521118] text-[#e8e4df] px-8 rounded-2xl font-bold hover:bg-[#2b090d] transition-all duration-300 disabled:opacity-40 whitespace-nowrap shadow-xl shadow-[#521118]/20 flex items-center justify-center gap-3 h-16 min-w-[180px] overflow-hidden active:scale-95"
                   >
-                    {isGenerating ? <Loader2 size={18} className="animate-spin" /> : null}
-                    {isGenerating ? 'Generating...' : 'Cite Source'}
+                    <div className="absolute inset-0 w-1/2 h-full bg-white/10 skew-x-[-20deg] group-hover:translate-x-[200%] transition-transform duration-700" />
+                    {isGenerating ? <Loader2 size={20} className="animate-spin" /> : null}
+                    <span className="uppercase tracking-widest text-xs font-black">{isGenerating ? 'Generating...' : 'Cite Source'}</span>
                   </button>
                 </div>
               </motion.div>

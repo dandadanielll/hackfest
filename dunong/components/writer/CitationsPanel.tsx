@@ -222,8 +222,9 @@ export default function CitationsPanel({
                 <button
                   onClick={handleGenerateBibliography}
                   disabled={generating}
-                  className="w-full py-2.5 bg-[#1A0A00] text-white text-sm font-semibold rounded-lg hover:bg-[#2D1500] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="group relative w-full py-3.5 bg-[#1A0A00] text-[#e8e4df] text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-[#2D1500] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-xl shadow-stone-900/10 overflow-hidden active:scale-95"
                 >
+                  <div className="absolute inset-0 w-1/2 h-full bg-white/10 skew-x-[-20deg] group-hover:translate-x-[200%] transition-transform duration-700" />
                   {generating ? '⏳ Generating…' : `📄 Generate ${citationFormat} Bibliography`}
                 </button>
               </>
@@ -263,8 +264,9 @@ export default function CitationsPanel({
                 <div className="flex gap-2">
                   <button
                     onClick={handleInsertBibliography}
-                    className="flex-1 py-2.5 bg-[#8B1A1A] text-white text-xs font-semibold rounded-lg hover:bg-[#6B1212] transition-colors"
+                    className="group relative flex-1 py-3 bg-[#8B1A1A] text-[#e8e4df] text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-[#6B1212] transition-all duration-300 shadow-xl shadow-rose-900/10 overflow-hidden active:scale-95"
                   >
+                    <div className="absolute inset-0 w-1/2 h-full bg-white/10 skew-x-[-20deg] group-hover:translate-x-[200%] transition-transform duration-700" />
                     ↳ Insert
                   </button>
                   <button

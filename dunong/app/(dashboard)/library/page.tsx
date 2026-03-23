@@ -151,8 +151,9 @@ function NewFolderModal({ onConfirm, onClose }: { onConfirm: (name: string) => v
           <button
             onClick={submit}
             disabled={!name.trim()}
-            className="flex-1 px-5 py-3 rounded-2xl font-bold text-[#f4f2f0] bg-[#521118] hover:bg-[#2b090d] disabled:opacity-50 transition shadow-lg shadow-[#2b090d]/20 text-sm flex items-center justify-center gap-2"
+            className="group relative flex-1 px-5 py-4 rounded-2xl font-black text-[#e8e4df] bg-[#521118] hover:bg-[#2b090d] disabled:opacity-50 transition-all duration-300 shadow-xl shadow-[#521118]/20 text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 overflow-hidden active:scale-95"
           >
+            <div className="absolute inset-0 w-1/2 h-full bg-white/10 skew-x-[-20deg] group-hover:translate-x-[200%] transition-transform duration-700" />
             <Check size={16} /> Create Folder
           </button>
         </div>
@@ -200,8 +201,13 @@ function NewNotebookModal({ onConfirm, onClose }: { onConfirm: (name: string) =>
           <button onClick={onClose} className="flex-1 px-5 py-3 rounded-2xl font-bold text-[#521118]/60 bg-[#2b090d]/5 hover:bg-[#2b090d]/10 transition text-sm">
             Cancel
           </button>
-          <button onClick={submit} disabled={!name.trim()} className="flex-1 px-5 py-3 rounded-2xl font-bold text-[#f4f2f0] bg-[#521118] hover:bg-[#2b090d] transition text-sm disabled:opacity-50">
-            Create
+          <button 
+            onClick={submit} 
+            disabled={!name.trim()} 
+            className="group relative flex-1 px-5 py-4 rounded-2xl font-black text-[#e8e4df] bg-[#521118] hover:bg-[#2b090d] disabled:opacity-50 transition-all duration-300 shadow-xl shadow-[#521118]/20 text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 overflow-hidden active:scale-95"
+          >
+            <div className="absolute inset-0 w-1/2 h-full bg-white/10 skew-x-[-20deg] group-hover:translate-x-[200%] transition-transform duration-700" />
+            <Check size={16} /> Create Notebook
           </button>
         </div>
       </div>
@@ -518,9 +524,10 @@ function EditArticleModal({
           <button
             type="submit"
             onClick={submit}
-            className="flex-[2] py-3 bg-rose-900 text-white rounded-2xl text-sm font-bold hover:bg-rose-800 transition-all shadow-lg shadow-rose-900/20"
+            className="group relative flex-[2] py-4 bg-[#521118] text-[#e8e4df] rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-[#2b090d] transition-all duration-300 shadow-xl shadow-[#521118]/20 overflow-hidden active:scale-95 flex items-center justify-center gap-2"
           >
-            Save Changes
+            <div className="absolute inset-0 w-1/2 h-full bg-white/10 skew-x-[-20deg] group-hover:translate-x-[200%] transition-transform duration-700" />
+            <Check size={16} /> Save Changes
           </button>
         </div>
       </div>
