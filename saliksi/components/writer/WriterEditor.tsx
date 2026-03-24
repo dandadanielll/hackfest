@@ -801,7 +801,7 @@ export default function WriterEditor({ notebook, folder, onBack }: Props) {
   };
 
   return (
-    <div className="flex absolute inset-0 bg-[#e8e4df]/40 overflow-hidden font-sans">
+    <div className="flex flex-col md:flex-row absolute inset-0 bg-[#e8e4df]/40 overflow-hidden font-sans">
 
       <DocumentNavigator
         editorRef={viewportRef}
