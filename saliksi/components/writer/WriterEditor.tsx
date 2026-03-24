@@ -79,7 +79,7 @@ const PageSheet = ({
       className={`bg-white shadow-[0_20px_60px_rgba(43,9,13,0.08)] relative transition-all duration-300 border border-[#2b090d]/5 flex flex-col
         ${activePageIndex === idx ? 'ring-1 ring-[#521118]/10' : 'opacity-98'}
       `}
-      style={{ width: `${size.width}px`, minHeight: `${size.height}px` }}
+      style={{ width: '100%', maxWidth: `${size.width}px`, minHeight: `${size.height}px` }}
       onMouseDown={onPageFocus}
     >
       {/* Universal Header (Editable) */}
@@ -88,7 +88,7 @@ const PageSheet = ({
         contentEditable
         suppressContentEditableWarning
         onInput={(e: any) => onHeaderChange(e.target.innerHTML)}
-        className="h-24 px-[96px] pt-8 flex items-center justify-between text-[11px] text-[#2b090d] outline-none border-b border-transparent focus:border-[#521118]/20 transition-colors group relative"
+        className="h-24 px-4 md:px-[96px] pt-8 flex items-center justify-between text-[11px] text-[#2b090d] outline-none border-b border-transparent focus:border-[#521118]/20 transition-colors group relative"
       >
         <div className="absolute right-8 top-8 text-[9px] font-bold text-[#5a1a1a]/20 uppercase tracking-[0.2em] opacity-0 group-focus:opacity-100 transition-opacity">HEADER</div>
       </div>
@@ -137,7 +137,7 @@ const PageSheet = ({
         onKeyUp={onKeyUp}
         onFocus={onPageFocus}
         data-placeholder="Start drafting your research paper here..."
-        className="flex-1 px-[96px] py-[32px] text-[#2b090d] outline-none focus:outline-none placeholder-shown:text-gray-300 relative z-10"
+        className="flex-1 px-4 md:px-[96px] py-4 md:py-[32px] text-[#2b090d] outline-none focus:outline-none placeholder-shown:text-gray-300 relative z-10"
         style={{ fontFamily: `${currentFont}, serif`, fontSize: `${currentSize}pt`, lineHeight: '1.8' }}
       />
 
@@ -147,7 +147,7 @@ const PageSheet = ({
         contentEditable
         suppressContentEditableWarning
         onInput={(e: any) => onFooterChange(e.target.innerHTML)}
-        className="h-24 px-[96px] pb-8 flex items-end justify-between text-[11px] text-[#2b090d] outline-none border-t border-transparent focus:border-[#521118]/20 transition-colors group relative"
+        className="h-24 px-4 md:px-[96px] pb-8 flex items-end justify-between text-[11px] text-[#2b090d] outline-none border-t border-transparent focus:border-[#521118]/20 transition-colors group relative"
       >
         <div className="absolute right-8 bottom-8 flex items-center gap-4 text-[9px] font-bold text-[#5a1a1a]/20 uppercase tracking-[0.2em]">
           <span className="opacity-0 group-focus:opacity-100 transition-opacity">FOOTER</span>
@@ -1031,7 +1031,7 @@ export default function WriterEditor({ notebook, folder, onBack }: Props) {
         <div
           ref={viewportRef}
           id="editor-viewport"
-          className="flex-1 overflow-y-auto px-8 pt-0 pb-16 flex flex-col items-center gap-12 editor-scrollbar select-text overflow-x-hidden relative z-0"
+          className="flex-1 overflow-y-auto px-2 md:px-8 pt-0 pb-16 flex flex-col items-center gap-12 editor-scrollbar select-text overflow-x-hidden relative z-0"
         >
           {pages.map((page, idx) => (
             <PageSheet
