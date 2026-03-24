@@ -413,7 +413,7 @@ export default function ResearchDashboard() {
         />
       )}
 
-      <div className={`flex-1 flex flex-col items-center ${resultsMode ? "px-8 py-8 justify-start" : "justify-center px-4"} relative`}>
+      <div className={`flex-1 flex flex-col items-center ${resultsMode ? "px-4 py-8 md:px-8 md:py-8 justify-start" : "justify-center px-4 mt-6 md:mt-0"} relative w-full`}>
         {/* New Research Button (Top Left) */}
         <AnimatePresence>
           {resultsMode && (
@@ -423,7 +423,7 @@ export default function ResearchDashboard() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               onClick={handleNewSearch}
-              className="group absolute top-8 left-8 z-[80] flex items-center gap-2 text-sm font-bold text-[#521118] hover:text-[#2b090d] hover:bg-[#521118]/5 transition-all bg-white border border-[#2b090d]/20 px-3 py-1.5 rounded-xl shadow-sm hover:shadow-md shadow-[#2b090d]/5 active:scale-95"
+              className="group absolute top-4 left-4 md:top-8 md:left-8 z-[80] flex items-center gap-2 text-sm font-bold text-[#521118] hover:text-[#2b090d] hover:bg-[#521118]/5 transition-all bg-white border border-[#2b090d]/20 px-3 py-1.5 rounded-xl shadow-sm hover:shadow-md shadow-[#2b090d]/5 active:scale-95"
             >
               <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
               <span>New Research</span>
@@ -447,7 +447,7 @@ export default function ResearchDashboard() {
                 <div className="inline-block px-4 py-1.5 rounded-full bg-[#521118]/5 border border-[#521118]/10 text-[#521118]/70 text-[11px] font-black uppercase tracking-[0.2em] mb-8">
                   For Filipino Researchers
                 </div>
-                <h1 className="text-6xl md:text-8xl font-black text-[#2b090d] tracking-tight leading-[0.9] mb-10 font-serif">
+                <h1 className="text-5xl md:text-8xl font-black text-[#2b090d] tracking-tight leading-[0.9] mb-10 font-serif">
                   Research <span className="text-[#521118]/60 italic font-medium">for</span> <br />
                   the <span className="text-[#D97706] italic">Iskolar.</span>
                 </h1>
@@ -509,7 +509,7 @@ export default function ResearchDashboard() {
                   />
                 </div>
                 <div className="flex flex-col items-center -mt-4 md:-mt-6">
-                  <h2 className="text-6xl md:text-7xl font-black text-[#2b090d] tracking-tight leading-none mb-2">
+                  <h2 className="text-5xl md:text-7xl font-black text-[#2b090d] tracking-tight leading-none mb-2">
                     <span className="font-serif">sa</span><span className="italic" style={{ fontFamily: "'Neue Montreal', sans-serif" }}>Liksi</span>
                   </h2>
                   <p className="text-lg font-bold italic text-[#521118]/80 leading-none">

@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Layers, Bookmark, FileText, Lock, Settings, History, CheckCircle, Zap, Search, ChevronLeft, ChevronRight, Lightbulb, User, Code, Terminal } from 'lucide-react';
+import { BookOpen, Layers, Bookmark, FileText, Lock, Settings, History, CheckCircle, Zap, Search, ChevronLeft, ChevronRight, Lightbulb, User, Code, Terminal, Menu, X } from 'lucide-react';
 import { RiGeminiLine } from 'react-icons/ri';
 import { FaCheck } from 'react-icons/fa6';
 import { TfiQuoteLeft } from 'react-icons/tfi';
@@ -11,6 +11,7 @@ import { useDevMode } from '@/lib/devModeContext';
 
 export default function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const pathname = usePathname();
   const { isDevModeEnabled, setDevModeEnabled, setPaneExpanded } = useDevMode();
   const [showDevPopup, setShowDevPopup] = useState(false);
@@ -18,10 +19,40 @@ export default function Sidebar() {
 
   return (
     <>
-    <aside className={`${isCollapsed ? 'w-20' : 'w-64'} bg-[#e8e4df] backdrop-blur-md border-r border-[#2b090d]/10 shadow-[4px_0_24px_rgba(43,9,13,0.14)] flex flex-col h-screen sticky top-0 shrink-0 z-50 transition-all duration-300 relative`}>
+      {/* Mobile Toggle Button */}
+      <button 
+        onClick={() => setIsMobileMenuOpen(true)}
+        className="md:hidden fixed top-4 right-4 z-[60] bg-[#e8e4df] p-2.5 rounded-xl shadow-md border border-[#2b090d]/10 text-[#521118] hover:bg-white transition"
+      >
+        <Menu size={24} />
+      </button>
+
+      {/* Mobile Backdrop */}
+      {isMobileMenuOpen && (
+        <div 
+          className="md:hidden fixed inset-0 bg-[#2b090d]/40 backdrop-blur-sm z-[65]" 
+          onClick={() => setIsMobileMenuOpen(false)} 
+        />
+      )}
+
+      <aside className={`${isCollapsed ? 'w-20' : 'w-64'} 
+        bg-[#e8e4df] backdrop-blur-md border-r border-[#2b090d]/10 shadow-[4px_0_24px_rgba(43,9,13,0.14)] 
+        flex flex-col h-screen shrink-0 z-[70] transition-all duration-300
+        fixed md:sticky top-0 left-0
+        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+      `}>
+      
+      {/* Mobile Close Button */}
+      <button 
+        onClick={() => setIsMobileMenuOpen(false)}
+        className="md:hidden absolute top-4 right-4 z-50 p-2 text-[#521118]/60 hover:text-[#2b090d] transition focus:outline-none"
+      >
+        <X size={24} />
+      </button>
+
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
-        className="absolute -right-3 top-[88px] -translate-y-1/2 z-50 bg-[#e8e4df] border border-[#2b090d]/15 rounded-full p-1 shadow-sm shadow-[#2b090d]/15 text-[#521118]/60 hover:text-[#2b090d] transition-colors"
+        className="hidden md:block absolute -right-3 top-[88px] -translate-y-1/2 z-50 bg-[#e8e4df] border border-[#2b090d]/15 rounded-full p-1 shadow-sm shadow-[#2b090d]/15 text-[#521118]/60 hover:text-[#2b090d] transition-colors"
       >
         {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
       </button>
