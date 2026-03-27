@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { askGroqJSON } from "@/lib/groq";
-import { CREDIBILITY_QUALITATIVE_GUIDELINES } from "@/lib/credibility";
+import { CREDIBILITY_QUALITATIVE_GUIDELINES, scoreCredibility } from "@/lib/credibility";
 
 const SYSTEM_PROMPT = `You are an academic credibility evaluator for Dunong, a Filipino research platform. 
 Your role is to analyze articles and assign credibility grades based on verifiable metadata.
 
 ${CREDIBILITY_QUALITATIVE_GUIDELINES}
 
-GRADE SCALE (based on your holistic score):
+GRADE SCALE CONTEXT:
 - A: 80–100. Peer-reviewed, accredited, credible publisher. Safe to cite.
 - B: 60–79. Peer-reviewed but not formally accredited.
 - C: 40–59. Not peer-reviewed but from a credible institution.
@@ -26,8 +26,6 @@ Respond ONLY with a valid JSON object. No markdown, no explanation outside the J
 
 JSON structure:
 {
-  "grade": "A" | "B" | "C" | "D" | "F",
-  "score": <total numeric score 0-100, sum of all 4 criteria>,
   "verdict": "One sentence summary of the overall credibility",
   "metadata": {
     "title": "extracted or inferred title, or null",
@@ -36,7 +34,8 @@ JSON structure:
     "issn": "ISSN if found or null",
     "publisher": "publisher name or null",
     "doi": "DOI if found or null",
-    "year": "publication year or null"
+    "year": "publication year or null",
+    "citationCount": <number or null>
   },
   "dimensions": [
     {
@@ -53,11 +52,6 @@ JSON structure:
       "label": "Publisher Credibility",
       "score": <0-100>,
       "note": "explanation based on publisher/institution identified"
-    },
-    {
-      "label": "References & Evidence",
-      "score": <0-100>,
-      "note": "estimated from venue prestige or reference patterns"
     }
   ],
   "recommendation": "Detailed citation recommendation"
@@ -156,13 +150,16 @@ Return ONLY the JSON object.`;
       );
     }
 
-    // Validate required fields
-    if (!result.grade || !["A", "B", "C", "D", "F"].includes(result.grade)) {
-      return NextResponse.json(
-        { error: "Invalid grade returned from analysis." },
-        { status: 500 }
-      );
-    }
+    // 2. Fetch the OFFICIAL EXACT score using the identical shared AI scorer
+    const officialScorer = await scoreCredibility(result.metadata || {});
+    result.score = officialScorer.score;
+    
+    // 3. Assign the Grade using math so it's impossible to mismatch
+    if (result.score >= 80) result.grade = "A";
+    else if (result.score >= 60) result.grade = "B";
+    else if (result.score >= 40) result.grade = "C";
+    else if (result.score >= 20) result.grade = "D";
+    else result.grade = "F";
 
     // Return the result directly as the frontend expects
     return NextResponse.json(result);

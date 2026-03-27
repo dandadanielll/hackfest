@@ -304,6 +304,7 @@ export default function CredibilityPage() {
         `Year: ${selectedArticle.year}`,
         `Journal: ${selectedArticle.journal}`,
         selectedArticle.url ? `URL: ${selectedArticle.url}` : '',
+        selectedArticle.citationCount !== undefined ? `Citation Count: ${selectedArticle.citationCount}` : ''
       ].filter(Boolean).join('\n');
     } else if (mode === 'file' && file) {
       let text = "";

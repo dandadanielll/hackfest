@@ -390,6 +390,7 @@ export default function ResearchDashboard() {
       localSource: article.localSource,
       openAccess: article.openAccess,
       url: article.url,
+      citationCount: article.citationCount || 0,
     });
     setRecentlySaved((prev) => ({ ...prev, [article.id]: true }));
     setBookmarkPopupArticle(null);

@@ -21,6 +21,7 @@ export type SavedArticle = {
   url: string;
   savedAt: number;
   openAccess?: boolean;
+  citationCount?: number;
 };
 
 export type NotebookPage = {

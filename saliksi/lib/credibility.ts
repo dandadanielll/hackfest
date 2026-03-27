@@ -11,13 +11,12 @@ import { askGroqJSON } from "./groq";
 export const CREDIBILITY_QUALITATIVE_GUIDELINES = `
 Evaluate the academic credibility of the source on a scale of 0 to 100 based on the provided metadata or text. Do not use a rigid mathematical formula; instead, think holistically as an expert academic librarian. 
 
-Consider these four key dimensions in your evaluation:
+Consider these three key dimensions in your evaluation:
 1. Peer Review: Does the venue, DOI presence, or editorial process suggest rigorous peer review?
 2. Accreditation & Indexing: Is it recognized by reputable databases (Scopus, PubMed, PHILJOL, CHED, etc.) or published by a highly regarded institution?
 3. Publisher Reputation: Is the publisher known for high academic standards, or is it an unknown/predatory source?
-4. Evidence & Impact: Are there clear citations, robust references, or indicators of high academic impact?
 
-Weigh these dimensions organically based on the context. 
+Weigh these three dimensions organically based on the context. 
 - A paper in a top-tier journal should score 90-100. 
 - A solid peer-reviewed university paper should score 70-89. 
 - Unknown or questionable sources should score below 50. 
