@@ -74,8 +74,8 @@ function DetailedTraceModal({ group, onClose }: { group: LogGroup, onClose: () =
   const parts = trace.split(/(?=>\s)/g).filter(s => s.trim());
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 md:p-10 bg-slate-950/60 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-5xl bg-slate-950/90 backdrop-blur-xl border border-slate-700/60 rounded-[2.5rem] shadow-[0_30px_100px_rgba(0,0,0,0.8)] flex flex-col max-h-[90vh] md:max-h-[85vh] overflow-hidden overflow-y-hidden ring-4 ring-slate-800/30">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 md:p-10 bg-slate-950/60 backdrop-blur-md animate-in fade-in duration-300">
+      <div className="relative w-full max-w-5xl bg-slate-950/90 backdrop-blur-xl border border-slate-700/60 rounded-[2.5rem] shadow-[0_30px_100px_rgba(0,0,0,0.8)] flex flex-col max-h-[90vh] md:max-h-[85vh] overflow-hidden overflow-y-hidden ring-4 ring-slate-800/30 animate-in zoom-in-95 duration-300">
         
         {/* Header */}
         <div className="flex items-start justify-between p-8 border-b border-slate-800/80 bg-slate-900/50">
@@ -186,7 +186,8 @@ export default function DevModeOverlay() {
                 <div 
                   key={group.id} 
                   onClick={() => setSelectedGroup(group)}
-                  className="bg-slate-900/70 border border-slate-700/50 p-5 rounded-2xl shadow-lg hover:border-green-500/40 hover:bg-slate-900 transition-all cursor-pointer group relative overflow-hidden"
+                  title="Click to see detailed diagnostic trace"
+                  className="bg-slate-900/70 border border-slate-700/50 p-5 rounded-2xl shadow-lg hover:border-green-500/40 hover:bg-slate-900 transition-all cursor-pointer group relative overflow-hidden active:scale-[0.98]"
                 >
                   <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
                       <div className="bg-slate-800 p-2 rounded-full text-slate-300">
