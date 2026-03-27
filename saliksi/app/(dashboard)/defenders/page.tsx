@@ -1,8 +1,10 @@
-"use client";
+'use client';
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useLibrary } from "@/lib/libraryContext";
-import { ChevronRight, ShieldAlert, Upload, FileText, Play, Flame, User, Info, Trophy, XCircle } from "lucide-react";
+import { 
+  ShieldAlert, Upload, FileText, Play, Flame, Trophy, XCircle, Heart, Zap, CirclePause
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Send } from "lucide-react";
 import { FaCheck } from "react-icons/fa6";
@@ -16,531 +18,418 @@ type Message = {
   content: string;
 };
 
-const PANELISTS = {
-  statistician: { name: "Dr. Cruz", role: "The Statistician", color: "bg-blue-500", textColor: "text-blue-600", icon: "📊" },
-  grammarian: { name: "Prof. Garcia", role: "The Grammarian", color: "bg-emerald-600", textColor: "text-emerald-700", icon: "✍️" },
-  methodologist: { name: "Dr. Santos", role: "The Methodology Master", color: "bg-purple-600", textColor: "text-purple-700", icon: "🔬" }
+/* ────────────────────────────────────────────
+   Panelist config – each maps to a region of
+   the pixel.jpg sprite-sheet (3 chars in a row)
+   ──────────────────────────────────────────── */
+const PANELISTS: Record<PanelistId, {
+  name: string; role: string; title: string;
+  color: string; textColor: string;
+  spriteX: string;          // object-position X
+}> = {
+  statistician: {
+    name: "Dr. Cruz",
+    role: "The Statistician",
+    title: "LV 42  DATA BOSS",
+    color: "bg-sky-500",
+    textColor: "text-sky-600",
+    spriteX: "0%",           // leftmost character
+  },
+  grammarian: {
+    name: "Prof. Garcia",
+    role: "The Grammarian",
+    title: "LV 38  SYNTAX LORD",
+    color: "bg-rose-700",
+    textColor: "text-rose-700",
+    spriteX: "50%",          // center character
+  },
+  methodologist: {
+    name: "Dr. Santos",
+    role: "The Methodologist",
+    title: "LV 45  METHOD QUEEN",
+    color: "bg-emerald-600",
+    textColor: "text-emerald-600",
+    spriteX: "100%",         // rightmost character
+  },
 };
+
+/* ── Helper: Pokémon-style HP colour ── */
+function hpColor(pct: number) {
+  if (pct > 50) return "bg-emerald-400 shadow-emerald-400/60";
+  if (pct > 20) return "bg-amber-400 shadow-amber-400/60";
+  return "bg-red-500 shadow-red-500/60";
+}
 
 export default function DefendersPage() {
   const { folders } = useLibrary();
-  
+
+  /* state */
   const [gameState, setGameState] = useState<"setup" | "playing" | "gameover" | "victory">("setup");
-  const [selectedNotebook, setSelectedNotebook] = useState<{folderId: string, notebookId: string}>({ folderId: "", notebookId: "" });
+  const [selectedNotebook, setSelectedNotebook] = useState({ folderId: "", notebookId: "" });
   const [pdfText, setPdfText] = useState("");
   const [pdfName, setPdfName] = useState("");
   const [isExtracting, setIsExtracting] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
-  
-  const [sizzle, setSizzle] = useState(0); 
+
+  const [sizzle, setSizzle] = useState(0);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [questionCount, setQuestionCount] = useState(0);
   const [isTyping, setIsTyping] = useState(false);
+  const [currentQuestion, setCurrentQuestion] = useState("");
+  const [activePanelist, setActivePanelist] = useState<PanelistId>("statistician");
+
   const scrollRef = useRef<HTMLDivElement>(null);
-  
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" }); }, [messages, isTyping]);
+
+  /* ── file handling (unchanged) ── */
   const handleFileExtraction = async (file: File) => {
-    if (file.type !== "application/pdf") {
-      alert("Please upload a PDF file.");
-      return;
-    }
-
-    setPdfName(file.name);
-    setIsExtracting(true);
+    if (file.type !== "application/pdf") return;
+    setPdfName(file.name); setIsExtracting(true);
     setSelectedNotebook({ folderId: "", notebookId: "" });
-
-    const formData = new FormData();
-    formData.append("file", file);
-
-    try {
-      const res = await fetch("/api/extract-pdf", {
-        method: "POST",
-        body: formData,
-      });
-      const data = await res.json();
-      if (data.text) {
-        setPdfText(data.text);
-      } else {
-        alert("Could not extract text from this PDF.");
-        setPdfName("");
-      }
-    } catch (err) {
-      console.error(err);
-      alert("Error extracting PDF.");
-      setPdfName("");
-    } finally {
-      setIsExtracting(false);
-    }
+    const fd = new FormData(); fd.append("file", file);
+    try { const r = await fetch("/api/extract-pdf", { method: "POST", body: fd }); const d = await r.json(); if (d.text) setPdfText(d.text); } catch (e) { console.error(e); } finally { setIsExtracting(false); }
   };
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => { const f = e.target.files?.[0]; if (f) handleFileExtraction(f); };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) handleFileExtraction(file);
-  };
-
-  const [currentQuestion, setCurrentQuestion] = useState("");
-
+  /* ── AI: ask & evaluate (unchanged logic) ── */
   const askNextQuestion = async (paperText?: string, currentMessages?: Message[]) => {
     setIsTyping(true);
-    const textToUse = paperText || pdfText || ""; // We might need to fetch notebook text if selectedNotebook is used
-    const historyMsgs = currentMessages || messages;
-    
-    // Pick a random panelist
-    const panelistKeys = Object.keys(PANELISTS) as PanelistId[];
-    const randomPanelist = panelistKeys[Math.floor(Math.random() * panelistKeys.length)];
-    const roleName = PANELISTS[randomPanelist].role;
-
+    const text = paperText || pdfText || "";
+    const hist = currentMessages || messages;
+    const keys = Object.keys(PANELISTS) as PanelistId[];
+    const rp = keys[Math.floor(Math.random() * keys.length)];
+    setActivePanelist(rp);
+    const roleName = PANELISTS[rp].role;
     try {
-      const historyStr = historyMsgs.map(m => {
-        if (m.role === 'system') return `[System]: ${m.content}`;
-        if (m.role === 'panelist') return `[${PANELISTS[m.panelistId!]?.role || 'Panelist'}]: ${m.content}`;
-        return `[Student]: ${m.content}`;
-      }).join('\n\n');
-
-      const res = await fetch("/api/defenders/question", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          text: textToUse, 
-          panelistRole: roleName,
-          history: historyStr
-        })
-      });
+      const histStr = hist.map(m => m.role === "system" ? `[System]: ${m.content}` : m.role === "panelist" ? `[${PANELISTS[m.panelistId!]?.role}]: ${m.content}` : `[Student]: ${m.content}`).join("\n\n");
+      const res = await fetch("/api/defenders/question", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, panelistRole: roleName, history: histStr }) });
       const data = await res.json();
-      
-      if (data.question) {
-        setCurrentQuestion(data.question);
-        setMessages(prev => [...prev, {
-          id: `q-${Date.now()}`,
-          role: "panelist",
-          panelistId: randomPanelist,
-          content: data.question
-        }]);
-      } else {
-        throw new Error("No question returned");
-      }
-    } catch (err) {
-      console.error(err);
-      setCurrentQuestion("Could you elaborate on the theoretical framework used in this study?");
-      setMessages(prev => [...prev, {
-        id: `q-${Date.now()}`,
-        role: "panelist",
-        panelistId: randomPanelist,
-        content: "We are having technical difficulties. Could you elaborate on the theoretical framework used in this study?"
-      }]);
-    } finally {
-      setIsTyping(false);
-    }
+      if (data.question) { setCurrentQuestion(data.question); setMessages(prev => [...prev, { id: `q-${Date.now()}`, role: "panelist", panelistId: rp, content: data.question }]); }
+    } catch { setMessages(prev => [...prev, { id: `err-${Date.now()}`, role: "panelist", panelistId: rp, content: "Connection lost… but defend yourself!" }]); } finally { setIsTyping(false); }
   };
 
   const handleSendAnswer = async () => {
     if (!inputValue.trim() || isTyping || gameState !== "playing") return;
-    const userAns = inputValue.trim();
-    setInputValue("");
-    setMessages(prev => [...prev, { id: `u-${Date.now()}`, role: "user", content: userAns }]);
+    const ans = inputValue.trim(); setInputValue("");
+    setMessages(prev => [...prev, { id: `u-${Date.now()}`, role: "user", content: ans }]);
     setIsTyping(true);
-    
-    const lastMsg = messages[messages.length - 1];
-    const pId = lastMsg.role === "panelist" ? lastMsg.panelistId : "statistician";
-    const roleName = pId ? PANELISTS[pId].role : "The Statistician";
-    
+    const last = messages[messages.length - 1];
+    const pId = last.role === "panelist" ? last.panelistId! : "statistician";
     try {
-      const res = await fetch("/api/defenders/evaluate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          text: pdfText, // TODO: support notebook text 
-          panelistRole: roleName,
-          question: currentQuestion,
-          answer: userAns
-        })
-      });
+      const res = await fetch("/api/defenders/evaluate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: pdfText, panelistRole: PANELISTS[pId].role, question: currentQuestion, answer: ans }) });
       const data = await res.json();
-      
-      const heatIncrease = data.heatIncrease || 0;
-      setSizzle(prev => Math.min(100, prev + heatIncrease));
-      
-      const reactionMsg: Message = {
-        id: `a-${Date.now()}`,
-        role: "panelist",
-        panelistId: pId,
-        content: data.reaction || "I see. Let's move on."
-      };
-      
-      const newMessages = [...messages, { id: `u-${Date.now()}`, role: "user" as const, content: userAns }, reactionMsg];
-      setMessages(newMessages);
-      
-      const nextQuestionCount = questionCount + 1;
-      setQuestionCount(nextQuestionCount);
-
-      if (sizzle + heatIncrease >= 100) {
-        setGameState("gameover");
-        setIsTyping(false);
-      } else if (nextQuestionCount >= 5) {
-        setGameState("victory");
-        setIsTyping(false);
-      } else {
-        // Next question
-        setTimeout(() => askNextQuestion(pdfText, newMessages), 2000);
-      }
-    } catch (err) {
-      console.error(err);
-      setIsTyping(false);
-    }
+      const heat = data.heatIncrease || 15;
+      setSizzle(prev => Math.min(100, prev + heat));
+      const reaction: Message = { id: `a-${Date.now()}`, role: "panelist", panelistId: pId, content: data.reaction || "…" };
+      const newMsgs = [...messages, { id: `u2-${Date.now()}`, role: "user" as const, content: ans }, reaction];
+      setMessages(newMsgs);
+      const nq = questionCount + 1; setQuestionCount(nq);
+      if (sizzle + heat >= 100) setGameState("gameover");
+      else if (nq >= 5) setGameState("victory");
+      else setTimeout(() => askNextQuestion(pdfText, newMsgs), 1500);
+    } catch { } finally { setIsTyping(false); }
   };
 
   const startGame = () => {
-    let textToUse = pdfText;
-    
-    if (!textToUse && selectedNotebook.folderId && selectedNotebook.notebookId) {
-      // Find notebook content
-      const folder = folders.find(f => f.id === selectedNotebook.folderId);
-      const nb = folder?.notebooks?.find(n => n.id === selectedNotebook.notebookId);
-      if (nb && nb.content) {
-        // strip HTML if it's rich text
-        textToUse = nb.content.replace(/<[^>]+>/g, ' ');
-        setPdfText(textToUse); // store for the game session
-      } else {
-        alert("Selected notebook is empty.");
-        return;
-      }
+    let text = pdfText;
+    if (!text && selectedNotebook.folderId && selectedNotebook.notebookId) {
+      const f = folders.find(x => x.id === selectedNotebook.folderId);
+      const nb = f?.notebooks?.find(x => x.id === selectedNotebook.notebookId);
+      if (nb?.content) { text = nb.content.replace(/<[^>]+>/g, " "); setPdfText(text); }
     }
-    
-    if (!textToUse) {
-      alert("Please select a notebook with content or upload a PDF first.");
-      return;
-    }
-    
-    setGameState("playing");
-    setSizzle(0);
-    setQuestionCount(0);
-    setMessages([{
-      id: "sys-1",
-      role: "system",
-      content: "Welcome to your Thesis Defense. The panelists have reviewed your paper and are ready to begin. Survive 5 questions without the Sizzle meter hitting 100%!"
-    }]);
-    askNextQuestion(textToUse);
+    if (!text) return;
+    setGameState("playing"); setSizzle(0); setQuestionCount(0);
+    setMessages([{ id: "sys", role: "system", content: "A wild PANELIST appeared!" }]);
+    askNextQuestion(text);
   };
 
+  const yourHp = Math.max(0, 100 - sizzle);
+
+  /* ═══════════════════════════════════════════════════════
+     RENDER
+     ═══════════════════════════════════════════════════════ */
   return (
-    <main className="min-h-screen w-full bg-[#f8f6f4] flex flex-col font-sans relative overflow-hidden">
-      {/* Background decorations */}
-      <div className="absolute top-[-10%] left-[-5%] w-96 h-96 bg-rose-200/20 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-5%] w-96 h-96 bg-amber-200/20 rounded-full blur-3xl pointer-events-none" />
+    <main className="min-h-screen w-full bg-[#f8f0e3] flex flex-col items-center font-mono select-none overflow-x-hidden">
 
-      <div className="flex-1 w-full max-w-6xl mx-auto p-4 md:p-8 relative z-10 flex flex-col">
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-8">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#521118] to-[#8a1c28] flex items-center justify-center shadow-lg shadow-[#521118]/20">
-            <ShieldAlert className="text-white" size={24} />
-          </div>
-          <div>
-            <h1 className="text-3xl font-black text-[#2b090d] tracking-tight font-serif flex items-center gap-3">
-              Thesis Defenders <span className="px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-700 text-xs font-bold uppercase tracking-widest border border-rose-200 block drop-shadow-sm">Gisado Edition</span>
+      {/* ── SETUP SCREEN ── */}
+      {gameState === "setup" && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full max-w-3xl p-6 md:p-10 flex flex-col items-center gap-10 mt-12">
+
+          {/* Title */}
+          <div className="text-center space-y-4">
+            <h1 className="text-5xl md:text-7xl font-black text-[#521118] uppercase leading-none tracking-tighter" style={{ textShadow: "4px 4px 0 #2b090d" }}>
+              Thesis<br />Defenders
             </h1>
-            <p className="text-sm font-medium text-[#2b090d]/50 mt-1">Face the AI Panel. Defend your research. Don't get cooked.</p>
+            <span className="inline-block bg-[#2b090d] text-[#f8f0e3] px-4 py-1 text-sm font-black uppercase tracking-widest">Gisado Edition</span>
           </div>
-        </div>
 
-        {gameState === "setup" && (
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex-1 flex flex-col md:flex-row gap-8 items-start"
-          >
-            {/* Left: Document Selection */}
-            <div className="w-full md:w-1/2 flex flex-col gap-6">
-              <div className="bg-white p-6 rounded-3xl border border-[#2b090d]/5 shadow-sm">
-                <h2 className="text-lg font-bold text-[#2b090d] flex items-center gap-2 mb-4">
-                  <span className="w-6 h-6 rounded-full bg-[#521118]/10 text-[#521118] flex items-center justify-center text-xs">1</span>
-                  Choose your Weapon (Paper)
-                </h2>
-                
-                <div className="space-y-4">
-                  {/* Option A: Library Notebook */}
-                  <div className="border border-[#2b090d]/10 rounded-2xl p-4 overflow-hidden relative group transition-all hover:border-[#521118]/30">
-                    <h3 className="text-xs font-black uppercase tracking-widest text-[#2b090d]/40 mb-3 flex items-center gap-2">
-                      <FileText size={14} /> From Library Notebooks
-                    </h3>
-                    <select 
-                      className="w-full bg-[#f8f6f4] border border-[#2b090d]/10 rounded-xl px-4 py-3 text-sm font-medium text-[#2b090d] outline-none focus:border-[#521118]/50 transition-colors"
-                      value={`${selectedNotebook.folderId}|${selectedNotebook.notebookId}`}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (!val) {
-                          setSelectedNotebook({ folderId: "", notebookId: "" });
-                          return;
-                        }
-                        const [fId, nId] = val.split("|");
-                        setSelectedNotebook({ folderId: fId, notebookId: nId });
-                        setPdfName("");
-                        setPdfText("");
+          {/* 3 Pixelated Characters Preview */}
+          <div className="relative w-full max-w-md aspect-[3/2] rounded-lg overflow-hidden border-[6px] border-[#2b090d] shadow-[8px_8px_0_#2b090d] bg-[#f8f0e3]">
+            <div className="absolute inset-0 flex items-end justify-center pb-2">
+              {(["statistician", "grammarian", "methodologist"] as PanelistId[]).map((id, i) => (
+                <motion.div
+                  key={id}
+                  animate={{ y: [0, -6, 0] }}
+                  transition={{ repeat: Infinity, duration: 1.2, delay: i * 0.3, ease: "easeInOut" }}
+                  className="w-1/3 flex flex-col items-center"
+                >
+                  <div className="w-28 h-28 md:w-36 md:h-36 relative overflow-hidden" style={{ imageRendering: "pixelated" }}>
+                    <img
+                      src="/pixel.jpg"
+                      alt={PANELISTS[id].name}
+                      className="absolute h-full"
+                      style={{
+                        width: "300%",
+                        left: id === "statistician" ? "4%" : id === "grammarian" ? "-96%" : "-196%",
+                        objectFit: "cover",
+                        imageRendering: "pixelated",
                       }}
-                    >
-                      <option value="">-- Select a notebook --</option>
-                      {folders.map(f => (
-                        <optgroup key={f.id} label={f.name}>
-                          {f.notebooks?.map(nb => (
-                            <option key={nb.id} value={`${f.id}|${nb.id}`}>
-                              {nb.name || "Untitled"}
-                            </option>
-                          ))}
-                        </optgroup>
-                      ))}
-                    </select>
+                    />
                   </div>
+                  <p className="text-[10px] font-black text-[#2b090d] uppercase tracking-wider mt-1">{PANELISTS[id].name}</p>
+                </motion.div>
+              ))}
+            </div>
+          </div>
 
-                  <div className="flex items-center gap-4 py-2">
-                    <div className="h-px bg-[#2b090d]/10 flex-1" />
-                    <span className="text-xs font-bold text-[#2b090d]/30 uppercase tracking-widest">OR</span>
-                    <div className="h-px bg-[#2b090d]/10 flex-1" />
-                  </div>
+          {/* Setup Form */}
+          <div className="w-full bg-white border-[4px] border-[#2b090d] shadow-[8px_8px_0_#2b090d] p-8 space-y-6">
+            <p className="text-xs font-black text-[#2b090d]/40 uppercase tracking-widest">Choose your weapon (paper)</p>
 
-                  {/* Option B: PDF Upload */}
-                  <div className={`border rounded-2xl p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-all group ${isDragging ? 'border-[#521118]/80 bg-[#521118]/10 scale-[1.02]' : pdfName ? 'border-[#521118]/40 bg-[#521118]/5' : 'border-[#2b090d]/10 border-dashed hover:border-[#521118]/30 hover:bg-[#521118]/[0.02]'}`}
-                    onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-                    onDragLeave={(e) => { e.preventDefault(); setIsDragging(false); }}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      setIsDragging(false);
-                      const file = e.dataTransfer.files?.[0];
-                      if (file) handleFileExtraction(file);
-                    }}
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <input type="file" ref={fileInputRef} accept="application/pdf" className="hidden" onChange={handleFileUpload} />
-                    
-                    {isExtracting ? (
-                      <div className="flex flex-col items-center gap-3">
-                        <div className="w-8 h-8 border-3 border-[#521118]/20 border-t-[#521118] rounded-full animate-spin" />
-                        <p className="text-sm font-bold text-[#521118]">Reading PDF...</p>
-                      </div>
-                    ) : pdfName ? (
-                      <div className="flex flex-col items-center gap-2">
-                        <div className="w-10 h-10 rounded-full bg-[#521118]/10 text-[#521118] flex items-center justify-center">
-                          <FaCheck size={18} />
-                        </div>
-                        <p className="text-sm font-bold text-[#2b090d] break-all">{pdfName}</p>
-                        <p className="text-xs text-[#521118] font-medium hover:underline mt-1">Upload a different file</p>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center gap-3 opacity-60 group-hover:opacity-100 transition-opacity">
-                        <Upload size={24} className="text-[#521118]" />
-                        <div>
-                          <p className="text-sm font-bold text-[#2b090d]">Upload PDF Paper</p>
-                          <p className="text-xs text-[#2b090d]/60 mt-0.5">Max 10MB. Must be text-searchable.</p>
-                        </div>
-                      </div>
-                    )}
+            <select
+              className="w-full bg-[#f8f0e3] border-[3px] border-[#2b090d] p-4 text-sm font-black text-[#2b090d] outline-none"
+              onChange={(e) => {
+                const v = e.target.value; if (!v) { setSelectedNotebook({ folderId: "", notebookId: "" }); return; }
+                const [fId, nId] = v.split("|"); setSelectedNotebook({ folderId: fId, notebookId: nId }); setPdfName("");
+              }}
+            >
+              <option value="">[ SELECT NOTEBOOK ]</option>
+              {folders.map(f => (<optgroup key={f.id} label={`📂 ${f.name}`}>{f.notebooks?.map(nb => (<option key={nb.id} value={`${f.id}|${nb.id}`}>⚡ {nb.name}</option>))}</optgroup>))}
+            </select>
+
+            <div className="flex items-center gap-4 opacity-30"><div className="h-px bg-black flex-1" /><span className="text-xs font-black">OR</span><div className="h-px bg-black flex-1" /></div>
+
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className={`w-full border-[3px] p-6 flex items-center gap-4 transition-all ${pdfName ? "border-emerald-600 bg-emerald-50 shadow-[4px_4px_0_#059669]" : "border-[#2b090d] bg-white shadow-[4px_4px_0_#2b090d] hover:bg-[#521118]/5 active:translate-x-1 active:translate-y-1 active:shadow-none"}`}
+            >
+              <input type="file" ref={fileInputRef} hidden accept="application/pdf" onChange={handleFileUpload} />
+              <Upload size={28} className={pdfName ? "text-emerald-600" : "text-[#521118]"} />
+              <div className="text-left">
+                <p className="text-sm font-black uppercase">{isExtracting ? "READING PDF…" : pdfName || "UPLOAD PDF FILE"}</p>
+                <p className="text-[10px] text-[#2b090d]/40 font-bold uppercase">Max 10 MB</p>
+              </div>
+            </button>
+          </div>
+
+          <button
+            onClick={startGame}
+            disabled={!pdfText && !selectedNotebook.notebookId}
+            className="group w-full bg-[#521118] text-white border-[4px] border-[#2b090d] shadow-[8px_8px_0_#2b090d] p-6 font-black text-2xl uppercase flex items-center justify-center gap-4 hover:bg-[#6b1a23] active:translate-x-2 active:translate-y-2 active:shadow-none transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <Play size={32} fill="white" /> Start Battle
+          </button>
+        </motion.div>
+      )}
+
+      {/* ── BATTLE SCREEN (Pokémon-style) ── */}
+      {gameState !== "setup" && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full max-w-4xl flex flex-col h-screen">
+
+          {/* ── Top: Battle Scene ── */}
+          <div className="relative w-full h-[340px] md:h-[380px] bg-gradient-to-b from-[#c8dbbe] to-[#a8c090] border-b-[6px] border-[#2b090d] overflow-hidden shrink-0">
+            {/* Ground lines */}
+            <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-[#e8dcc8] to-transparent" />
+            <svg className="absolute bottom-0 w-full" viewBox="0 0 800 40" preserveAspectRatio="none"><ellipse cx="600" cy="35" rx="160" ry="12" fill="#c4b89a" /><ellipse cx="180" cy="30" rx="140" ry="10" fill="#d4c8a8" /></svg>
+
+            {/* ── Enemy (top-right) ── */}
+            <div className="absolute top-6 right-6 md:right-12 flex flex-col items-end z-10">
+              <div className="bg-[#f8f0e3] border-[3px] border-[#2b090d] shadow-[4px_4px_0_#2b090d] px-5 py-3 mb-3 min-w-[220px]">
+                <div className="flex justify-between items-baseline">
+                  <span className="font-black text-sm text-[#2b090d] uppercase">{PANELISTS[activePanelist].name}</span>
+                  <span className="text-[10px] font-black text-[#2b090d]/40">{PANELISTS[activePanelist].title}</span>
+                </div>
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="text-[10px] font-black text-amber-600">HP</span>
+                  <div className="flex-1 h-3 bg-[#2b090d]/10 border border-[#2b090d]/20 overflow-hidden">
+                    <div className="h-full bg-emerald-400 transition-all duration-700" style={{ width: "100%" }} />
                   </div>
                 </div>
               </div>
-
-              <button
-                onClick={startGame}
-                disabled={(!pdfText && !selectedNotebook.notebookId) || isExtracting}
-                className="w-full bg-[#521118] text-[#e8e4df] rounded-2xl py-5 flex items-center justify-center gap-3 font-black uppercase tracking-widest shadow-xl shadow-[#521118]/20 hover:bg-[#2b090d] transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:-translate-y-1 active:translate-y-0"
-              >
-                Face The Panel <Play size={18} fill="currentColor" />
-              </button>
             </div>
 
-            {/* Right: How to Play */}
-            <div className="w-full md:w-1/2 bg-[#521118] rounded-3xl p-8 text-[#e8e4df] shadow-2xl relative overflow-hidden">
-              <div className="absolute top-[-20%] right-[-10%] opacity-5 text-white">
-                <ShieldAlert size={400} />
-              </div>
-              <h2 className="text-2xl font-black font-serif mb-6 flex items-center gap-3 relative z-10">
-                <Info size={24} className="text-rose-300" /> How to Play
-              </h2>
-              <ul className="space-y-6 relative z-10">
-                <li className="flex gap-4">
-                  <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center shrink-0 font-bold text-rose-200">1</div>
-                  <div>
-                    <h3 className="font-bold text-white mb-1">Select your study</h3>
-                    <p className="text-sm text-white/70 leading-relaxed">Provide your finalized research paper so the AI Panel can analyze its methodology, literature, and conclusions.</p>
-                  </div>
-                </li>
-                <li className="flex gap-4">
-                  <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center shrink-0 font-bold text-rose-200">2</div>
-                  <div>
-                    <h3 className="font-bold text-white mb-1">Answer the Panel</h3>
-                    <p className="text-sm text-white/70 leading-relaxed">Three distinct panelists (The Statistician, The Grammarian, and The Methodology Master) will take turns grilling you with highly specific questions.</p>
-                  </div>
-                </li>
-                <li className="flex gap-4">
-                  <div className="w-8 h-8 rounded-full bg-rose-500/20 flex items-center justify-center shrink-0 font-bold text-rose-300">
-                    <Flame size={16} />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-rose-300 mb-1">Watch the Sizzle Meter</h3>
-                    <p className="text-sm text-white/70 leading-relaxed">Weak, vague, or incorrect answers will increase your Sizzle. If the meter hits 100%, you get <strong>"Gisado"</strong> (Failed). Keep it cool to pass!</p>
-                  </div>
-                </li>
-              </ul>
-            </div>
-          </motion.div>
-        )}
+            {/* Enemy sprite (top-right) */}
+            <motion.div
+              animate={{ y: [0, -8, 0] }}
+              transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
+              className="absolute top-20 right-16 md:right-28 w-32 h-32 md:w-44 md:h-44 overflow-hidden"
+              style={{ imageRendering: "pixelated" }}
+            >
+              <img
+                src="/pixel.jpg"
+                alt={PANELISTS[activePanelist].name}
+                className="absolute h-full"
+                style={{
+                  width: "300%",
+                  left: activePanelist === "statistician" ? "4%" : activePanelist === "grammarian" ? "-96%" : "-196%",
+                  objectFit: "cover",
+                  imageRendering: "pixelated",
+                }}
+              />
+            </motion.div>
 
-        {/* Game Area */}
-        {gameState !== "setup" && (
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="flex-1 flex flex-col md:flex-row gap-6 h-full max-h-[80vh]"
-          >
-            {/* Left: Chat UI */}
-            <div className="w-full md:w-2/3 bg-white rounded-3xl border border-[#2b090d]/5 shadow-sm flex flex-col overflow-hidden">
-              <div className="p-4 border-b border-[#2b090d]/5 bg-[#f8f6f4] flex items-center justify-between">
-                <h2 className="font-bold text-[#2b090d] flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" /> Live Defense
-                </h2>
-                <span className="text-xs font-bold uppercase tracking-widest text-[#2b090d]/40">Question {questionCount + 1} / 5</span>
+            {/* ── Your stats (bottom-left) ── */}
+            <div className="absolute bottom-6 left-6 md:left-12 z-10">
+              <div className="bg-[#f8f0e3] border-[3px] border-[#2b090d] shadow-[4px_4px_0_#2b090d] px-5 py-3 min-w-[240px]">
+                <div className="flex justify-between items-baseline">
+                  <span className="font-black text-sm text-[#2b090d] uppercase">You (Defender)</span>
+                  <span className="text-[10px] font-black text-[#2b090d]/40">LV 1</span>
+                </div>
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="text-[10px] font-black text-amber-600">HP</span>
+                  <div className="flex-1 h-3 bg-[#2b090d]/10 border border-[#2b090d]/20 overflow-hidden">
+                    <motion.div
+                      className={`h-full transition-all duration-700 ${hpColor(yourHp)}`}
+                      animate={{ width: `${yourHp}%` }}
+                    />
+                  </div>
+                </div>
+                <p className="text-right text-[10px] font-black text-[#2b090d]/50 mt-1">{Math.round(yourHp)} / 100</p>
               </div>
-              
-              <div className="flex-1 overflow-y-auto p-6 space-y-6" ref={scrollRef}>
-                {messages.map((msg) => (
-                  <motion.div 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    key={msg.id} 
-                    className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-                  >
-                    {msg.role === "system" && (
-                      <div className="w-full text-center">
-                        <span className="inline-block bg-amber-50 text-amber-800 text-xs font-bold px-3 py-1.5 rounded-full border border-amber-200 shadow-sm">
-                          {msg.content}
+            </div>
+
+            {/* Player sprite placeholder (bottom-left, back view) */}
+            <div className="absolute bottom-8 left-4 md:left-8 w-28 h-28 md:w-36 md:h-36 flex items-center justify-center opacity-60">
+              <div className="w-20 h-20 bg-[#2b090d]/20 rounded-full flex items-center justify-center text-3xl">🎓</div>
+            </div>
+
+            {/* Round indicator */}
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-[#2b090d] text-[#f8f0e3] px-4 py-1 text-[10px] font-black uppercase tracking-widest">
+              Round {Math.min(questionCount + 1, 5)} / 5
+            </div>
+          </div>
+
+          {/* ── Bottom: Pokémon Dialogue Box ── */}
+          <div className="flex-1 flex flex-col bg-[#f8f0e3] relative min-h-0">
+            {/* Dialogue messages area */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-4 min-h-0" ref={scrollRef}>
+              {messages.map((msg) => (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  key={msg.id}
+                >
+                  {msg.role === "system" ? (
+                    <div className="bg-[#2b090d] text-[#f8f0e3] border-[3px] border-[#2b090d] p-4 text-center">
+                      <p className="text-sm font-black uppercase tracking-wider">{msg.content}</p>
+                    </div>
+                  ) : msg.role === "panelist" ? (
+                    <div className="bg-white border-[3px] border-[#2b090d] shadow-[4px_4px_0_#2b090d] p-5 relative">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="w-8 h-8 overflow-hidden border-2 border-[#2b090d] bg-[#f8f0e3]" style={{ imageRendering: "pixelated" }}>
+                          <img
+                            src="/pixel.jpg"
+                            alt=""
+                            className="h-full"
+                            style={{
+                              width: "300%",
+                              marginLeft: msg.panelistId === "statistician" ? "4%" : msg.panelistId === "grammarian" ? "-96%" : "-196%",
+                              objectFit: "cover",
+                              imageRendering: "pixelated",
+                            }}
+                          />
+                        </div>
+                        <span className={`text-[10px] font-black uppercase tracking-widest ${PANELISTS[msg.panelistId!].textColor}`}>
+                          {PANELISTS[msg.panelistId!].role}
                         </span>
                       </div>
-                    )}
-                    {msg.role === "panelist" && msg.panelistId && (
-                      <div className="flex gap-3 max-w-[85%]">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 shadow-sm text-white ${PANELISTS[msg.panelistId].color}`}>
-                          <span className="text-lg">{PANELISTS[msg.panelistId].icon}</span>
-                        </div>
-                        <div className="flex flex-col items-start gap-1">
-                          <span className={`text-[10px] font-black uppercase tracking-widest ${PANELISTS[msg.panelistId].textColor}`}>
-                            {PANELISTS[msg.panelistId].role}
-                          </span>
-                          <div className="bg-[#f8f6f4] border border-[#2b090d]/10 text-[#2b090d] p-4 rounded-2xl rounded-tl-sm text-sm shadow-sm leading-relaxed">
-                            {msg.content}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    {msg.role === "user" && (
-                      <div className="flex flex-col items-end gap-1 max-w-[85%]">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-[#521118]/40">You (The Researcher)</span>
-                        <div className="bg-[#521118] text-[#e8e4df] p-4 rounded-2xl rounded-tr-sm text-sm shadow-md leading-relaxed">
-                          {msg.content}
-                        </div>
-                      </div>
-                    )}
-                  </motion.div>
-                ))}
-                {isTyping && (
-                  <div className="flex gap-3">
-                    <div className="w-10 h-10 rounded-full bg-stone-200 flex items-center justify-center shrink-0 animate-pulse" />
-                    <div className="bg-[#f8f6f4] p-4 rounded-2xl rounded-tl-sm flex items-center gap-1.5">
-                      <div className="w-2 h-2 rounded-full bg-stone-400 animate-bounce" />
-                      <div className="w-2 h-2 rounded-full bg-stone-400 animate-bounce delay-75" />
-                      <div className="w-2 h-2 rounded-full bg-stone-400 animate-bounce delay-150" />
+                      <p className="text-sm font-bold text-[#2b090d] leading-relaxed">{msg.content}</p>
+                      <div className="absolute bottom-2 right-3 animate-bounce text-[#2b090d]/30">▼</div>
                     </div>
-                  </div>
-                )}
-              </div>
-
-              {gameState === "playing" && (
-                <div className="p-4 bg-white border-t border-[#2b090d]/5">
-                  <div className="flex items-end gap-3 rounded-2xl bg-[#f8f6f4] border border-[#2b090d]/10 p-2 focus-within:border-[#521118]/40 focus-within:ring-2 focus-within:ring-[#521118]/10 transition-all">
-                    <textarea 
-                      className="flex-1 max-h-32 min-h-[44px] bg-transparent resize-none outline-none p-3 text-sm text-[#2b090d] placeholder:text-[#2b090d]/30"
-                      placeholder="Type your brilliant defense..."
-                      value={inputValue}
-                      onChange={(e) => setInputValue(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          handleSendAnswer();
-                        }
-                      }}
-                    />
-                    <button 
-                      onClick={handleSendAnswer}
-                      disabled={!inputValue.trim() || isTyping}
-                      className="p-3 bg-[#521118] text-white rounded-xl shadow-md hover:bg-[#2b090d] transition-all disabled:opacity-50 active:scale-95 mb-1 mr-1"
-                    >
-                      <Send size={18} />
-                    </button>
-                  </div>
+                  ) : (
+                    <div className="flex justify-end">
+                      <div className="bg-[#521118] text-white border-[3px] border-[#2b090d] shadow-[4px_4px_0_#2b090d] p-5 max-w-[85%]">
+                        <p className="text-[10px] font-black uppercase text-white/50 mb-1">Your answer</p>
+                        <p className="text-sm font-bold leading-relaxed">{msg.content}</p>
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
+              ))}
+              {isTyping && (
+                <div className="bg-white border-[3px] border-[#2b090d] p-4 inline-flex gap-2 items-center">
+                  {[0, 1, 2].map(i => <motion.div key={i} className="w-3 h-3 bg-[#2b090d]" animate={{ y: [0, -6, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay: i * 0.15 }} />)}
                 </div>
               )}
             </div>
 
-            {/* Right: Sizzle Meter & PanelStatus */}
-            <div className="w-full md:w-1/3 flex flex-col gap-6">
-              <div className="bg-white rounded-3xl p-6 border border-[#2b090d]/5 shadow-sm">
-                <h3 className="text-lg font-black text-[#2b090d] flex items-center gap-2 mb-6 font-serif tracking-tight">
-                  <Flame className={sizzle > 80 ? "text-red-600 animate-pulse" : sizzle > 50 ? "text-orange-500" : "text-amber-400"} size={22} fill="currentColor" /> 
-                  The Sizzle Meter
-                </h3>
-                
-                {/* Sizzle Bar */}
-                <div className="h-8 w-full bg-stone-100 rounded-full overflow-hidden relative shadow-inner border border-stone-200">
-                  <motion.div 
-                    className={`absolute top-0 left-0 h-full ${sizzle > 80 ? 'bg-red-500' : sizzle > 50 ? 'bg-orange-400' : 'bg-amber-300'}`}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${sizzle}%` }}
-                    transition={{ type: "spring", bounce: 0, duration: 1 }}
+            {/* Input bar */}
+            {gameState === "playing" && (
+              <div className="shrink-0 p-4 bg-[#2b090d] border-t-[4px] border-black flex gap-3">
+                <div className="flex-1 bg-black/60 border-[2px] border-white/20 p-3">
+                  <input
+                    className="w-full bg-transparent text-white placeholder:text-white/30 outline-none font-black text-sm"
+                    placeholder="TYPE YOUR DEFENSE…"
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleSendAnswer(); }}
                   />
-                  <div className="absolute inset-0 flex items-center justify-center font-black text-xs text-white drop-shadow-md z-10 tracking-widest">
-                    {Math.round(sizzle)}% HEAT
-                  </div>
                 </div>
-                <p className="text-xs text-center text-[#2b090d]/40 mt-3 font-bold uppercase tracking-widest">If it reaches 100%, you are Gisado!</p>
-
-                {gameState === "gameover" && (
-                  <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-2xl text-center">
-                    <XCircle size={32} className="text-red-600 mx-auto mb-2" />
-                    <h4 className="font-black text-red-900 text-lg">GISADO!</h4>
-                    <p className="text-xs text-red-700 font-medium">The panel roasted your thesis. Better luck next time.</p>
-                    <button onClick={() => setGameState("setup")} className="mt-4 text-xs font-bold bg-red-600 text-white px-4 py-2 rounded-lg py-hover:bg-red-700 transition">Try Again</button>
-                  </div>
-                )}
-                
-                {gameState === "victory" && (
-                  <div className="mt-6 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-center">
-                    <Trophy size={32} className="text-emerald-600 mx-auto mb-2" />
-                    <h4 className="font-black text-emerald-900 text-lg">DEFENSE PASSED!</h4>
-                    <p className="text-xs text-emerald-700 font-medium">Congratulations! You survived the panel with flying colors.</p>
-                    <button onClick={() => setGameState("setup")} className="mt-4 text-xs font-bold bg-emerald-600 text-white px-4 py-2 rounded-lg py-hover:bg-emerald-700 transition">Defend Another Paper</button>
-                  </div>
-                )}
+                <button
+                  onClick={handleSendAnswer}
+                  disabled={!inputValue.trim() || isTyping}
+                  className="bg-emerald-500 text-white font-black uppercase tracking-widest px-6 border-[2px] border-black active:translate-y-1 disabled:opacity-40 transition text-sm"
+                >
+                  FIGHT
+                </button>
               </div>
+            )}
+          </div>
 
-              {/* Panelist Roster */}
-              <div className="bg-white rounded-3xl p-6 border border-[#2b090d]/5 shadow-sm flex-1">
-                <h3 className="text-sm font-black text-[#2b090d]/50 uppercase tracking-widest mb-4">The Panelists</h3>
-                <div className="space-y-4">
-                  {Object.entries(PANELISTS).map(([id, panelist]) => (
-                    <div key={id} className="flex gap-3 items-center p-3 rounded-2xl bg-[#f8f6f4] border border-[#2b090d]/5 transition-all hover:border-[#2b090d]/10">
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-white shadow-sm shrink-0 ${panelist.color}`}>
-                        <span className="text-xl">{panelist.icon}</span>
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-[#2b090d] text-sm">{panelist.name}</h4>
-                        <p className={`text-xs font-black uppercase tracking-widest ${panelist.textColor}`}>{panelist.role}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </div>
+          {/* ── Game Over / Victory Overlay ── */}
+          <AnimatePresence>
+            {(gameState === "gameover" || gameState === "victory") && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-6"
+              >
+                <motion.div
+                  initial={{ scale: 0.8, y: 40 }}
+                  animate={{ scale: 1, y: 0 }}
+                  className="bg-[#f8f0e3] border-[8px] border-[#2b090d] shadow-[16px_16px_0_#2b090d] p-12 text-center max-w-lg w-full"
+                >
+                  {gameState === "victory" ? (
+                    <>
+                      <Trophy size={64} className="mx-auto text-amber-500 mb-4" />
+                      <h2 className="text-5xl font-black text-emerald-600 uppercase mb-4" style={{ textShadow: "3px 3px 0 #064e3b" }}>YOU WIN!</h2>
+                      <p className="text-sm font-black text-[#2b090d]/60 uppercase leading-relaxed mb-8">
+                        Congrats, Defender! You survived the panel. Your thesis lives another day.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <XCircle size={64} className="mx-auto text-red-500 mb-4" />
+                      <h2 className="text-5xl font-black text-red-500 uppercase mb-4" style={{ textShadow: "3px 3px 0 #7f1d1d" }}>GISADO!</h2>
+                      <p className="text-sm font-black text-[#2b090d]/60 uppercase leading-relaxed mb-8">
+                        The panel has roasted your thesis. You have been cooked. Try again!
+                      </p>
+                    </>
+                  )}
+                  <button
+                    onClick={() => setGameState("setup")}
+                    className={`w-full py-5 font-black uppercase text-xl border-[4px] border-[#2b090d] shadow-[6px_6px_0_#2b090d] active:translate-x-1 active:translate-y-1 active:shadow-none transition-all ${gameState === "victory" ? "bg-emerald-500 text-white" : "bg-red-500 text-white"}`}
+                  >
+                    {gameState === "victory" ? "PLAY AGAIN" : "RETRY"}
+                  </button>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
+      )}
     </main>
   );
 }

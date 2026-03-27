@@ -451,7 +451,7 @@ export default function ResearchDashboard() {
         />
       )}
 
-      <div className={`flex-1 flex flex-col items-center ${resultsMode ? "px-4 py-8 md:px-8 md:py-8 justify-start" : "justify-center px-4 mt-6 md:mt-0"} relative w-full`}>
+      <motion.div layout className={`flex-1 flex flex-col items-center ${resultsMode ? "px-4 pt-4 md:px-8 md:pt-6 justify-start" : "justify-center px-4 mt-6 md:mt-0"} relative w-full`}>
         {/* New Research Button (Top Left) */}
         <AnimatePresence>
           {resultsMode && (
@@ -470,13 +470,14 @@ export default function ResearchDashboard() {
         </AnimatePresence>
 
         {/* Hero */}
-        <AnimatePresence>
+        <AnimatePresence mode="popLayout">
           {isHeroVisible && (
             <motion.div
+              layout
               key="hero"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.4 } }}
+              exit={{ opacity: 0, filter: "blur(10px)", scale: 0.95, transition: { duration: 0.3 } }}
               transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
               className="w-full max-w-6xl flex flex-col md:flex-row items-center justify-between mb-16 gap-12"
             >
@@ -964,7 +965,7 @@ export default function ResearchDashboard() {
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
+      </motion.div>
 
     </main>
   );

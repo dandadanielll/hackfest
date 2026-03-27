@@ -1,24 +1,31 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import type { Notebook } from '@/lib/libraryStore';
+import type { Folder, Notebook } from '@/lib/libraryStore';
 import { useLibrary } from '@/lib/libraryContext';
-import { deleteNotebook, formatDate } from '@/lib/writerStorage';
+import { deleteNotebook, formatDate, countWords } from '@/lib/writerStorage';
 import { 
   Plus, 
   Search, 
-  Folder, 
+  Folder as FolderIcon, 
   FolderOpen,
-  ChevronDown, 
   ChevronRight, 
   FileText, 
   Trash2, 
   Shield, 
   ArrowRight,
-  PlusCircle
+  PlusCircle,
+  BookOpen,
+  Mic,
+  Sparkles,
+  Zap,
+  Clock,
+  ChevronDown,
+  X,
+  Check
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import WriterEditor from './WriterEditor';
 
 type View = 'select' | 'editor';
@@ -26,22 +33,15 @@ type View = 'select' | 'editor';
 function WriterPageInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { folders, addNotebook, removeNotebook, addFolder } = useLibrary();
+  const { folders, addNotebook, removeNotebook, addFolder, activeFolderId, setActiveFolderId } = useLibrary();
 
   const [view, setView] = useState<View>('select');
   const [activeNotebookId, setActiveNotebookId] = useState<string | null>(null);
-  const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [newNotebookName, setNewNotebookName] = useState('New Chapter');
 
-  // Expand all folders on load
-  useEffect(() => {
-    if (folders.length > 0) {
-      setExpanded(new Set(folders.map((f) => f.id)));
-    }
-  }, [folders.length]);
-
-  // Handle deep-link from Library: ?folderId=...&notebookId=...
+  // Handle deep-link
   useEffect(() => {
     const fid = searchParams.get('folderId');
     const nid = searchParams.get('notebookId');
@@ -50,7 +50,7 @@ function WriterPageInner() {
       setActiveNotebookId(nid);
       setView('editor');
     }
-  }, [searchParams]);
+  }, [searchParams, setActiveFolderId]);
 
   const openNotebook = (nb: Notebook, folderId: string) => {
     setActiveNotebookId(nb.id);
@@ -58,20 +58,24 @@ function WriterPageInner() {
     setView('editor');
   };
 
-  const toggleFolder = (id: string) =>
-    setExpanded((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
-
   const handleCreateNotebook = (folderId: string) => {
     if (!folderId) return;
-    const id = addNotebook(folderId, 'Untitled Notebook');
+    setNewNotebookName('New Chapter');
+    setIsCreateModalOpen(true);
+  };
+
+  const submitCreateNotebook = () => {
+    if (!activeFolderId || !newNotebookName.trim()) return;
+    const id = addNotebook(activeFolderId, newNotebookName.trim());
     setActiveNotebookId(id);
-    setActiveFolderId(folderId);
     setView('editor');
+    setIsCreateModalOpen(false);
+    setNewNotebookName('New Chapter');
   };
 
   const handleDelete = (e: React.MouseEvent, folderId: string, nbId: string) => {
     e.stopPropagation();
-    if (!confirm('Delete this notebook? This cannot be undone.')) return;
+    if (!confirm('Archive this notebook?')) return;
     removeNotebook(folderId, nbId);
     if (activeNotebookId === nbId) {
       setView('select');
@@ -79,249 +83,303 @@ function WriterPageInner() {
     }
   };
 
-  const handleBack = () => {
-    setView('select');
-    setActiveNotebookId(null);
-    // Clear URL params
-    router.replace('/writer');
-  };
-
-  const allNotebooks = folders.flatMap((f) => f.notebooks.map((nb) => ({ nb, folder: f })));
-  const totalNb = allNotebooks.length;
-
-  const displayFolders = search
-    ? folders
-      .map((f) => ({ ...f, notebooks: f.notebooks.filter((n) => n.name.toLowerCase().includes(search.toLowerCase())) }))
-      .filter((f) => f.notebooks.length > 0)
-    : folders;
-
-  // Resolve active notebook + folder from library data
   const activeFolder = folders.find((f) => f.id === activeFolderId) ?? null;
   const activeNotebook = activeFolder?.notebooks.find((n) => n.id === activeNotebookId) ?? null;
+
+  const currentFolderNbCount = activeFolder?.notebooks.length || 0;
+
+  const filteredNotebooks = useMemo(() => {
+    if (!activeFolder) return [];
+    let nbs = activeFolder.notebooks;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      nbs = nbs.filter((n) => n.name.toLowerCase().includes(q));
+    }
+    return [...nbs].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  }, [activeFolder, search]);
 
   if (view === 'editor' && activeNotebook && activeFolder) {
     return (
       <WriterEditor
         notebook={activeNotebook as any}
         folder={activeFolder as any}
-        onBack={handleBack}
+        onBack={() => { setView('select'); setActiveNotebookId(null); router.replace('/writer'); }}
       />
     );
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 30 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, ease: "easeOut" }}
-      className="flex flex-col md:flex-row h-full bg-transparent overflow-y-auto md:overflow-hidden relative font-sans"
-    >
+    <div className="flex h-screen w-full bg-[#fcfaf7] overflow-hidden font-sans text-[#1a1a1a]">
+      
+      {/* ── Studio Sidebar ── */}
+      <aside className="relative flex flex-col bg-white border-r border-[#2b090d]/5 w-80 shrink-0 z-20">
+        <div className="p-8 flex items-center justify-between shrink-0">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-4">
+             <div className="bg-[#521118]/10 text-[#521118] border border-[#521118]/10 p-2.5 rounded-[1.25rem] shadow-sm shrink-0 flex items-center justify-center">
+               <BookOpen size={24} />
+             </div>
+             <span className="font-black text-xl uppercase tracking-wider text-[#521118] font-serif">Writer</span>
+          </motion.div>
+        </div>
 
-
-      {/* Sidebar */}
-      <aside className="w-full md:w-[300px] md:min-w-[300px] flex flex-col bg-white/50 backdrop-blur-sm border-b md:border-b-0 md:border-r border-[#2b090d]/10 md:overflow-hidden grow shrink-0">
-        <div className="px-6 pt-8 pb-4 shrink-0 flex items-center justify-between">
-          <div>
-            <h2 className="font-black text-[#2b090d] text-lg mb-0.5 font-serif uppercase tracking-tight">
-              My Notebooks
-            </h2>
-            <p className="text-[10px] font-bold text-[#521118]/40 uppercase tracking-widest">
-              {totalNb} {totalNb === 1 ? 'notebook' : 'notebooks'} · {folders.length} {folders.length === 1 ? 'folder' : 'folders'}
-            </p>
+        <div className="flex-1 overflow-y-auto px-4 space-y-2 py-4">
+          <div className="mb-4">
+           <p className="text-[10px] font-black text-[#521118]/30 uppercase tracking-widest ml-4 mb-2">Collections</p>
+            {folders.map(f => (
+              <button
+                key={f.id}
+                onClick={() => setActiveFolderId(f.id)}
+                className={`w-full flex items-center gap-3 p-3 rounded-2xl transition-all group ${activeFolderId === f.id ? 'bg-[#521118] text-white shadow-lg shadow-[#521118]/20' : 'hover:bg-[#521118]/5 text-[#521118]/60'}`}
+              >
+                <div className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${activeFolderId === f.id ? 'bg-white/10' : 'bg-[#521118]/5'}`}>
+                  {activeFolderId === f.id ? <FolderOpen size={18} /> : <FolderIcon size={18} />}
+                </div>
+                <div className="flex-1 text-left overflow-hidden">
+                  <p className="text-sm font-bold truncate">{f.name}</p>
+                  <p className={`text-[10px] font-medium opacity-60 ${activeFolderId === f.id ? 'text-white' : 'text-[#521118]'}`}>{f.notebooks.length} Notebooks</p>
+                </div>
+              </button>
+            ))}
           </div>
+          
           <button 
-            onClick={() => {
-              const name = window.prompt("Enter new folder name:");
-              if (name && name.trim()) {
-                addFolder(name.trim());
-              }
-            }}
-            className="text-[#521118]/40 hover:text-[#521118] transition p-1.5 rounded-lg hover:bg-[#521118]/5"
-            title="New Folder"
+            onClick={() => { const n = window.prompt("Folder name:"); if(n) addFolder(n); }}
+            className="w-full flex items-center gap-3 p-3 rounded-2xl border-2 border-dashed border-[#521118]/10 text-[#521118]/40 hover:border-[#521118]/30 hover:text-[#521118]/60 transition"
           >
-            <PlusCircle size={20} strokeWidth={2.5} />
+            <Plus size={20} />
+            <span className="text-xs font-black uppercase tracking-widest">New Collection</span>
           </button>
         </div>
 
-        <div className="px-5 pb-6 shrink-0">
-          <div className="relative group">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#521118]/30 group-focus-within:text-[#521118]/60 transition-colors" size={14} />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search notebooks..."
-              className="w-full pl-9 pr-4 py-2.5 text-xs bg-[#f5f2ed]/50 border border-[#2b090d]/5 rounded-xl outline-none focus:border-[#521118]/20 focus:bg-white transition-all font-medium"
-            />
+        <div className="p-6 border-t border-[#2b090d]/5">
+          <div className="flex items-center gap-3">
+             <div className="w-10 h-10 rounded-full bg-stone-200" />
+             <div className="flex-1 overflow-hidden">
+               <p className="text-xs font-bold truncate text-[#2b090d]">Francis</p>
+               <p className="text-[10px] font-medium text-stone-400">Standard Access</p>
+             </div>
           </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-3 pb-8 custom-scrollbar">
-          {displayFolders.length === 0 && search && (
-            <div className="text-center py-12">
-              <Search className="mx-auto text-[#521118]/10 mb-2" size={32} />
-              <p className="text-xs text-[#521118]/40 font-medium">No results for &ldquo;{search}&rdquo;</p>
-            </div>
-          )}
-          {folders.length === 0 && !search && (
-            <div className="text-center py-12 px-6">
-              <Folder className="mx-auto text-[#521118]/10 mb-3" size={32} />
-              <p className="text-[11px] text-[#521118]/40 font-medium leading-relaxed italic">
-                No folders yet. Create folders and notebooks in the Library or click the plus icon.
-              </p>
-            </div>
-          )}
-          {displayFolders.map((folder) => (
-            <div key={folder.id} className="mb-2">
-              <button
-                onClick={() => toggleFolder(folder.id)}
-                className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-left transition-all group ${expanded.has(folder.id) ? 'bg-[#521118]/5' : 'hover:bg-[#521118]/5'}`}
-              >
-                <span className="text-[#521118]/30 group-hover:text-[#521118]/60 transition-colors">
-                  {expanded.has(folder.id) ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                </span>
-                {expanded.has(folder.id) ? (
-                  <FolderOpen size={16} className="text-[#D97706]/80 shrink-0" />
-                ) : (
-                  <Folder size={16} className="text-[#521118]/30 shrink-0" />
-                )}
-                <span className={`flex-1 text-[13px] font-bold truncate ${expanded.has(folder.id) ? 'text-[#2b090d]' : 'text-[#521118]/70'}`}>
-                  {folder.name}
-                </span>
-                {(folder.vault?.length ?? 0) > 0 && (
-                  <Shield size={12} className="text-[#D97706]/60 shrink-0" />
-                )}
-                <span className="text-[10px] font-black text-[#521118]/30 bg-[#521118]/5 px-1.5 py-0.5 rounded-md min-w-[20px] text-center">
-                  {folder.notebooks.length}
-                </span>
-              </button>
-
-              {expanded.has(folder.id) && (
-                <div className="mt-1 space-y-1 ml-4 border-l border-[#521118]/10 pl-2">
-                  <button
-                    onClick={() => handleCreateNotebook(folder.id)}
-                    className="w-full text-left px-3 py-2 text-[11px] text-[#521118] font-black uppercase tracking-wider hover:bg-[#521118]/5 rounded-lg transition mb-1 flex items-center gap-2"
-                  >
-                    <Plus size={12} />
-                    New notebook
-                  </button>
-                  {folder.notebooks.length === 0 ? (
-                    <p className="text-[10px] text-stone-400 italic py-1 pl-3">No notebooks yet.</p>
-                  ) : (
-                    folder.notebooks.map((nb) => (
-                      <div
-                        key={nb.id}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => openNotebook(nb, folder.id)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') openNotebook(nb, folder.id); }}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-[#521118]/5 transition-all group cursor-pointer outline-none border border-transparent hover:border-[#521118]/10"
-                      >
-                        <FileText size={14} className="text-[#521118]/30 group-hover:text-[#521118]/60 transition-colors shrink-0" />
-                        <div className="flex-1 min-w-0 text-left">
-                          <p className={`text-[12px] font-bold truncate ${activeNotebookId === nb.id ? 'text-[#2b090d]' : 'text-[#521118]/80'}`}>
-                            {nb.name}
-                          </p>
-                          <p className="text-[10px] font-medium text-stone-400">
-                            {nb.wordCount && nb.wordCount > 0 ? `${nb.wordCount.toLocaleString()}w` : 'Empty'}
-                          </p>
-                        </div>
-                        <button
-                          onClick={(e) => handleDelete(e, folder.id, nb.id)}
-                          className="opacity-0 group-hover:opacity-100 text-stone-300 hover:text-red-500 transition-all p-1"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
         </div>
       </aside>
 
-      {/* Main Area */}
-      <main className="hidden md:block flex-1 overflow-auto p-12 custom-scrollbar">
-        <div className="mb-12 flex items-center gap-5">
-          <div className="bg-[#521118]/10 text-[#521118] border border-[#521118]/10 p-4 rounded-3xl shadow-sm shrink-0">
-            <FileText size={32} />
+      {/* ── Main Canvas ── */}
+      <main className="flex-1 overflow-y-auto relative bg-[#fcfaf7]">
+        {/* Background Decorative Pattern */}
+        <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#521118 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
+        
+        <div className="max-w-6xl mx-auto px-8 md:px-12 py-16 relative z-10">
+          
+          <header className="mb-16 flex flex-col md:flex-row md:items-end justify-between gap-8">
+            <div>
+              <h1 className="text-6xl font-black text-[#2b090d] font-serif tracking-tight">
+                {activeFolder ? activeFolder.name : "Writer's Desk"}
+              </h1>
+              <p className="text-xl text-[#521118]/40 mt-4 font-medium italic">
+                {activeFolder ? `Organizing thoughts for ${activeFolder.name}` : "What are we creating today?"}
+              </p>
+            </div>
+
+            <div className="flex gap-4">
+               {activeFolder && (
+                 <div className="bg-white border border-[#2b090d]/5 px-6 py-4 rounded-[2rem] shadow-sm flex items-center gap-4">
+                   <div className="bg-amber-50 text-amber-600 p-2.5 rounded-xl">
+                     <Clock size={20} />
+                   </div>
+                   <div>
+                     <p className="text-2xl font-black text-[#2b090d] leading-none">{currentFolderNbCount}</p>
+                     <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest mt-1">Notebooks</p>
+                   </div>
+                 </div>
+               )}
+            </div>
+          </header>
+
+          {!activeFolder ? (
+            <div className="flex items-center justify-center min-h-[400px]">
+               <div className="text-center space-y-6">
+                 <div className="w-24 h-24 bg-white rounded-[2.5rem] shadow-xl flex items-center justify-center mx-auto text-[#521118]/20 rotate-3">
+                    <BookOpen size={48} />
+                 </div>
+                 <div className="space-y-2">
+                   <h2 className="text-2xl font-bold text-[#2b090d] font-serif">Welcome to your studio</h2>
+                   <p className="text-stone-400 max-w-xs mx-auto text-sm leading-relaxed">Select a collection from the sidebar to begin drafting your next masterpiece.</p>
+                 </div>
+               </div>
+            </div>
+          ) : (
+            <section>
+              <div className="flex items-center justify-between mb-10">
+                <div className="relative group">
+                   <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#521118]/20 group-focus-within:text-[#521118] transition-colors" />
+                   <input 
+                     value={search}
+                     onChange={(e) => setSearch(e.target.value)}
+                     placeholder="Search notebooks..."
+                     className="pl-12 pr-6 py-4 bg-white border border-[#2b090d]/10 rounded-2xl w-64 md:w-80 outline-none focus:ring-4 focus:ring-[#521118]/5 transition-all font-bold text-sm text-[#2b090d] shadow-sm"
+                   />
+                </div>
+                <button 
+                  onClick={() => handleCreateNotebook(activeFolder.id)}
+                  className="bg-[#521118] text-white px-8 py-4 rounded-3xl font-black uppercase tracking-widest text-[11px] hover:bg-[#2b090d] transition shadow-xl shadow-[#521118]/20 flex items-center gap-2 group"
+                >
+                  <Plus size={18} className="group-hover:rotate-90 transition-transform" /> Start New Draft
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
+                <AnimatePresence mode="popLayout">
+                  {filteredNotebooks.map(nb => (
+                    <StudioNotebookCard 
+                      key={nb.id} 
+                      notebook={nb} 
+                      onOpen={() => openNotebook(nb, activeFolder.id)}
+                      onDelete={(e) => handleDelete(e, activeFolder.id, nb.id)}
+                    />
+                  ))}
+                  {filteredNotebooks.length === 0 && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="col-span-full py-20 text-center rounded-[3rem] border-2 border-dashed border-[#521118]/10 bg-white/40">
+                      <p className="text-[#521118]/30 font-bold uppercase tracking-widest text-sm italic">Nothing found in this collection.</p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </section>
+          )}
+
+        </div>
+      </main>
+
+      {/* ── New Notebook Modal ── */}
+      <AnimatePresence>
+        {isCreateModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }} 
+              onClick={() => setIsCreateModalOpen(false)}
+              className="absolute inset-0 bg-stone-900/40 backdrop-blur-sm" 
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }} 
+              animate={{ opacity: 1, scale: 1, y: 0 }} 
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative bg-[#fcfaf7] w-full max-w-md rounded-[2.5rem] shadow-2xl border border-[#2b090d]/10 overflow-hidden"
+            >
+              <div className="p-10">
+                <div className="flex items-center gap-4 mb-8">
+                  <div className="bg-[#521118]/10 text-[#521118] p-3 rounded-2xl">
+                    <PlusCircle size={28} />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-black text-[#2b090d] font-serif tracking-tight">New Notebook</h3>
+                    <p className="text-stone-400 text-xs font-medium uppercase tracking-widest">Collection: {activeFolder?.name}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-[#521118]/40 ml-1">Notebook Name</label>
+                    <input 
+                      autoFocus
+                      value={newNotebookName}
+                      onChange={(e) => setNewNotebookName(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && submitCreateNotebook()}
+                      className="w-full bg-white border border-[#2b090d]/5 px-6 py-4 rounded-2xl outline-none focus:ring-4 focus:ring-[#521118]/5 transition-all font-bold text-[#2b090d]"
+                      placeholder="e.g. Thesis Draft 01"
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-10 flex gap-4">
+                  <button 
+                    onClick={() => setIsCreateModalOpen(false)}
+                    className="flex-1 py-4 text-sm font-black uppercase tracking-widest text-stone-400 hover:text-stone-600 transition"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={submitCreateNotebook}
+                    className="flex-[2] bg-[#521118] text-white py-4 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl shadow-[#521118]/20 hover:bg-[#2b090d] transition flex items-center justify-center gap-2"
+                  >
+                    <Check size={16} /> Create Draft
+                  </button>
+                </div>
+              </div>
+            </motion.div>
           </div>
-          <div>
-            <h1 className="text-4xl font-black text-[#2b090d] mb-1 font-serif tracking-tight">
-              AI Writer
-            </h1>
-            <p className="text-sm font-medium text-[#521118]/50">Select a notebook to open, or create one inside a folder.</p>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function StudioNotebookCard({ notebook, onOpen, onDelete }: { notebook: Notebook; onOpen: () => void; onDelete: (e: React.MouseEvent) => void }) {
+  const words = notebook.wordCount || 0;
+  
+  return (
+    <motion.button
+      layout
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      whileHover={{ y: -8 }}
+      onClick={onOpen}
+      className="relative flex flex-col items-start w-full group text-left outline-none"
+    >
+      {/* Physical Notebook Aesthetic */}
+      <div className="w-full aspect-[4/5] bg-white rounded-l-md rounded-r-[2.5rem] shadow-lg border border-[#2b090d]/5 overflow-hidden transition-all group-hover:shadow-2xl group-hover:border-[#521118]/20 flex flex-col relative">
+        
+        {/* Spine Detail */}
+        <div className="absolute left-0 top-0 bottom-0 w-4 bg-[#521118]/10 border-r border-black/5" />
+        <div className="absolute left-1 top-4 flex flex-col gap-4 opacity-40">
+           {[...Array(6)].map((_, i) => <div key={i} className="w-2 h-0.5 bg-[#521118] rounded-full" />)}
+        </div>
+
+        <div className="p-10 pl-12 flex-1 flex flex-col">
+          <div className="flex justify-between items-start mb-6">
+            <div className="w-12 h-12 bg-[#521118]/5 rounded-2xl flex items-center justify-center text-[#521118]/40 group-hover:bg-[#521118]/10 group-hover:text-[#521118] transition-colors">
+              <FileText size={20} />
+            </div>
+            <button 
+              onClick={(e) => { e.stopPropagation(); onDelete(e); }}
+              className="p-2 opacity-0 group-hover:opacity-100 hover:bg-rose-50 hover:text-rose-500 rounded-xl transition text-stone-300"
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
+
+          <h3 className="text-2xl font-black text-[#2b090d] font-serif leading-tight mb-4 group-hover:text-[#521118] transition-colors">
+             {notebook.name}
+          </h3>
+
+          <div className="mt-auto space-y-4">
+             <div className="flex items-center gap-3">
+                <div className="h-1 flex-1 bg-stone-100 rounded-full overflow-hidden">
+                   <motion.div 
+                     initial={{ width: 0 }} 
+                     animate={{ width: `${Math.min(100, (words / 1000) * 100)}%` }} 
+                     className="h-full bg-emerald-500" 
+                   />
+                </div>
+                <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest">{words} WDS</span>
+             </div>
+             
+             <div className="flex items-center justify-between text-[10px] font-black text-stone-300 uppercase tracking-[0.2em]">
+                <span>{formatDate(notebook.updatedAt)}</span>
+                <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-lg">{notebook.citationFormat || 'APA'}</span>
+             </div>
           </div>
         </div>
 
-        {totalNb === 0 && (
-          <div className="text-center pt-24">
-            <div className="w-20 h-20 bg-[#521118]/5 rounded-3xl flex items-center justify-center mx-auto mb-6">
-              <FileText className="text-[#521118]/20" size={40} />
-            </div>
-            <h3 className="text-xl font-bold text-[#2b090d] mb-2 font-serif">No notebooks yet</h3>
-            <p className="text-sm text-[#521118]/40 max-w-sm mx-auto mb-8 leading-relaxed font-medium">
-              {folders.length === 0
-                ? 'Create a folder in the Library to start organizing your research.'
-                : 'Choose a folder from the sidebar and click "+ New notebook" to begin writing.'}
-            </p>
-          </div>
-        )}
+        {/* Gloss Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/5 to-white/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+      </div>
 
-        {totalNb > 0 && (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
-            {folders.flatMap((folder) =>
-              folder.notebooks.map((nb) => (
-                <button
-                  key={nb.id}
-                  onClick={() => openNotebook(nb, folder.id)}
-                  className="group text-left bg-white/80 backdrop-blur-md rounded-2xl p-6 border border-[#2b090d]/10 hover:border-[#521118]/30 hover:shadow-xl hover:shadow-[#2b090d]/5 transition-all flex flex-col gap-4 relative overflow-hidden"
-                >
-                  {/* Card Gloss Effect */}
-                  <div className="absolute inset-0 w-1/2 h-full bg-white/20 skew-x-[-20deg] group-hover:translate-x-[200%] transition-transform duration-1000" />
-                  
-                  <div className="flex items-center justify-between relative z-10">
-                    <span className="text-[10px] font-black uppercase tracking-wider bg-[#521118]/5 text-[#521118]/60 px-2.5 py-1 rounded-lg">
-                      {folder.name}
-                    </span>
-                    {(folder.vault?.length ?? 0) > 0 && (
-                      <Shield size={14} className="text-[#D97706]/40" />
-                    )}
-                  </div>
-
-                  <div className="relative z-10">
-                    <div className="w-12 h-12 bg-[#521118]/5 rounded-xl flex items-center justify-center mb-4 group-hover:bg-[#521118]/10 transition-colors">
-                      <FileText className="text-[#521118]/40 group-hover:text-[#521118]/60 transition-colors" size={24} />
-                    </div>
-                    
-                    <h3 className="font-bold text-[#2b090d] text-lg leading-tight mb-1 mb-1 font-serif group-hover:text-[#521118] transition-colors">
-                      {nb.name}
-                    </h3>
-                    
-                    <div className="flex flex-col gap-0.5">
-                      <p className="text-[12px] font-bold text-[#521118]/40">
-                        {nb.wordCount && nb.wordCount > 0 ? `${nb.wordCount.toLocaleString()} words` : 'Empty'}
-                      </p>
-                      <p className="text-[10px] font-bold text-stone-300 uppercase tracking-widest">{formatDate(nb.updatedAt)}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between mt-auto pt-4 border-t border-[#2b090d]/5 relative z-10">
-                    <span className="text-[10px] font-black uppercase tracking-widest bg-amber-100/50 text-amber-700 px-2 py-0.5 rounded">
-                      {nb.citationFormat ?? 'APA'}
-                    </span>
-                    <span className="text-[11px] text-[#521118] font-black uppercase tracking-widest flex items-center gap-1.5 group-hover:gap-2.5 transition-all">
-                      Open <ArrowRight size={14} />
-                    </span>
-                  </div>
-                </button>
-              ))
-            )}
-          </div>
-        )}
-      </main>
-    </motion.div>
+      <div className="mt-4 ml-12 flex items-center gap-2 text-[#521118] font-black text-[11px] uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0">
+         Continue Draft <ArrowRight size={14} />
+      </div>
+    </motion.button>
   );
 }
 

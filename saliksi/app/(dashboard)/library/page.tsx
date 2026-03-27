@@ -120,7 +120,7 @@ function NewFolderModal({ onConfirm, onClose }: { onConfirm: (name: string) => v
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center">
       <div className="absolute inset-0 bg-stone-900/40 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-[#e8e4df] rounded-3xl shadow-2xl shadow-[#2b090d]/20 p-8 w-full max-w-md mx-4 border border-[#2b090d]/10">
         <button onClick={onClose} className="absolute top-4 right-4 text-[#521118]/40 hover:text-[#521118] p-1 rounded-lg hover:bg-[#521118]/5 transition">
@@ -173,7 +173,7 @@ function NewNotebookModal({ onConfirm, onClose }: { onConfirm: (name: string) =>
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center">
       <div className="absolute inset-0 bg-stone-900/40 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-[#e8e4df] rounded-3xl shadow-2xl shadow-[#2b090d]/20 p-8 w-full max-w-md mx-4 border border-[#2b090d]/10">
         <button onClick={onClose} className="absolute top-4 right-4 text-[#521118]/40 hover:text-[#521118] p-1 rounded-lg hover:bg-[#521118]/5 transition">
@@ -369,7 +369,7 @@ function EditArticleModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-stone-900/40 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-2xl border border-stone-200 flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         <div className="p-6 border-b border-stone-100 flex items-center justify-between bg-stone-50/50">
@@ -569,7 +569,7 @@ function LibraryPickerModal({
   })).filter((g) => g.items.length > 0);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center">
       <div className="absolute inset-0 bg-stone-900/40 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-[#e8e4df] rounded-3xl shadow-2xl shadow-[#2b090d]/20 p-7 w-full max-w-lg mx-4 border border-[#2b090d]/10 max-h-[80vh] flex flex-col">
         <button onClick={onClose} className="absolute top-4 right-4 text-[#521118]/40 hover:text-[#521118] p-1 rounded-lg hover:bg-[#521118]/5 transition">

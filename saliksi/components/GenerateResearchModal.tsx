@@ -568,7 +568,7 @@ export default function GenerateResearchModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md" onClick={onClose}>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md" onClick={onClose}>
       <div
         className="bg-white/90 backdrop-blur-xl rounded-[2.5rem] w-full max-w-2xl shadow-2xl relative flex flex-col max-h-[92vh] border border-[#2b090d]/10 ring-8 ring-[#e8e4df]/40"
         onClick={e => e.stopPropagation()}

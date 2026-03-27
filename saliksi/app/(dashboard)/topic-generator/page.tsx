@@ -361,7 +361,7 @@ function ResearchPopup({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
       onClick={onClose}
     >
       <div
@@ -833,7 +833,7 @@ export default function TopicGenerator() {
 
         {/* Loading overlay for problem/gap generation */}
         {(generatingGaps || generatingProblem) && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#2b090d]/60 backdrop-blur-md">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#2b090d]/60 backdrop-blur-md">
             <div className="bg-white/90 backdrop-blur-xl rounded-[2.5rem] p-12 flex flex-col items-center gap-6 shadow-2xl border border-[#2b090d]/10 ring-8 ring-[#e8e4df]/40">
               <div className="relative">
                 <div className="absolute inset-0 bg-[#521118]/20 blur-xl rounded-full scale-150 animate-pulse" />
