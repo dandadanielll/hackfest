@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "SaLiksi",
-  description: "Ang mabilisang pananaliksik for the Iskolar",
+  description: "Ang maliksing pananaliksik for the Iskolar",
   icons: {
     icon: "/logo.png",
   },

@@ -552,7 +552,7 @@ export default function ResearchDashboard() {
                     <span className="font-serif">sa</span><span className="italic" style={{ fontFamily: "'Neue Montreal', sans-serif" }}>Liksi</span>
                   </h2>
                   <p className="text-lg font-bold italic text-[#521118]/80 leading-none">
-                    ang mabilisang pananaliksik
+                    ang maliksing pananaliksik
                   </p>
                 </div>
               </div>
