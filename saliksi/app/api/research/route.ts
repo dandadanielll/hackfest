@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { scoreCredibility } from "@/lib/credibility";
 
 // Reconstruct abstract from OpenAlex inverted index format
 function reconstructAbstract(invertedIndex: Record<string, number[]> | null): string {
@@ -25,39 +26,25 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Query is required" }, { status: 400 });
     }
 
-    const results: any[] = [];
+    // Collect raw results without scores first
+    const rawResults: any[] = [];
 
     // --- OpenAlex (Primary) ---
     try {
       let openAlexUrl = `https://api.openalex.org/works?search=${encodeURIComponent(query)}&per-page=15&page=${page}&mailto=dunong@up.edu.ph`;
-
-      if (localSourcesOnly) {
-        openAlexUrl += `&filter=institutions.country_code:PH`;
-      }
+      if (localSourcesOnly) openAlexUrl += `&filter=institutions.country_code:PH`;
 
       const oaRes = await fetch(openAlexUrl);
       if (oaRes.ok) {
         const oaData = await oaRes.json();
-
         for (const work of (oaData.results || [])) {
           const isLocal = work.authorships?.some((a: any) =>
             a.institutions?.some((i: any) => i.country_code === "PH")
           ) || false;
 
-          // Skip international if localSourcesOnly
           if (localSourcesOnly && !isLocal) continue;
 
-          let score = 50;
-          if (isLocal) score += 10;
-          if (work.open_access?.is_oa) score += 5;
-          if (work.doi) score += 5;
           const citations = work.cited_by_count || 0;
-          if (citations > 500) score += 25;
-          else if (citations > 100) score += 15;
-          else if (citations > 20) score += 10;
-          else if (citations > 5) score += 5;
-          score = Math.min(score, 99);
-
           const authors = (work.authorships || [])
             .slice(0, 3)
             .map((a: any) => a.author?.display_name)
@@ -65,18 +52,15 @@ export async function POST(req: Request) {
             .join(", ") || "Unknown Author";
 
           const abstract = reconstructAbstract(work.abstract_inverted_index);
+          const doi = work.doi ? work.doi.replace("https://doi.org/", "") : null;
+          const journal = work.primary_location?.source?.display_name || "Unknown Journal";
 
-          const doi = work.doi
-            ? work.doi.replace("https://doi.org/", "")
-            : null;
-
-          results.push({
+          rawResults.push({
             id: work.id,
             title: work.display_name || "Untitled",
             authors,
             year: work.publication_year?.toString() || "",
-            journal: work.primary_location?.source?.display_name || "Unknown Journal",
-            credibility: score,
+            journal,
             abstract,
             localSource: isLocal,
             openAccess: work.open_access?.is_oa || false,
@@ -84,6 +68,14 @@ export async function POST(req: Request) {
             doi,
             source: isLocal ? "OpenAlex (PH)" : "OpenAlex",
             citationCount: citations,
+            _scoreMeta: {
+              title: work.display_name,
+              journal,
+              doi,
+              citationCount: citations,
+              isOpenAccess: work.open_access?.is_oa || false,
+              isPhilippine: isLocal,
+            },
           });
         }
       }
@@ -92,7 +84,7 @@ export async function POST(req: Request) {
     }
 
     // --- PHILJOL OAI-PMH (always for local) ---
-    if ((localSourcesOnly || results.length < 5) && page === 1) {
+    if ((localSourcesOnly || rawResults.length < 5) && page === 1) {
       try {
         const philjolUrl = `https://philjol.info/index.php/oai?verb=ListRecords&metadataPrefix=oai_dc`;
         const controller = new AbortController();
@@ -123,28 +115,37 @@ export async function POST(req: Request) {
             ) {
               const urlMatch = (identifierMatches[i]?.[1] || "").match(/https?:\/\/[^\s<]+/);
               const year = (dateMatches[i]?.[1] || "").substring(0, 4);
+              const resolvedUrl = urlMatch ? urlMatch[0] : "https://philjol.info";
 
-              results.push({
+              rawResults.push({
                 id: `philjol-${i}-${Date.now()}`,
                 title,
                 authors: (creatorMatches[i]?.[1] || "Unknown Author").replace(/<[^>]+>/g, ""),
                 year,
                 journal: "PHILJOL",
-                credibility: 75,
                 abstract,
                 localSource: true,
                 openAccess: true,
-                url: urlMatch ? urlMatch[0] : "https://philjol.info",
+                url: resolvedUrl,
                 doi: null,
                 source: "PHILJOL",
                 citationCount: 0,
+                _scoreMeta: {
+                  title,
+                  journal: "PHILJOL",
+                  doi: null,
+                  url: resolvedUrl,
+                  citationCount: 0,
+                  isOpenAccess: true,
+                  isPhilippine: true,
+                },
               });
               added++;
             }
           }
         }
-      } catch (err) {
-        // PHILJOL unavailable — silently skip, OpenAlex results still shown
+      } catch {
+        // PHILJOL unavailable — silently skip
       }
     }
 
@@ -166,23 +167,14 @@ export async function POST(req: Request) {
 
             const doi = paper.externalIds?.DOI || null;
             const citations = paper.citationCount || 0;
+            const journal = paper.venue || "Unknown Venue";
 
-            let score = 50;
-            if (doi) score += 5;
-            if (paper.isOpenAccess) score += 5;
-            if (citations > 500) score += 25;
-            else if (citations > 100) score += 15;
-            else if (citations > 20) score += 10;
-            else if (citations > 5) score += 5;
-            score = Math.min(score, 99);
-
-            results.push({
+            rawResults.push({
               id: `ss-${paper.paperId}`,
               title: paper.title || "Untitled",
               authors,
               year: paper.year?.toString() || "",
-              journal: paper.venue || "Unknown Venue",
-              credibility: score,
+              journal,
               abstract: paper.abstract || "",
               localSource: false,
               openAccess: paper.isOpenAccess || false,
@@ -190,6 +182,14 @@ export async function POST(req: Request) {
               doi,
               source: "Semantic Scholar",
               citationCount: citations,
+              _scoreMeta: {
+                title: paper.title,
+                journal,
+                doi,
+                citationCount: citations,
+                isOpenAccess: paper.isOpenAccess || false,
+                isPhilippine: false,
+              },
             });
           }
         }
@@ -200,29 +200,44 @@ export async function POST(req: Request) {
 
     // Deduplicate by DOI or title
     const seen = new Set<string>();
-    const deduplicated = results.filter((a) => {
+    const deduplicated = rawResults.filter((a) => {
       const key = a.doi || a.title.toLowerCase().trim();
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
     });
 
+    // Cap to 10 before AI scoring to keep latency acceptable
+    const capped = deduplicated.slice(0, 10);
+
+    // Score all results in parallel using the shared AI scorer (same rubric as credibility tab)
+    const scored = await Promise.all(
+      capped.map(async (r) => {
+        const { _scoreMeta, ...rest } = r;
+        try {
+          const { score } = await scoreCredibility(_scoreMeta);
+          return { ...rest, credibility: score };
+        } catch {
+          return { ...rest, credibility: 0 };
+        }
+      })
+    );
+
     // Sort: local first, then by credibility
-    deduplicated.sort((a, b) => {
+    scored.sort((a, b) => {
       if (a.localSource && !b.localSource) return -1;
       if (!a.localSource && b.localSource) return 1;
       return b.credibility - a.credibility;
     });
 
-    if (deduplicated.length === 0) {
+    if (scored.length === 0) {
       return NextResponse.json({
         articles: [],
         message: "No results found. Try a different search term.",
       });
     }
 
-    return NextResponse.json({ articles: deduplicated.slice(0, 10) });
-
+    return NextResponse.json({ articles: scored });
   } catch (error) {
     console.error("Research route error:", error);
     return NextResponse.json(

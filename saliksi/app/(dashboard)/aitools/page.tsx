@@ -192,9 +192,9 @@ function SynthesisBanner({ sources }: {
 
     const run = useCallback(async () => {
         setLoading(true); setError(""); setResult(null);
-        const sourceName = "Systematic Review";
-        const groupId = startLogGroup("/aitools", "Performing Systematic Review", sourceName);
-        addLog(`Initiating Systematic Review algorithm for ${sources.length} sources...`, groupId);
+        const sourceName = "Synthesis";
+        const groupId = startLogGroup("/aitools", "Performing Synthesis", sourceName);
+        addLog(`Initiating Synthesis for ${sources.length} sources...`, groupId);
         addLog(`Aggregating cross-references and detecting thematic overlaps...`, groupId);
         try {
             const res = await fetch("/api/synthesis", {
@@ -204,12 +204,12 @@ function SynthesisBanner({ sources }: {
             });
             const data = await res.json();
             if (data.error) throw new Error(data.error);
-            addLog(`Systematic Review completed successfully. Found commonalities and gap indicators.`, groupId);
+            addLog(`Synthesis completed successfully.`, groupId);
             setResult(data);
 
         } catch (e: unknown) {
             const errMsg = e instanceof Error ? e.message : "Failed to synthesize.";
-            addLog(`Systematic Review aborted: ${errMsg}`, groupId);
+            addLog(`Synthesis aborted: ${errMsg}`, groupId);
             setError(errMsg);
         } finally {
             setLoading(false);
@@ -224,7 +224,7 @@ function SynthesisBanner({ sources }: {
         }
     }, [run]);
 
-    if (loading) return <BannerLoading label="Performing Systematic Review..." color="border-emerald-500" />;
+    if (loading) return <BannerLoading label="Synthesizing sources..." color="border-emerald-500" />;
     if (error) return <BannerError message={error} onRetry={run} />;
     if (!result) return null;
 
@@ -236,7 +236,7 @@ function SynthesisBanner({ sources }: {
                         <Zap size={18} className="text-emerald-600" />
                     </div>
                     <div>
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600/50 block">SYSTEMATIC REVIEW</span>
+        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600/50 block">SYNTHESIS</span>
                         <h4 className="font-bold text-lg font-serif">Comprehensive Overview</h4>
                     </div>
                 </div>
@@ -245,10 +245,8 @@ function SynthesisBanner({ sources }: {
                 </button>
             </div>
             <p className="text-base leading-relaxed text-stone-700 font-serif italic border-l-2 border-emerald-500/30 pl-5">{result.overallSynthesis}</p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-4 border-t border-stone-100">
+            <div className="grid grid-cols-1 sm:grid-cols-1 gap-6 pt-4 border-t border-stone-100">
                 <BannerSection label="Common Findings" content={result.commonFindings} labelColor="text-emerald-600" />
-                <BannerSection label="Contradictions" content={result.contradictions} labelColor="text-emerald-600" />
-                <BannerSection label="Research Gaps" content={result.gaps} labelColor="text-emerald-600" />
             </div>
         </div>
     );
@@ -924,7 +922,7 @@ function SourceSelector({
 // ── Main Page ──────────────────────────────────────────────────────────────
 
 const TOOL_BUTTONS: { id: Tool; label: string; icon: React.ReactNode; color: string }[] = [
-    { id: "synthesis", label: "Systematic Review", icon: <Zap size={16} className="transition-transform duration-300 ease-out group-hover:scale-110 group-hover:rotate-12" />, color: "emerald" },
+    { id: "synthesis", label: "Synthesis", icon: <Zap size={16} className="transition-transform duration-300 ease-out group-hover:scale-110 group-hover:rotate-12" />, color: "emerald" },
     { id: "gaps", label: "Gap Analysis", icon: <AlertTriangle size={16} className="transition-transform duration-300 ease-out group-hover:scale-110 group-hover:-rotate-12" />, color: "amber" },
     { id: "graph", label: "Knowledge Graph", icon: <GitGraph size={16} className="transition-transform duration-300 ease-out group-hover:scale-110 group-hover:rotate-12" />, color: "indigo" },
     { id: "contradiction", label: "Contradiction Catcher", icon: <ShieldCheck size={16} className="transition-transform duration-300 ease-out group-hover:scale-110 group-hover:-rotate-12" />, color: "rose" },
@@ -1086,8 +1084,8 @@ export default function AIToolsPage() {
                                 <div className="bg-[#521118]/5 border border-[#521118]/10 p-10 rounded-[2.5rem] w-fit mx-auto shadow-inner mb-6">
                                     <Sparkles size={48} className="text-[#521118]/20" />
                                 </div>
-                                <h3 className="font-bold text-2xl text-[#2b090d] font-serif tracking-tight">Ready for Systematic Review</h3>
-                                <p className="text-[#521118]/60 text-base mt-2 max-w-sm mx-auto font-medium">Click "Select Sources" to pick from your research folders and let AI find deep connections.</p>
+                                <h3 className="font-bold text-2xl text-[#2b090d] font-serif tracking-tight">Ready for Synthesis</h3>
+                                <p className="text-[#521118]/60 text-base mt-2 max-w-sm mx-auto font-medium">Select your sources and let AI synthesize the key findings from across all your papers.</p>
                                 <button
                                     onClick={() => setShowSelector(true)}
                                     className="group relative mt-8 bg-[#521118] text-[#e8e4df] px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-[#2b090d] transition-all duration-300 shadow-xl shadow-[#521118]/20 overflow-hidden active:scale-95 flex items-center justify-center gap-2 mx-auto"

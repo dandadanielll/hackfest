@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PDFParse } from "pdf-parse";
 import { askGroqJSON } from "@/lib/groq";
-
+import { CREDIBILITY_QUALITATIVE_GUIDELINES } from "@/lib/credibility";
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
@@ -32,13 +32,8 @@ export async function POST(req: NextRequest) {
     const prompt = `
 You are an academic metadata extraction expert. Analyze the following text extracted from a PDF and extract structured metadata.
 
-CREDIBILITY SCORING RULES (total out of 100, be strict and accurate):
-1. Peer Review (+40 pts): Evidence of peer-reviewed publication (e.g., "submitted", "accepted", "reviewed", journal mention). If no evidence, award 0.
-2. Institutional Accreditation (+20 pts): Evidence of reputable institution or accredited body (university, research center, government agency). If unknown, award 0-10.
-3. Publisher Reputation (+20 pts): Reputable publisher (e.g., Elsevier, Springer, IEEE, Nature, Wiley, SAGE, HERDIN, PHILJOL, university press). If self-published or unknown, award 0.
-4. References Quality (+20 pts): Robust reference list present (more than 10 references = full 20 pts, 5-10 = 10 pts, <5 or none = 0 pts).
-
-IMPORTANT: Base the score ONLY on evidence found in the text. Do NOT make up scores. If something cannot be confirmed from the text, do not award points for it.
+CREDIBILITY SCORING INSTRUCTIONS:
+${CREDIBILITY_QUALITATIVE_GUIDELINES}
 
 Return ONLY a valid JSON object with these exact fields:
 {
@@ -49,7 +44,7 @@ Return ONLY a valid JSON object with these exact fields:
   "keywords": ["keyword1", "keyword2"],
   "journal": "Name of the Journal or Conference or Publisher",
   "year": "YYYY",
-  "credibilityReasoning": "Explain the score: what evidence was found or not found for each criterion"
+  "credibilityReasoning": "One sentence explaining the overall score based on your holistic assessment."
 }
 
 TEXT TO ANALYZE:
