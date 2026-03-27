@@ -185,7 +185,7 @@ function ToolBanner({
 function SynthesisBanner({ sources }: {
     sources: Source[];
 }) {
-    const { addLog, startLogGroup } = useDevMode();
+    const { addLog, startLogGroup, streamAITrace } = useDevMode();
     const [result, setResult] = useState<SynthesisResult | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
@@ -214,13 +214,13 @@ function SynthesisBanner({ sources }: {
         } finally {
             setLoading(false);
         }
-    }, [sources, addLog]);
+    }, [sources, addLog, startLogGroup, streamAITrace]);
 
     const startedRef = useRef(false);
-    useEffect(() => { 
+    useEffect(() => {
         if (!startedRef.current) {
             startedRef.current = true;
-            run(); 
+            run();
         }
     }, [run]);
 
@@ -236,7 +236,7 @@ function SynthesisBanner({ sources }: {
                         <Zap size={18} className="text-emerald-600" />
                     </div>
                     <div>
-        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600/50 block">SYNTHESIS</span>
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600/50 block">SYNTHESIS</span>
                         <h4 className="font-bold text-lg font-serif">Comprehensive Overview</h4>
                     </div>
                 </div>
@@ -255,7 +255,7 @@ function SynthesisBanner({ sources }: {
 // ── Gaps Banner ────────────────────────────────────────────────────────────
 
 function GapsBanner({ sources }: { sources: Source[] }) {
-    const { addLog, startLogGroup } = useDevMode();
+    const { addLog, startLogGroup, streamAITrace } = useDevMode();
     const [gaps, setGaps] = useState<GapResult[]>([]);
     const [topSuggestion, setTopSuggestion] = useState("");
     const [loading, setLoading] = useState(false);
@@ -264,9 +264,12 @@ function GapsBanner({ sources }: { sources: Source[] }) {
     const run = useCallback(async () => {
         setLoading(true); setError(""); setGaps([]); setTopSuggestion("");
         const sourceName = "Gap Detection";
-        const groupId = startLogGroup("/aitools", "Detecting Literature Gaps", sourceName);
-        addLog(`Analyzing ${sources.length} articles for missing literature links...`, groupId);
-        addLog(`Evaluating abstract coverage...`, groupId);
+        const groupId = startLogGroup("/aitools", "Literature Gap Analysis", sourceName);
+        streamAITrace(
+            groupId,
+            "Detect gaps in existing literature",
+            `The system analyzes ${sources.length} articles to find what topics or methods are NOT covered. It sends titles and abstracts to a Groq LLM which identifies: missing research areas, under-explored methodologies, geographic/demographic gaps, and suggests a top research direction. Each gap is classified as CRITICAL or SIGNIFICANT.`
+        );
         try {
             const res = await fetch("/api/gaps", {
                 method: "POST",
@@ -275,23 +278,22 @@ function GapsBanner({ sources }: { sources: Source[] }) {
             });
             const data = await res.json();
             if (data.error) throw new Error(data.error);
-            addLog(`Detected ${data.gaps?.length || 0} potential research gaps.`, groupId);
             setGaps(data.gaps || []);
             setTopSuggestion(data.topSuggestion || "");
         } catch (e: unknown) {
             const errMsg = e instanceof Error ? e.message : "Failed to analyze gaps.";
-            addLog(`Gap detection failed: ${errMsg}`, groupId);
+            addLog(`⟩ Gap detection error: ${errMsg}`, groupId);
             setError(errMsg);
         } finally {
             setLoading(false);
         }
-    }, [sources, addLog, startLogGroup]);
+    }, [sources, addLog, startLogGroup, streamAITrace]);
 
     const startedRef = useRef(false);
-    useEffect(() => { 
+    useEffect(() => {
         if (!startedRef.current) {
             startedRef.current = true;
-            run(); 
+            run();
         }
     }, [run]);
 
@@ -351,7 +353,7 @@ function GapsBanner({ sources }: { sources: Source[] }) {
 // ── Graph Banner ───────────────────────────────────────────────────────────
 
 function GraphBanner({ sources }: { sources: Source[] }) {
-    const { addLog, startLogGroup } = useDevMode();
+    const { addLog, startLogGroup, streamAITrace } = useDevMode();
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [graphData, setGraphData] = useState<GraphData | null>(null);
     const [loading, setLoading] = useState(false);
@@ -362,9 +364,12 @@ function GraphBanner({ sources }: { sources: Source[] }) {
     const buildGraph = useCallback(async () => {
         setLoading(true); setError(""); setGraphData(null); setSelectedNode(null);
         const sourceName = "Knowledge Graph";
-        const groupId = startLogGroup("/aitools", "Building Relational Graph", sourceName);
-        addLog(`Building relational graph nodes from ${sources.length} academic sources...`, groupId);
-        addLog(`Extracting paper constraints, authors, and conceptual vertices...`, groupId);
+        const groupId = startLogGroup("/aitools", "Building Knowledge Graph", sourceName);
+        streamAITrace(
+            groupId,
+            "Build relational knowledge graph from papers",
+            `The system extracts entities from ${sources.length} papers (paper titles, author names, key concepts, geographic regions) and asks a Groq LLM to generate a graph structure with nodes (type: paper/concept/author/region) and edges (labeled relationships). The result is rendered as an interactive canvas visualization.`
+        );
         try {
             const res = await fetch("/api/graph", {
                 method: "POST",
@@ -373,22 +378,21 @@ function GraphBanner({ sources }: { sources: Source[] }) {
             });
             const data = await res.json();
             if (data.error) throw new Error(data.error);
-            addLog(`Graph constructed: ${data.nodes?.length} nodes mapped across ${data.edges?.length} edges.`, groupId);
             setGraphData(data);
         } catch (e: unknown) {
             const errMsg = e instanceof Error ? e.message : "Failed to build knowledge graph.";
-            addLog(`Graph construction aborted: ${errMsg}`, groupId);
+            addLog(`⟩ Graph error: ${errMsg}`, groupId);
             setError(errMsg);
         } finally {
             setLoading(false);
         }
-    }, [sources, addLog, startLogGroup]);
+    }, [sources, addLog, startLogGroup, streamAITrace]);
 
     const startedRef = useRef(false);
-    useEffect(() => { 
+    useEffect(() => {
         if (!startedRef.current) {
             startedRef.current = true;
-            buildGraph(); 
+            buildGraph();
         }
     }, [buildGraph]);
 
@@ -555,7 +559,7 @@ function GraphBanner({ sources }: { sources: Source[] }) {
 // ── Contradiction Banner ───────────────────────────────────────────────────
 
 function ContradictionBanner({ sources }: { sources: Source[] }) {
-    const { addLog, startLogGroup } = useDevMode();
+    const { addLog, startLogGroup, streamAITrace } = useDevMode();
     const [inputMode, setInputMode] = useState<"custom" | "notebook">("custom");
     const [thesis, setThesis] = useState("");
     const [folders, setFolders] = useState<Folder[]>([]);
@@ -585,10 +589,13 @@ function ContradictionBanner({ sources }: { sources: Source[] }) {
         const content = getContent();
         if (!content.trim()) return;
         setLoading(true); setError(""); setResult(null);
-        const sourceName = "Contradiction Scan";
-        const groupId = startLogGroup("/aitools", "Scanning Content for Contradictions", sourceName);
-        addLog(`Analyzing user thesis (${content.length} chars) against ${sources.length} sources...`, groupId);
-        addLog(`Probing for semantic conflicts and direct claim contradictions...`, groupId);
+        const sourceName = "Contradiction Scanner";
+        const groupId = startLogGroup("/aitools", "Contradiction Check", sourceName);
+        streamAITrace(
+            groupId,
+            "Check thesis/claims for contradictions against literature",
+            `The system takes a user's thesis statement or notebook content (${content.length} chars) along with ${sources.length} academic sources and asks a Groq LLM to identify: where the user's claims align with existing research, where they directly contradict findings, what gaps exist, and what overall position the evidence supports. Mode: contradiction analysis.`
+        );
         try {
             const res = await fetch("/api/synthesis", {
                 method: "POST",
@@ -597,11 +604,10 @@ function ContradictionBanner({ sources }: { sources: Source[] }) {
             });
             const data = await res.json();
             if (data.error) throw new Error(data.error);
-            addLog(`Contradiction analysis complete. Resolved claims.`, groupId);
             setResult(data);
         } catch (e: unknown) {
             const errMsg = e instanceof Error ? e.message : "Failed to analyze.";
-            addLog(`Contradiction scan failed: ${errMsg}`, groupId);
+            addLog(`⟩ Contradiction scan error: ${errMsg}`, groupId);
             setError(errMsg);
         } finally {
             setLoading(false);
@@ -1029,7 +1035,7 @@ export default function AIToolsPage() {
                         {showSelector ? "Hide Library" : "Select Articles"}
                     </button>
                 </div>
-                
+
                 {/* Tool buttons */}
                 <div className="flex gap-4 flex-wrap mb-8">
                     {TOOL_BUTTONS.map((tool) => (

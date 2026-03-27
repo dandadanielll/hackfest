@@ -396,14 +396,14 @@ function ContextSelector({
               <button onClick={clearResources} className="text-[10px] font-black uppercase tracking-widest text-stone-400 hover:text-[#521118]">Clear</button>
             </div>
           </div>
-          <div className="p-3 flex flex-wrap gap-2">
+          <div className="p-3 flex flex-col gap-2">
             {location.resources.map((r, i) => {
               const active = selectedResources.includes(r);
               return (
                 <button
                   key={i}
                   onClick={() => toggleResource(r)}
-                  className={`flex items-center gap-3 px-4 py-2.5 rounded-2xl border text-[11px] font-black uppercase tracking-widest transition-all duration-300 active:scale-95 group
+                  className={`flex items-center gap-4 w-full text-left px-5 py-3 rounded-2xl border text-[11px] font-black uppercase tracking-widest transition-all duration-300 active:scale-95 group
                     ${active
                       ? "bg-[#521118] border-[#521118] text-[#e8e4df] shadow-md shadow-[#521118]/15"
                       : "bg-white border-[#2b090d]/5 text-stone-700 hover:border-[#521118]/30 hover:bg-[#521118]/5"
@@ -509,8 +509,8 @@ export default function GenerateResearchModal({
           resources: ctx.resources,
         };
         setLocation(enrichedLoc);
-        setSelectedProblems([...ctx.problems]);
-        setSelectedResources([...ctx.resources]);
+        setSelectedProblems([]);
+        setSelectedResources([]);
         setStep(2);
       } catch {
         setContextError("Failed to generate local context. Please try again.");

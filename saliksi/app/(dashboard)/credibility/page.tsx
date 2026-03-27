@@ -220,7 +220,7 @@ function DimensionRow({ dim, index }: { dim: Dimension; index: number }) {
 
 export default function CredibilityPage() {
   const { folders, saveArticle } = useLibrary();
-  const { addLog, startLogGroup } = useDevMode();
+  const { addLog, startLogGroup, streamAITrace } = useDevMode();
   const [mode, setMode] = useState<InputMode>('link');
   const [urlOrDoi, setUrlOrDoi] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -251,15 +251,15 @@ export default function CredibilityPage() {
     setResult(null);
     setAddedToLibrary(false);
 
-    const source = "Credibility Score";
-    const runTitle = payload.doi ? `Scoring DOI: ${payload.doi}` : payload.url ? `Scoring Link: ${payload.url}` : `Scoring Text Content`;
+    const source = "Credibility Engine";
+    const runTitle = payload.doi ? `Evaluating DOI: ${payload.doi}` : payload.url ? `Evaluating Link: ${payload.url}` : `Evaluating Text Content`;
     const groupId = startLogGroup("/credibility", runTitle, source);
     
-    addLog(`Initiating credibility analysis logic...`, groupId);
-    if (payload.doi) addLog(`Target DOI: ${payload.doi}`, groupId);
-    if (payload.url) addLog(`Target URL: ${payload.url}`, groupId);
-    if (payload.text) addLog(`Target text payload loaded (${payload.text.length} chars)`, groupId);
-    addLog("Cross-referencing CHED, PHILJOL, and Scopus databases...", groupId);
+    streamAITrace(
+      groupId,
+      "Credibility analysis of academic source",
+      `The system evaluates credibility across 3 dimensions: Peer Review Status, Accreditation (CHED/PHILJOL/Scopus), and Publisher Credibility. Input type: ${payload.doi ? 'DOI: ' + payload.doi : payload.url ? 'URL: ' + payload.url : 'Text (' + (payload.text?.length || 0) + ' chars)'}. It uses Groq LLM with a detailed system prompt that includes grading rubric (A-F scale), cross-references against CHED whitelist, PHILJOL index, Scopus publisher lists, and checks for predatory journal indicators. Response is strict JSON with grade, verdict, dimensional scores, and recommendation.`
+    );
 
     try {
       const res = await fetch("/api/credibility", {
@@ -270,7 +270,6 @@ export default function CredibilityPage() {
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Analysis failed. Please try again.");
-      addLog(`Received grading matrix completion. Result processed: ${data.grade}`, groupId);
       setResult(data as CredibilityResult);
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : "Something went wrong.";

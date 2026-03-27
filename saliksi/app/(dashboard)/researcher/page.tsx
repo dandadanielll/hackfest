@@ -65,7 +65,7 @@ const SENSITIVE_KEYWORDS = [
 
 export default function ResearchDashboard() {
   const { saveArticle, folders } = useLibrary();
-  const { addLog, startLogGroup } = useDevMode();
+  const { addLog, startLogGroup, streamAITrace } = useDevMode();
   const [mounted, setMounted] = useState(false);
   const [query, setQuery] = useState(() => {
     if (typeof window === "undefined") return "";
@@ -190,14 +190,15 @@ export default function ResearchDashboard() {
       setHasMore(true);
     }
 
-    const source = "Search Engine";
-    const groupId = startLogGroup("/researcher", fetchPage === 1 ? `Query: "${searchQuery}"` : `Fetching page ${fetchPage} for: "${searchQuery}"`, source);
-    if (fetchPage === 1) {
-       addLog(`Initiating search routing...`, groupId);
-       addLog(local ? "Restricting to Philippine academic databases (HERDIN, PHILJOL)..." : "Searching international and local databases...", groupId);
-    } else {
-       addLog(`Retrieving next batch of results from upstream APIs...`, groupId);
-    }
+    const source = "Search Pipeline";
+    const groupId = startLogGroup("/researcher", fetchPage === 1 ? `AI Research: "${searchQuery}"` : `Page ${fetchPage}: "${searchQuery}"`, source);
+
+    // Stream real AI reasoning into the dev panel
+    streamAITrace(
+      groupId,
+      fetchPage === 1 ? "Academic paper search" : `Pagination (page ${fetchPage})`,
+      `User query: "${searchQuery}". Local sources only: ${local}. Page: ${fetchPage}. The system searches OpenAlex${local ? ' (filtered to Philippine institutions)' : ', Semantic Scholar'}, and PHILJOL. It deduplicates by DOI, scores credibility using citation count + publisher reputation + peer review, and ranks results.`
+    );
 
     try {
       const res = await fetch("/api/research", {
@@ -205,10 +206,6 @@ export default function ResearchDashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query: searchQuery, localSourcesOnly: local, page: fetchPage }), 
       });
-
-      if (fetchPage === 1) addLog("Deduplicating results by DOI and title...", groupId);
-      if (fetchPage === 1) addLog("Scoring credibility across all sources...", groupId);
-      if (fetchPage === 1) addLog(local ? "Surfacing Philippine-authored papers first..." : "Ranking global results by impact factor and credibility...", groupId);
 
       const data = await res.json();
       if (data.articles) {
@@ -218,17 +215,13 @@ export default function ResearchDashboard() {
         setArticles(newArticles);
         if (fetchPage === 1) setPage(1); 
         
-        addLog(fetchPage === 1 ? `Returned ${data.articles.length} verified results.` : `Appended ${data.articles.length} additional results.`, groupId);
-        if (fetchPage === 1) addLog("Ready for review.", groupId);
-        
         saveSession({ query: searchQuery, resultsMode: true, localOnly: local, articles: newArticles, page: fetchPage, hasMore: hasNext, domainFilter: "all" });
       } else {
-        if (fetchPage === 1) addLog("No results found. Try a different query.", groupId);
         setHasMore(false);
       }
     } catch (err) {
       console.error(err);
-      addLog("Network error. Please try again.", groupId);
+      addLog("⟩ Network error. Please try again.", groupId);
     } finally {
       if (fetchPage === 1) {
         setTimeout(() => { setIsSearching(false); }, 1500);
@@ -236,7 +229,7 @@ export default function ResearchDashboard() {
         setLoadingMore(false);
       }
     }
-  }, [addLog, saveSession, startLogGroup]);
+  }, [addLog, saveSession, startLogGroup, streamAITrace]);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -292,8 +285,15 @@ export default function ResearchDashboard() {
     }));
 
     if (!current?.laymanDesc && article.abstract) {
-      const groupId = startLogGroup('/researcher', `Generating Layman Summary: ${article.title.substring(0, 30)}...`, 'AI Summarizer');
-      addLog('Extracting academic abstract and sending to LLM for simplification...', groupId);
+      const groupId = startLogGroup('/researcher', `Layman Summary: ${article.title.substring(0, 30)}...`, 'AI Summarizer');
+      
+      // Stream real AI reasoning
+      streamAITrace(
+        groupId,
+        "Simplify academic abstract to layman terms",
+        `The system sends the abstract of "${article.title}" to a Groq LLM (llama-3.3-70b) with a system prompt asking it to write a 2-3 sentence plain language summary for college students with no background. Temperature 0.3, max 200 tokens.`
+      );
+
       try {
         const res = await fetch("/api/layman", {
           method: "POST",
@@ -301,13 +301,12 @@ export default function ResearchDashboard() {
           body: JSON.stringify({ title: article.title, abstract: article.abstract }),
         });
         const data = await res.json();
-        addLog('Successfully simplified abstract to layman terms.', groupId);
         setExpandedCards((prev) => ({
           ...prev,
           [id]: { ...prev[id], laymanDesc: data.description || "Could not generate description.", loadingLayman: false },
         }));
       } catch {
-        addLog('Failed to generate layman description.', groupId);
+        addLog('⟩ Failed to generate layman description.', groupId);
         setExpandedCards((prev) => ({
           ...prev,
           [id]: { ...prev[id], laymanDesc: "Could not generate description.", loadingLayman: false },
@@ -323,8 +322,13 @@ export default function ResearchDashboard() {
     const format = expandedCards[id]?.citationFormat || "APA";
     setExpandedCards((prev) => ({ ...prev, [id]: { ...prev[id], loadingCitation: true, generatedCitation: "" } }));
     
-    const groupId = startLogGroup('/researcher', `Formatting Citation: ${article.title.substring(0, 30)}...`, 'Citation Generator');
-    addLog(`Generating ${format} citation for article...`, groupId);
+    const groupId = startLogGroup('/researcher', `Citation: ${article.title.substring(0, 30)}...`, 'Citation Engine');
+    
+    streamAITrace(
+      groupId,
+      `Generate ${format} citation`,
+      `The system first resolves metadata via CrossRef (if DOI present: ${article.doi || 'none'}) or Semantic Scholar, then HTML meta-tag scraping. It formats the resolved metadata into ${format} style using a Groq LLM with a strict JSON output schema. Article: "${article.title}" by ${article.authors}, ${article.year}.`
+    );
 
     try {
       const res = await fetch("/api/citation", {
@@ -339,7 +343,6 @@ export default function ResearchDashboard() {
       });
       const data = await res.json();
       const citation = format === "APA" ? data.apa : format === "MLA" ? data.mla : data.chicago;
-      addLog(`Citation compilation successful.`, groupId);
       setExpandedCards((prev) => ({
         ...prev,
         [id]: { ...prev[id], generatedCitation: citation || "Could not generate citation.", loadingCitation: false },
