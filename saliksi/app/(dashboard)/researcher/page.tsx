@@ -49,6 +49,20 @@ function saveSession(data: object) {
 }
 
 
+const SENSITIVE_KEYWORDS = [
+  // Self-harm & Suicide
+  "suicide", "suicidal", "kill myself", "end my life", "want to die", 
+  "self harm", "cutting myself", "overdose", "slit my wrists",
+  // Mental Health Crises
+  "depressed", "depression", "severe anxiety", "panic attack", 
+  "schizophrenia", "eating disorder", "anorexia", "bulimia",
+  // Abuse & Violence
+  "domestic abuse", "domestic violence", "battered", "abusive relationship", 
+  "child abuse", "physical abuse", "emotional abuse", "spouse abuse",
+  // Sexual Assault & Harassment
+  "rape", "raped", "sexual assault", "molestation", "molested", "incest", "sexual abuse"
+];
+
 export default function ResearchDashboard() {
   const { saveArticle, folders } = useLibrary();
   const { addLog, startLogGroup } = useDevMode();
@@ -104,6 +118,13 @@ export default function ResearchDashboard() {
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>("credibility");
   const [filterBy, setFilterBy] = useState<FilterOption>("all");
+  const [domainFilter, setDomainFilter] = useState<string>(() => {
+    if (typeof window === "undefined") return "all";
+    try {
+      const raw = sessionStorage.getItem("dunong_search");
+      return raw ? JSON.parse(raw).domainFilter || "all" : "all";
+    } catch { return "all"; }
+  });
 
   const [inputFocused, setInputFocused] = useState(false);
   const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
@@ -200,7 +221,7 @@ export default function ResearchDashboard() {
         addLog(fetchPage === 1 ? `Returned ${data.articles.length} verified results.` : `Appended ${data.articles.length} additional results.`, groupId);
         if (fetchPage === 1) addLog("Ready for review.", groupId);
         
-        saveSession({ query: searchQuery, resultsMode: true, localOnly: local, articles: newArticles, page: fetchPage, hasMore: hasNext });
+        saveSession({ query: searchQuery, resultsMode: true, localOnly: local, articles: newArticles, page: fetchPage, hasMore: hasNext, domainFilter: "all" });
       } else {
         if (fetchPage === 1) addLog("No results found. Try a different query.", groupId);
         setHasMore(false);
@@ -244,6 +265,7 @@ export default function ResearchDashboard() {
     setExpandedCards({});
     setFilterBy("all");
     setSortBy("credibility");
+    setDomainFilter("all");
     sessionStorage.removeItem("dunong_search");
   };
 
@@ -373,11 +395,23 @@ export default function ResearchDashboard() {
     setBookmarkPopupArticle(null);
   };
 
+  const isSensitive = SENSITIVE_KEYWORDS.some(k => query.toLowerCase().includes(k));
+
   const displayedArticles = [...articles]
     .filter((a) => {
       if (filterBy === "local") return a.localSource;
       if (filterBy === "open_access") return a.openAccess;
       return true;
+    })
+    .filter((a) => {
+      if (domainFilter === "all") return true;
+      if (!a.url) return false;
+      try {
+        const urlObj = new URL(a.url.startsWith('http') ? a.url : `https://${a.url}`);
+        return urlObj.hostname.endsWith(domainFilter) || urlObj.hostname.includes(domainFilter + ".");
+      } catch {
+        return a.url.toLowerCase().includes(domainFilter);
+      }
     })
     .sort((a, b) => {
       if (sortBy === "credibility") return b.credibility - a.credibility;
@@ -677,6 +711,36 @@ export default function ResearchDashboard() {
                             {filterBy === opt.value && <span className="w-2 h-2 rounded-full bg-[#521118]" />}
                           </button>
                         ))}
+                        <div className="px-3 py-2 border-t border-[#2b090d]/10 mt-1">
+                          <p className="text-xs font-bold text-[#521118]/60 uppercase tracking-wider">Domain</p>
+                        </div>
+                        {[
+                          { value: "all", label: "All domains" },
+                          { value: ".gov", label: "Government (.gov)" },
+                          { value: ".edu", label: "Education (.edu)" },
+                          { value: ".com", label: "Commercial (.com)" },
+                          { value: ".org", label: "Non-profit (.org)" },
+                        ].map((opt) => (
+                          <button
+                            key={opt.value}
+                            onClick={() => { 
+                              setDomainFilter(opt.value); 
+                              setShowFilterMenu(false); 
+                              try {
+                                const raw = sessionStorage.getItem("dunong_search");
+                                if (raw) {
+                                  const data = JSON.parse(raw);
+                                  data.domainFilter = opt.value;
+                                  sessionStorage.setItem("dunong_search", JSON.stringify(data));
+                                }
+                              } catch {}
+                            }}
+                            className={`w-full text-left px-4 py-2.5 text-sm transition flex items-center justify-between ${domainFilter === opt.value ? "bg-[#521118]/10 font-semibold text-[#2b090d]" : "text-[#2b090d]/70 hover:bg-[#521118]/10"}`}
+                          >
+                            {opt.label}
+                            {domainFilter === opt.value && <span className="w-2 h-2 rounded-full bg-[#521118]" />}
+                          </button>
+                        ))}
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -694,6 +758,20 @@ export default function ResearchDashboard() {
               animate={{ opacity: 1, y: 0 }}
               className="max-w-4xl mx-auto w-full pb-20"
             >
+              {isSensitive && (
+                <div className="mb-6 mt-4 bg-rose-50 border border-rose-200 rounded-2xl p-5 flex items-start gap-4 shadow-sm text-left">
+                  <div className="p-2 bg-rose-100 rounded-lg text-rose-700 mt-0.5">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                  </div>
+                  <div>
+                    <h3 className="text-rose-900 font-bold text-base mb-1 tracking-tight">Help is available. You are not alone.</h3>
+                    <p className="text-rose-800 text-sm leading-relaxed max-w-2xl">
+                      If you or someone you know is going through a tough time, please reach out for help. Connect with the National Center for Mental Health (NCMH) Crisis Hotline at <strong className="font-bold">1553</strong> (Luzon-wide landline toll-free) or <strong className="font-bold">0917-899-USAP (8727)</strong>.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <div className="flex items-end justify-between mb-8 mt-6 border-b border-[#2b090d]/10 pb-4">
                 <h2 className="text-3xl font-black font-serif text-[#2b090d] flex items-center gap-4 flex-wrap">
                   Top Results
@@ -703,7 +781,12 @@ export default function ResearchDashboard() {
                         {filterBy === "local" ? "Local only" : "Open access only"}
                       </span>
                     )}
-                    {localOnly && filterBy === "all" && (
+                    {domainFilter !== "all" && (
+                      <span className="text-xs font-bold text-[#2e1065] bg-[#2e1065]/5 border border-[#2e1065]/20 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                        {domainFilter} only
+                      </span>
+                    )}
+                    {localOnly && filterBy === "all" && domainFilter === "all" && (
                       <span className="text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full uppercase tracking-wider">
                         PH sources
                       </span>
