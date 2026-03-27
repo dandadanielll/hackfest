@@ -773,7 +773,7 @@ export default function LibraryPage() {
       className="min-h-screen w-full pb-24 relative flex flex-col items-center font-sans bg-[#e8e4df]/30 overflow-x-hidden"
     >
 
-      <div className="max-w-7xl w-full px-8 pt-16 relative">
+      <div className="max-w-7xl w-full px-4 md:px-8 pt-16 relative">
         {/* Modals */}
         {showNewFolderModal && (
           <NewFolderModal
@@ -862,7 +862,7 @@ export default function LibraryPage() {
           </div>
         </div>
 
-        <div className="flex gap-6 min-h-[70vh]">
+        <div className="flex flex-col lg:flex-row gap-6 min-h-[70vh]">
           {/* ── Left Panel: Folder List ── */}
           <motion.div
             initial="hidden"
@@ -874,7 +874,7 @@ export default function LibraryPage() {
                 transition: { staggerChildren: 0.05 }
               }
             }}
-            className="w-64 shrink-0 flex flex-col gap-1.5"
+            className="w-full lg:w-64 shrink-0 flex flex-col gap-1.5"
           >
             {folders.length === 0 && (
               <div className="text-center py-16 px-6 bg-[#521118]/5 rounded-3xl border border-[#2b090d]/5">
@@ -1000,7 +1000,7 @@ export default function LibraryPage() {
               className="flex-1 bg-white/40 backdrop-blur-xl border border-[#2b090d]/10 rounded-3xl p-10 shadow-sm flex flex-col gap-10 min-h-[400px]"
             >
               {/* Panel header */}
-              <div className="flex items-center justify-between pb-6 border-b border-[#2b090d]/10">
+              <div className="flex flex-col sm:flex-row sm:items-center items-start gap-4 sm:gap-0 justify-between pb-6 border-b border-[#2b090d]/10">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 bg-[#521118]/10 rounded-2xl flex items-center justify-center text-[#521118]">
                     <FolderOpen size={24} />

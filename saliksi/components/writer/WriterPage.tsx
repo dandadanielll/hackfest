@@ -114,12 +114,12 @@ function WriterPageInner() {
       initial={{ opacity: 0, y: 30 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, ease: "easeOut" }}
-      className="flex h-full bg-transparent overflow-hidden relative font-sans"
+      className="flex flex-col md:flex-row h-full bg-transparent overflow-y-auto md:overflow-hidden relative font-sans"
     >
 
 
       {/* Sidebar */}
-      <aside className="w-[300px] min-w-[300px] flex flex-col bg-white/50 backdrop-blur-sm border-r border-[#2b090d]/10 overflow-hidden">
+      <aside className="w-full md:w-[300px] md:min-w-[300px] flex flex-col bg-white/50 backdrop-blur-sm border-b md:border-b-0 md:border-r border-[#2b090d]/10 md:overflow-hidden grow shrink-0">
         <div className="px-6 pt-8 pb-4 shrink-0 flex items-center justify-between">
           <div>
             <h2 className="font-black text-[#2b090d] text-lg mb-0.5 font-serif uppercase tracking-tight">
@@ -242,7 +242,7 @@ function WriterPageInner() {
       </aside>
 
       {/* Main Area */}
-      <main className="flex-1 overflow-auto p-12 custom-scrollbar">
+      <main className="hidden md:block flex-1 overflow-auto p-12 custom-scrollbar">
         <div className="mb-12 flex items-center gap-5">
           <div className="bg-[#521118]/10 text-[#521118] border border-[#521118]/10 p-4 rounded-3xl shadow-sm shrink-0">
             <FileText size={32} />
