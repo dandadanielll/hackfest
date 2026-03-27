@@ -18,14 +18,11 @@ type Message = {
   content: string;
 };
 
-/* ────────────────────────────────────────────
-   Panelist config – each maps to a region of
-   the pixel.jpg sprite-sheet (3 chars in a row)
-   ──────────────────────────────────────────── */
+/* ── Panelist config with individual sprite PNGs ── */
 const PANELISTS: Record<PanelistId, {
   name: string; role: string; title: string;
   color: string; textColor: string;
-  spriteX: string;          // object-position X
+  sprite: string;
 }> = {
   statistician: {
     name: "Dr. Cruz",
@@ -33,7 +30,7 @@ const PANELISTS: Record<PanelistId, {
     title: "LV 42  DATA BOSS",
     color: "bg-sky-500",
     textColor: "text-sky-600",
-    spriteX: "0%",           // leftmost character
+    sprite: "/prof2.png",
   },
   grammarian: {
     name: "Prof. Garcia",
@@ -41,7 +38,7 @@ const PANELISTS: Record<PanelistId, {
     title: "LV 38  SYNTAX LORD",
     color: "bg-rose-700",
     textColor: "text-rose-700",
-    spriteX: "50%",          // center character
+    sprite: "/prof.png",
   },
   methodologist: {
     name: "Dr. Santos",
@@ -49,7 +46,7 @@ const PANELISTS: Record<PanelistId, {
     title: "LV 45  METHOD QUEEN",
     color: "bg-emerald-600",
     textColor: "text-emerald-600",
-    spriteX: "100%",         // rightmost character
+    sprite: "/nurse.png",
   },
 };
 
@@ -132,6 +129,8 @@ export default function DefendersPage() {
     } catch { } finally { setIsTyping(false); }
   };
 
+  const [showWeaponModal, setShowWeaponModal] = useState(false);
+
   const startGame = () => {
     let text = pdfText;
     if (!text && selectedNotebook.folderId && selectedNotebook.notebookId) {
@@ -140,6 +139,7 @@ export default function DefendersPage() {
       if (nb?.content) { text = nb.content.replace(/<[^>]+>/g, " "); setPdfText(text); }
     }
     if (!text) return;
+    setShowWeaponModal(false);
     setGameState("playing"); setSizzle(0); setQuestionCount(0);
     setMessages([{ id: "sys", role: "system", content: "A wild PANELIST appeared!" }]);
     askNextQuestion(text);
@@ -153,100 +153,106 @@ export default function DefendersPage() {
   return (
     <main className="min-h-screen w-full bg-[#f8f0e3] flex flex-col items-center font-mono select-none overflow-x-hidden">
 
-      {/* ── SETUP SCREEN ── */}
+      {/* ── TITLE SCREEN ── */}
       {gameState === "setup" && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full max-w-3xl p-6 md:p-10 flex flex-col items-center gap-10 mt-12">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full max-w-3xl p-6 md:p-10 flex flex-col items-center justify-center gap-10 min-h-[calc(100vh-4rem)]">
 
           {/* Title */}
-          <div className="text-center space-y-4">
-            <h1 className="text-5xl md:text-7xl font-black text-[#521118] uppercase leading-none tracking-tighter" style={{ textShadow: "4px 4px 0 #2b090d" }}>
+          <div className="text-center space-y-6">
+            <h1 className="text-8xl md:text-[10rem] font-black text-[#521118] uppercase leading-[0.85] tracking-tighter" style={{ textShadow: "6px 6px 0 #2b090d" }}>
               Thesis<br />Defenders
             </h1>
-            <span className="inline-block bg-[#2b090d] text-[#f8f0e3] px-4 py-1 text-sm font-black uppercase tracking-widest">Gisado Edition</span>
+            <span className="inline-block bg-[#2b090d] text-[#f8f0e3] px-6 py-2 text-base font-black uppercase tracking-widest">Gisado Edition</span>
           </div>
 
-          {/* 3 Pixelated Characters Preview */}
-          <div className="relative w-full max-w-md aspect-[3/2] rounded-lg overflow-hidden border-[6px] border-[#2b090d] shadow-[8px_8px_0_#2b090d] bg-[#f8f0e3]">
-            <div className="absolute inset-0 flex items-end justify-center pb-2">
-              {(["statistician", "grammarian", "methodologist"] as PanelistId[]).map((id, i) => (
-                <motion.div
-                  key={id}
-                  animate={{ y: [0, -6, 0] }}
-                  transition={{ repeat: Infinity, duration: 1.2, delay: i * 0.3, ease: "easeInOut" }}
-                  className="w-1/3 flex flex-col items-center"
-                >
-                  <div className="w-28 h-28 md:w-36 md:h-36 relative overflow-hidden" style={{ imageRendering: "pixelated" }}>
-                    <img
-                      src="/pixel.jpg"
-                      alt={PANELISTS[id].name}
-                      className="absolute h-full"
-                      style={{
-                        width: "300%",
-                        left: id === "statistician" ? "4%" : id === "grammarian" ? "-96%" : "-196%",
-                        objectFit: "cover",
-                        imageRendering: "pixelated",
-                      }}
-                    />
-                  </div>
-                  <p className="text-[10px] font-black text-[#2b090d] uppercase tracking-wider mt-1">{PANELISTS[id].name}</p>
-                </motion.div>
-              ))}
-            </div>
-          </div>
 
-          {/* Setup Form */}
-          <div className="w-full bg-white border-[4px] border-[#2b090d] shadow-[8px_8px_0_#2b090d] p-8 space-y-6">
-            <p className="text-xs font-black text-[#2b090d]/40 uppercase tracking-widest">Choose your weapon (paper)</p>
-
-            <select
-              className="w-full bg-[#f8f0e3] border-[3px] border-[#2b090d] p-4 text-sm font-black text-[#2b090d] outline-none"
-              onChange={(e) => {
-                const v = e.target.value; if (!v) { setSelectedNotebook({ folderId: "", notebookId: "" }); return; }
-                const [fId, nId] = v.split("|"); setSelectedNotebook({ folderId: fId, notebookId: nId }); setPdfName("");
-              }}
-            >
-              <option value="">[ SELECT NOTEBOOK ]</option>
-              {folders.map(f => (<optgroup key={f.id} label={`📂 ${f.name}`}>{f.notebooks?.map(nb => (<option key={nb.id} value={`${f.id}|${nb.id}`}>⚡ {nb.name}</option>))}</optgroup>))}
-            </select>
-
-            <div className="flex items-center gap-4 opacity-30"><div className="h-px bg-black flex-1" /><span className="text-xs font-black">OR</span><div className="h-px bg-black flex-1" /></div>
-
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className={`w-full border-[3px] p-6 flex items-center gap-4 transition-all ${pdfName ? "border-emerald-600 bg-emerald-50 shadow-[4px_4px_0_#059669]" : "border-[#2b090d] bg-white shadow-[4px_4px_0_#2b090d] hover:bg-[#521118]/5 active:translate-x-1 active:translate-y-1 active:shadow-none"}`}
-            >
-              <input type="file" ref={fileInputRef} hidden accept="application/pdf" onChange={handleFileUpload} />
-              <Upload size={28} className={pdfName ? "text-emerald-600" : "text-[#521118]"} />
-              <div className="text-left">
-                <p className="text-sm font-black uppercase">{isExtracting ? "READING PDF…" : pdfName || "UPLOAD PDF FILE"}</p>
-                <p className="text-[10px] text-[#2b090d]/40 font-bold uppercase">Max 10 MB</p>
-              </div>
-            </button>
-          </div>
-
-          <button
-            onClick={startGame}
-            disabled={!pdfText && !selectedNotebook.notebookId}
-            className="group w-full bg-[#521118] text-white border-[4px] border-[#2b090d] shadow-[8px_8px_0_#2b090d] p-6 font-black text-2xl uppercase flex items-center justify-center gap-4 hover:bg-[#6b1a23] active:translate-x-2 active:translate-y-2 active:shadow-none transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          {/* START GAME button */}
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.97, y: 4 }}
+            onClick={() => setShowWeaponModal(true)}
+            className="w-full max-w-md bg-[#521118] text-white border-[4px] border-[#2b090d] shadow-[8px_8px_0_#2b090d] p-6 font-black text-3xl uppercase flex items-center justify-center gap-4 hover:bg-[#6b1a23] active:shadow-none transition-all"
           >
-            <Play size={32} fill="white" /> Start Battle
-          </button>
+            <Play size={32} fill="white" /> Start Game
+          </motion.button>
+
+          <p className="text-[10px] font-black text-[#2b090d]/30 uppercase tracking-widest">Press to begin your defense</p>
         </motion.div>
       )}
 
+      {/* ── WEAPON SELECTION MODAL ── */}
+      <AnimatePresence>
+        {showWeaponModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowWeaponModal(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 30 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 30 }}
+              className="relative bg-[#f8f0e3] border-[6px] border-[#2b090d] shadow-[12px_12px_0_#2b090d] w-full max-w-lg p-10 space-y-6"
+            >
+              <h2 className="text-2xl font-black text-[#2b090d] uppercase text-center tracking-tight" style={{ textShadow: "2px 2px 0 rgba(43,9,13,0.15)" }}>Choose Your Weapon</h2>
+              <p className="text-[10px] font-black text-[#2b090d]/40 uppercase tracking-widest text-center">Select a paper to defend</p>
+
+              <select
+                className="w-full bg-white border-[3px] border-[#2b090d] p-4 text-sm font-black text-[#2b090d] outline-none"
+                onChange={(e) => {
+                  const v = e.target.value; if (!v) { setSelectedNotebook({ folderId: "", notebookId: "" }); return; }
+                  const [fId, nId] = v.split("|"); setSelectedNotebook({ folderId: fId, notebookId: nId }); setPdfName(""); setPdfText("");
+                }}
+              >
+                <option value="">[ SELECT NOTEBOOK ]</option>
+                {folders.map(f => (<optgroup key={f.id} label={`📂 ${f.name}`}>{f.notebooks?.map(nb => (<option key={nb.id} value={`${f.id}|${nb.id}`}>⚡ {nb.name}</option>))}</optgroup>))}
+              </select>
+
+              <div className="flex items-center gap-4 opacity-30"><div className="h-px bg-black flex-1" /><span className="text-xs font-black">OR</span><div className="h-px bg-black flex-1" /></div>
+
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className={`w-full border-[3px] p-5 flex items-center gap-4 transition-all ${pdfName ? "border-emerald-600 bg-emerald-50 shadow-[4px_4px_0_#059669]" : "border-[#2b090d] bg-white shadow-[4px_4px_0_#2b090d] hover:bg-[#521118]/5 active:translate-x-1 active:translate-y-1 active:shadow-none"}`}
+              >
+                <input type="file" ref={fileInputRef} hidden accept="application/pdf" onChange={handleFileUpload} />
+                <Upload size={24} className={pdfName ? "text-emerald-600" : "text-[#521118]"} />
+                <div className="text-left">
+                  <p className="text-sm font-black uppercase">{isExtracting ? "READING PDF…" : pdfName || "UPLOAD PDF FILE"}</p>
+                  <p className="text-[10px] text-[#2b090d]/40 font-bold uppercase">Max 10 MB</p>
+                </div>
+              </button>
+
+              <button
+                onClick={startGame}
+                disabled={!pdfText && !selectedNotebook.notebookId}
+                className="w-full bg-emerald-500 text-white border-[4px] border-[#2b090d] shadow-[6px_6px_0_#2b090d] p-5 font-black text-xl uppercase flex items-center justify-center gap-3 hover:bg-emerald-400 active:translate-x-1 active:translate-y-1 active:shadow-none transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <Zap size={24} /> Start Battle
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* ── BATTLE SCREEN (Pokémon-style) ── */}
       {gameState !== "setup" && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full max-w-4xl flex flex-col h-screen">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full flex flex-col h-screen">
 
           {/* ── Top: Battle Scene ── */}
-          <div className="relative w-full h-[340px] md:h-[380px] bg-gradient-to-b from-[#c8dbbe] to-[#a8c090] border-b-[6px] border-[#2b090d] overflow-hidden shrink-0">
-            {/* Ground lines */}
-            <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-[#e8dcc8] to-transparent" />
-            <svg className="absolute bottom-0 w-full" viewBox="0 0 800 40" preserveAspectRatio="none"><ellipse cx="600" cy="35" rx="160" ry="12" fill="#c4b89a" /><ellipse cx="180" cy="30" rx="140" ry="10" fill="#d4c8a8" /></svg>
+          <div className="relative w-full h-[320px] md:h-[360px] bg-gradient-to-b from-[#c8dbbe] via-[#b8cfa8] to-[#a8c090] border-b-[6px] border-[#2b090d] overflow-hidden shrink-0">
+            {/* Ground */}
+            <div className="absolute bottom-0 left-0 right-0 h-28 bg-gradient-to-t from-[#e8dcc8] to-transparent" />
+            <svg className="absolute bottom-0 w-full" viewBox="0 0 1200 50" preserveAspectRatio="none">
+              <ellipse cx="900" cy="42" rx="200" ry="16" fill="#c4b89a" />
+              <ellipse cx="250" cy="38" rx="180" ry="14" fill="#d4c8a8" />
+            </svg>
 
-            {/* ── Enemy (top-right) ── */}
-            <div className="absolute top-6 right-6 md:right-12 flex flex-col items-end z-10">
-              <div className="bg-[#f8f0e3] border-[3px] border-[#2b090d] shadow-[4px_4px_0_#2b090d] px-5 py-3 mb-3 min-w-[220px]">
+            {/* ── Enemy HUD (top-left) ── */}
+            <div className="absolute top-6 left-6 md:left-10 z-10">
+              <div className="bg-[#f8f0e3] border-[3px] border-[#2b090d] shadow-[4px_4px_0_#2b090d] px-5 py-3 min-w-[240px]">
                 <div className="flex justify-between items-baseline">
                   <span className="font-black text-sm text-[#2b090d] uppercase">{PANELISTS[activePanelist].name}</span>
                   <span className="text-[10px] font-black text-[#2b090d]/40">{PANELISTS[activePanelist].title}</span>
@@ -260,28 +266,22 @@ export default function DefendersPage() {
               </div>
             </div>
 
-            {/* Enemy sprite (top-right) */}
+            {/* Player sprite (top-right) */}
             <motion.div
-              animate={{ y: [0, -8, 0] }}
-              transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
-              className="absolute top-20 right-16 md:right-28 w-32 h-32 md:w-44 md:h-44 overflow-hidden"
-              style={{ imageRendering: "pixelated" }}
+              animate={{ y: [0, -6, 0] }}
+              transition={{ repeat: Infinity, duration: 1.4, delay: 0.2, ease: "easeInOut" }}
+              className="absolute top-10 right-[10%] md:right-[15%] w-40 h-40 md:w-52 md:h-52"
             >
               <img
-                src="/pixel.jpg"
-                alt={PANELISTS[activePanelist].name}
-                className="absolute h-full"
-                style={{
-                  width: "300%",
-                  left: activePanelist === "statistician" ? "4%" : activePanelist === "grammarian" ? "-96%" : "-196%",
-                  objectFit: "cover",
-                  imageRendering: "pixelated",
-                }}
+                src="/user.png"
+                alt="You (Defender)"
+                className="w-full h-full object-contain drop-shadow-lg"
+                style={{ imageRendering: "pixelated" }}
               />
             </motion.div>
 
-            {/* ── Your stats (bottom-left) ── */}
-            <div className="absolute bottom-6 left-6 md:left-12 z-10">
+            {/* ── Your HUD (bottom-right) ── */}
+            <div className="absolute bottom-6 right-6 md:right-10 z-10">
               <div className="bg-[#f8f0e3] border-[3px] border-[#2b090d] shadow-[4px_4px_0_#2b090d] px-5 py-3 min-w-[240px]">
                 <div className="flex justify-between items-baseline">
                   <span className="font-black text-sm text-[#2b090d] uppercase">You (Defender)</span>
@@ -300,10 +300,19 @@ export default function DefendersPage() {
               </div>
             </div>
 
-            {/* Player sprite placeholder (bottom-left, back view) */}
-            <div className="absolute bottom-8 left-4 md:left-8 w-28 h-28 md:w-36 md:h-36 flex items-center justify-center opacity-60">
-              <div className="w-20 h-20 bg-[#2b090d]/20 rounded-full flex items-center justify-center text-3xl">🎓</div>
-            </div>
+            {/* Enemy sprite (bottom-left) */}
+            <motion.div
+              animate={{ y: [0, -10, 0] }}
+              transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
+              className="absolute bottom-4 left-[8%] md:left-[12%] w-36 h-36 md:w-48 md:h-48"
+            >
+              <img
+                src={PANELISTS[activePanelist].sprite}
+                alt={PANELISTS[activePanelist].name}
+                className="w-full h-full object-contain drop-shadow-lg"
+                style={{ imageRendering: "pixelated" }}
+              />
+            </motion.div>
 
             {/* Round indicator */}
             <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-[#2b090d] text-[#f8f0e3] px-4 py-1 text-[10px] font-black uppercase tracking-widest">
@@ -328,17 +337,12 @@ export default function DefendersPage() {
                   ) : msg.role === "panelist" ? (
                     <div className="bg-white border-[3px] border-[#2b090d] shadow-[4px_4px_0_#2b090d] p-5 relative">
                       <div className="flex items-center gap-3 mb-2">
-                        <div className="w-8 h-8 overflow-hidden border-2 border-[#2b090d] bg-[#f8f0e3]" style={{ imageRendering: "pixelated" }}>
+                        <div className="w-10 h-10 overflow-hidden border-2 border-[#2b090d] bg-[#f8f0e3] flex items-center justify-center">
                           <img
-                            src="/pixel.jpg"
+                            src={PANELISTS[msg.panelistId!].sprite}
                             alt=""
-                            className="h-full"
-                            style={{
-                              width: "300%",
-                              marginLeft: msg.panelistId === "statistician" ? "4%" : msg.panelistId === "grammarian" ? "-96%" : "-196%",
-                              objectFit: "cover",
-                              imageRendering: "pixelated",
-                            }}
+                            className="w-full h-full object-contain"
+                            style={{ imageRendering: "pixelated" }}
                           />
                         </div>
                         <span className={`text-[10px] font-black uppercase tracking-widest ${PANELISTS[msg.panelistId!].textColor}`}>
